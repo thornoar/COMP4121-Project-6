@@ -126,7 +126,10 @@ fn parse_definition<'a> (src: &'a [u8], ts: &mut TokenIter) -> Result<Definition
 fn parse_arglist<'a> (src: &'a [u8], ts: &mut TokenIter) -> Result<ArgList<Name>, Report> {
     expect!(ts, TK::OpenParen, "Expected an opening parenthesis to start the argument list.");
     match ts.peek().kind {
-        TK::CloseParen => Ok(VecDeque::new()),
+        TK::CloseParen => {
+            ts.consume();
+            Ok(VecDeque::new())
+        },
         _ => parse_many_arguments(src, ts)
     }
 }
@@ -215,107 +218,102 @@ fn parse_atomic_expr<'a> (src: &'a [u8], ts: &mut TokenIter) -> Result<Expr<Name
             Ok(Expr::Ite(Box::new(cond), Box::new(if_branch), Box::new(else_branch)))
         }
         _ => {
-            parse_infix_expr(src, ts)
+            parse_infix_expr(src, ts, 7)
         }
     }
 }
 
-fn parse_infix_expr<'a> (src: &'a [u8], ts: &mut TokenIter) -> Result<Expr<Name>, Report> {
+
+fn parse_expr_match<'a> (src: &'a [u8], ts: &mut TokenIter, acc: &mut Expr<Name>) -> Result<(), Report> {
+    parse_expr_or(src, ts, acc)?;
+    match ts.peek().kind {
+        TK::KwMatch => {
+            todo!()
+        }
+        _ => Ok(())
+    }
+}
+
+fn parse_expr_or<'a> (src: &'a [u8], ts: &mut TokenIter, acc: &mut Expr<Name>) -> Result<(), Report> {
+    parse_expr_and(src, ts, acc)?;
+    match ts.peek().kind {
+        TK::PipePipe => {
+            ts.consume();
+            let mut rhs = parse_unary_expr(src, ts)?;
+            parse_expr_and(src, ts, &mut rhs)?;
+            *acc = Expr::Or(Box::new(*acc), Box::new(rhs));
+            Ok(())
+        }
+        _ => Ok(())
+    }
+}
+
+fn parse_expr_and<'a> (src: &'a [u8], ts: &mut TokenIter, acc: &mut Expr<Name>) -> Result<(), Report> {
     todo!()
 }
 
-// fn parse_expr_match<'a> (src: &'a [u8], ts: &mut TokenIter, acc: &mut Expr<Name>) -> Result<(), Report> {
-//     parse_expr_or(src, ts, acc)?;
-//     match ts.peek().kind {
-//         TK::KwMatch => {
-//             todo!()
-//         }
-//         _ => Ok(())
-//     }
-// }
-//
-// fn parse_expr_or<'a> (src: &'a [u8], ts: &mut TokenIter, acc: &mut Expr<Name>) -> Result<(), Report> {
-//     parse_expr_and(src, ts, acc)?;
-//     match ts.peek().kind {
-//         TK::PipePipe => {
-//             ts.consume();
-//             let mut rhs = parse_unary_expr(src, ts)?;
-//             parse_expr_and(src, ts, &mut rhs)?;
-//             *acc = Expr::Or(Box::new(*acc), Box::new(rhs));
-//             Ok(())
-//         }
-//         _ => Ok(())
-//     }
-// }
-//
-// fn parse_expr_and<'a> (src: &'a [u8], ts: &mut TokenIter, acc: &mut Expr<Name>) -> Result<(), Report> {
-//     todo!()
-// }
-//
-// fn parse_expr_equals<'a> (src: &'a [u8], ts: &mut TokenIter, acc: &mut Expr<Name>) -> Result<(), Report> {
-//     todo!()
-// }
-//
-// fn parse_expr_less<'a> (src: &'a [u8], ts: &mut TokenIter, acc: &mut Expr<Name>) -> Result<(), Report> {
-//     todo!()
-// }
-//
-// fn parse_expr_add<'a> (src: &'a [u8], ts: &mut TokenIter, acc: &mut Expr<Name>) -> Result<(), Report> {
-//     todo!()
-// }
-//
-// fn parse_expr_mult<'a> (src: &'a [u8], ts: &mut TokenIter, acc: &mut Expr<Name>) -> Result<(), Report> {
-//     todo!()
-// }
+fn parse_expr_equals<'a> (src: &'a [u8], ts: &mut TokenIter, acc: &mut Expr<Name>) -> Result<(), Report> {
+    todo!()
+}
 
-// //
-// // Parses an expression which may contain infix operators at different levels of precedence.
-// //
-// // The `level` argument denotes the precedence category of infix operators that still needs to be
-// // considered.
-// // If an operator `op` has precedence category `n`, then `level < n` means that
-// // the function will stop parsing if it sees `op` in the token stream.
-// // When `level` is 0, parsing is stopped as soon as any infix operation is seen.
-// //
-// // The precedence categories are as follows:
-// // - `match` -- level 7
-// // - `||` -- level 6
-// // - `&&` -- level 5
-// // - `==` -- level 4
-// // - `<`, `<=` -- level 3
-// // - `+`, `-`, `++` -- level 2
-// // - `*`, `/`, `%`  -- level 1
-// //
-// fn parse_infix_expr<'a> (src: &'a [u8], ts: &mut TokenIter, level: u8) -> Result<Expr<Name>, Report> {
-//     if level <= 0 {
-//         return parse_unary_expr(src, ts);
-//     }
-//     let lhs = parse_infix_expr(src, ts, level - 1)?;
-//     match ts.peek().kind {
-//         TK::KwMatch if level >= 7 => {
-//             todo!()
-//         }
-//         TK::PipePipe if level >= 6 => {
-//             todo!()
-//         }
-//         TK::AndAnd if level >= 5 => {
-//             todo!()
-//         }
-//         TK::EqualEqual if level >= 4 => {
-//             todo!()
-//         }
-//         TK::Less | TK::LessEquals if level >= 3 => {
-//             todo!()
-//         }
-//         TK::Plus | TK::Minus | TK::PlusPlus if level >= 2 => {
-//             todo!()
-//         }
-//         TK::Star | TK::Slash | TK::Percent => {
-//             todo!()
-//         }
-//         _ => Ok(lhs)
-//     }
-// }
+fn parse_expr_less<'a> (src: &'a [u8], ts: &mut TokenIter, acc: &mut Expr<Name>) -> Result<(), Report> {
+    todo!()
+}
+
+fn parse_expr_add<'a> (src: &'a [u8], ts: &mut TokenIter, acc: &mut Expr<Name>) -> Result<(), Report> {
+    todo!()
+}
+
+fn parse_expr_mult<'a> (src: &'a [u8], ts: &mut TokenIter, acc: &mut Expr<Name>) -> Result<(), Report> {
+    todo!()
+}
+
+// Parses an expression which may contain infix operators at different levels of precedence.
+//
+// The `level` argument denotes the precedence category of infix operators that still needs to be
+// considered.
+// If an operator `op` has precedence category `n`, then `level < n` means that
+// the function will stop parsing if it sees `op` in the token stream.
+// When `level` is 0, parsing is stopped as soon as any infix operation is seen.
+//
+// The precedence categories are as follows:
+// - `match` -- level 7
+// - `||` -- level 6
+// - `&&` -- level 5
+// - `==` -- level 4
+// - `<`, `<=` -- level 3
+// - `+`, `-`, `++` -- level 2
+// - `*`, `/`, `%`  -- level 1
+fn parse_infix_expr<'a> (src: &'a [u8], ts: &mut TokenIter, level: u8) -> Result<Expr<Name>, Report> {
+    if level <= 0 {
+        return parse_unary_expr(src, ts);
+    }
+    let lhs = parse_infix_expr(src, ts, level - 1)?;
+    match ts.peek().kind {
+        TK::KwMatch if level >= 7 => {
+            todo!()
+        }
+        TK::PipePipe if level >= 6 => {
+            todo!()
+        }
+        TK::AndAnd if level >= 5 => {
+            todo!()
+        }
+        TK::EqualEqual if level >= 4 => {
+            todo!()
+        }
+        TK::Less | TK::LessEquals if level >= 3 => {
+            todo!()
+        }
+        TK::Plus | TK::Minus | TK::PlusPlus if level >= 2 => {
+            todo!()
+        }
+        TK::Star | TK::Slash | TK::Percent => {
+            todo!()
+        }
+        _ => Ok(lhs)
+    }
+}
 
 // Parse an expression which may contain unary operators
 fn parse_unary_expr<'a> (src: &'a [u8], ts: &mut TokenIter) -> Result<Expr<Name>, Report> {
