@@ -129,9 +129,7 @@ fn lex_token(src: &[u8], limit: usize, start: usize) -> Token {
         }
 
         b'&' if has_next && src[start+1] == b'&' => Token::new(AndAnd, span(2)),
-        b'!' => Token::new(Bang, span(1)), // [
-        b']' => Token::new(CloseBracket, span(1)), // (
-        b')' => Token::new(CloseParen, span(1)),
+        b'!' => Token::new(Bang, span(1)),
         b':' => {
             if has_next && src[start+1] == b'=' {
                 Token::new(ColonEqual, span(2))
@@ -157,17 +155,9 @@ fn lex_token(src: &[u8], limit: usize, start: usize) -> Token {
         },
         b'-' => Token::new(Minus, span(1)),
         b'[' => Token::new(OpenBracket, span(1)),
-        b'(' => {
-            let mut end = start + 1;
-            while end < limit && src[end].is_ascii_whitespace() {
-                end += 1;
-            }
-            if end < limit && src[end] == b')' {
-                Token::new(LitUnit, start .. (end + 1))
-            } else {
-                Token::new(OpenParen, span(1))
-            }
-        },
+        b'(' => Token::new(OpenParen, span(1)),
+        b')' => Token::new(CloseParen, span(1)),
+        b']' => Token::new(CloseBracket, span(1)),
         b'%' => Token::new(Percent, span(1)),
         b'|' if has_next && src[start+1] == b'|' => Token::new(PipePipe, span(2)),
         b'+' => {
@@ -192,4 +182,41 @@ pub fn is_id_start(c: u8) -> bool {
 
 pub fn is_id_continue(c: u8) -> bool {
     c.is_ascii_alphanumeric() || c == b'_'
+}
+
+#[test]
+fn test_tokeniter () {
+    println!("--- TOKENS ---");
+    let src = "
+        abstract class Char
+        case class MkChar(code: Int(32)) extends Char
+
+        abstract class CharList
+        case class CharNil() extends CharList
+        case class CharCons(h: Char, t: CharList) extends CharList
+
+        abstract class CharList2
+        case class CharNil2() extends CharList2
+        case class CharCons2(h: CharList, t: CharList2) extends CharList2
+
+        def length (lst: CharList): Int(32) :=
+        lst match {
+          case CharNil() => 0
+          case CharCons(h, t) => 1 + length(t)
+        }
+        end length,,,,,,,,,,,
+    ".as_bytes();
+    let mut ts = TokenIter::new(src, src.len());
+    loop {
+        let cur = ts.pop();
+        match cur.kind {
+            TokenKind::Eof => break,
+            tk => match str::from_utf8(&src[cur.range.start .. cur.range.end]) {
+                Ok(str) => println!("{:?} -- {:?}", tk, str),
+                _ => println!("--- Error ---")
+            }
+        }
+    }
+    println!("--- END ---");
+    // assert_eq!(0,1)
 }
