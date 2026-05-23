@@ -242,7 +242,39 @@ fn parse_atomic_expr<'a> (src: &'a [u8], ts: &mut TokenIter) -> Result<Expr<Name
             Ok(Expr::Ite(Box::new(cond), Box::new(if_branch), Box::new(else_branch), join(t1.range, eif.range)))
         }
         _ => {
-            parse_infix_expr(src, ts, 7)
+            parse_with_match(src, ts)
+        }
+    }
+}
+
+// Parses an expression which may contain the (dreaded) `match` keyword.
+fn parse_with_match<'a> (src: &'a [u8], ts: &mut TokenIter) -> Result<Expr<Name>, Report> {
+    let mut res = parse_infix_expr(src, ts, 6)?;
+    macro_rules! update {
+        ($level:expr, $constr:ident) => {{
+            ts.consume();
+            let rhs = parse_infix_expr(src, ts, $level)?;
+            res = Expr::$constr(Box::new(res), Box::new(rhs));
+        }};
+    }
+    loop {
+        match ts.peek().kind {
+            TK::KwMatch => {
+                ts.consume();
+                todo!()
+            }
+            TK::PipePipe => update!(5, Or),
+            TK::AndAnd => update!(4, And),
+            TK::EqualEqual => update!(3, Equals),
+            TK::Less => update!(2, LessThan),
+            TK::LessEquals => update!(2, LessEquals),
+            TK::Plus => update!(1, Plus),
+            TK::Minus => update!(1, Minus),
+            TK::PlusPlus => update!(1, Concat),
+            TK::Star => update!(0, Times),
+            TK::Slash => update!(0, Div),
+            TK::Percent => update!(0, Mod),
+            _ => todo!()
         }
     }
 }
@@ -256,7 +288,6 @@ fn parse_atomic_expr<'a> (src: &'a [u8], ts: &mut TokenIter) -> Result<Expr<Name
 // When `level` is 0, parsing is stopped as soon as any infix operation is seen.
 //
 // The precedence categories are as follows:
-// - `match` -- level 7
 // - `||` -- level 6
 // - `&&` -- level 5
 // - `==` -- level 4
@@ -269,9 +300,6 @@ fn parse_infix_expr<'a> (src: &'a [u8], ts: &mut TokenIter, level: u8) -> Result
     }
     let lhs = parse_infix_expr(src, ts, level - 1)?;
     match ts.peek().kind {
-        TK::KwMatch if level >= 7 => {
-            todo!()
-        }
         TK::PipePipe if level >= 6 => {
             todo!()
         }
@@ -296,5 +324,9 @@ fn parse_infix_expr<'a> (src: &'a [u8], ts: &mut TokenIter, level: u8) -> Result
 
 // Parse an expression which may contain unary operators
 fn parse_unary_expr<'a> (src: &'a [u8], ts: &mut TokenIter) -> Result<Expr<Name>, Report> {
+    todo!()
+}
+
+fn parse_simple_expr<'a> (src: &'a [u8], ts: &mut TokenIter) -> Result<Expr<Name>, Report> {
     todo!()
 }
