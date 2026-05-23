@@ -223,51 +223,6 @@ fn parse_atomic_expr<'a> (src: &'a [u8], ts: &mut TokenIter) -> Result<Expr<Name
     }
 }
 
-
-fn parse_expr_match<'a> (src: &'a [u8], ts: &mut TokenIter, acc: &mut Expr<Name>) -> Result<(), Report> {
-    parse_expr_or(src, ts, acc)?;
-    match ts.peek().kind {
-        TK::KwMatch => {
-            todo!()
-        }
-        _ => Ok(())
-    }
-}
-
-fn parse_expr_or<'a> (src: &'a [u8], ts: &mut TokenIter, acc: &mut Expr<Name>) -> Result<(), Report> {
-    parse_expr_and(src, ts, acc)?;
-    match ts.peek().kind {
-        TK::PipePipe => {
-            ts.consume();
-            let mut rhs = parse_unary_expr(src, ts)?;
-            parse_expr_and(src, ts, &mut rhs)?;
-            *acc = Expr::Or(Box::new(*acc), Box::new(rhs));
-            Ok(())
-        }
-        _ => Ok(())
-    }
-}
-
-fn parse_expr_and<'a> (src: &'a [u8], ts: &mut TokenIter, acc: &mut Expr<Name>) -> Result<(), Report> {
-    todo!()
-}
-
-fn parse_expr_equals<'a> (src: &'a [u8], ts: &mut TokenIter, acc: &mut Expr<Name>) -> Result<(), Report> {
-    todo!()
-}
-
-fn parse_expr_less<'a> (src: &'a [u8], ts: &mut TokenIter, acc: &mut Expr<Name>) -> Result<(), Report> {
-    todo!()
-}
-
-fn parse_expr_add<'a> (src: &'a [u8], ts: &mut TokenIter, acc: &mut Expr<Name>) -> Result<(), Report> {
-    todo!()
-}
-
-fn parse_expr_mult<'a> (src: &'a [u8], ts: &mut TokenIter, acc: &mut Expr<Name>) -> Result<(), Report> {
-    todo!()
-}
-
 // Parses an expression which may contain infix operators at different levels of precedence.
 //
 // The `level` argument denotes the precedence category of infix operators that still needs to be
