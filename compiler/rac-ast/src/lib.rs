@@ -1,28 +1,50 @@
-use std::collections::VecDeque;
+use std::collections::{HashMap, VecDeque};
+use rac_diagnostics::Span;
 
-pub type ArgList<N> = VecDeque<(N, Type<N>)>;
+// Nominal AST structure
 
-pub struct Module<N> {
-    pub name: N,
-    pub defs: VecDeque<Definition<N>>,
-    pub expr: Option<Expr<N>>
+pub type Name = (Option<String>, String);
+pub enum NominalDefinition {
+    AbstractDef(String, Span),
+    CaseClassDef(String, ArgList<String, Name>, String, Span),
+    FunDef(String, ArgList<String, Name>, Type<Name>, Expr<Name>, Span),
+}
+pub struct NominalModule {
+    pub name: String,
+    pub defs: VecDeque<NominalDefinition>,
+    pub expr: Option<Expr<Name>>
 }
 
-pub enum Definition<N> {
-    AbstractDef(N),
-    CaseClassDef(N, ArgList<N>, N),
-    FunDef(N, ArgList<N>, Type<N>, Expr<N>),
+// Symbolic (resolved) AST structure
+
+enum SymbolKind { Variable, Function, Class, Type }
+type SID = u64;
+struct Symbol {
+    name: String,
+    id: SID,
+    kind: SymbolKind
 }
+
+pub struct SymbolicProgram {
+    userTypes: VecDeque<Symbol>,
+    classDefs: HashMap<SID, (ArgList<Symbol, Symbol>, Symbol)>,
+    funDefs: HashMap<SID, (ArgList<Symbol, Symbol>, Type<Symbol>, Expr<Symbol>)>
+}
+
+// Expression structures, shared between nominal and symbolic trees.
+// The `N` type parameter denotes the "name" type, either `Name` or `Symbol`.
+// Some of the constructors include a `Span`, others do not, as the span of an expression
+// can sometimes be computed from its subexpressions.
 
 pub enum Expr<N> {
     // Variables
-    Variable(N),
+    Variable(N, Span),
 
     // Literals
-    IntLiteral(i32),
-    BoolLiteral(bool),
-    StringLiteral(String),
-    UnitLiteral,
+    IntLiteral(i32, Span),
+    BoolLiteral(bool, Span),
+    StringLiteral(String, Span),
+    UnitLiteral(Span),
     
     // Binary operators
     Plus(Box<Expr<N>>, Box<Expr<N>>),
@@ -38,40 +60,46 @@ pub enum Expr<N> {
     Concat(Box<Expr<N>>, Box<Expr<N>>),
 
     // Unary operators
-    Not(Box<Expr<N>>),
-    Neg(Box<Expr<N>>),
+    Not(Box<Expr<N>>, Span),
+    Neg(Box<Expr<N>>, Span),
 
     // Function/constructor call
-    Call(N, VecDeque<Box<Expr<N>>>),
+    Call(N, VecDeque<Box<Expr<N>>>, Span),
 
     // Control flow
     Sequence(Box<Expr<N>>, Box<Expr<N>>),
-    Let(N, Type<N>, Box<Expr<N>>, Box<Expr<N>>),
-    Ite(Box<Expr<N>>, Box<Expr<N>>, Box<Expr<N>>),
+    Let(N, Type<N>, Box<Expr<N>>, Box<Expr<N>>, Span),
+    Ite(Box<Expr<N>>, Box<Expr<N>>, Box<Expr<N>>, Span),
 
     // Pattern matching
-    Match(Box<Expr<N>>, VecDeque<(Box<Expr<N>>, Box<Expr<N>>)>),
+    Match(Box<Expr<N>>, VecDeque<(Box<Expr<N>>, Box<Expr<N>>)>, Span),
 
     // Errors
-    Error(Box<Expr<N>>),
+    Error(Box<Expr<N>>, Span),
 }
 
-// Do we even need a special pattern enum? we can just say `_` is an
-// expression, and treat patterns as expressions...
-// We can think about it later
+pub type ArgList<A, N> = VecDeque<(A, Type<N>)>;
 
-// pub enum Pattern<N> {
-//     Wildcard,
-//     IdPattern(N),
-//     
-// }
+// Pattern structure
+
+pub enum Pattern<N> {
+    Wildcard,
+    IdPattern(N),
+    BoolPattern(bool),
+    StringPattern(String),
+    IntPattern(i32),
+    UnitPattern,
+    ClassPattern(N, VecDeque<Pattern<N>>)
+}
+
+// Type structure
 
 pub enum Type<N> {
     // Primitive types
-    IntType,
-    BoolType,
-    StringType,
-    UnitType,
+    IntType(Span),
+    BoolType(Span),
+    StringType(Span),
+    UnitType(Span),
     // User-defined types
-    ClassType(N),
+    ClassType(N, Span),
 }

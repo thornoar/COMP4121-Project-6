@@ -4,12 +4,15 @@ pub struct Span {
     pub end: usize
 }
 
-#[macro_export]
-macro_rules! select {
-    ($src:expr, $span:expr) => {
-        $src[$span.start .. $span.end]
-    };
+// impl Span {
+//     pub fn new(start: usize, end: usize) -> Self { Span { start, end } }
+// }
+
+pub fn join (s1: Span, s2: Span) -> Span {
+    Span { start: s1.start, end: s2.end }
 }
+
+// pub type Span = (usize, usize);
 
 pub enum Stage {
     Parsing,

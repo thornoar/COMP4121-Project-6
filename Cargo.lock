@@ -15,6 +15,9 @@ dependencies = [
 [[package]]
 name = "rac-ast"
 version = "0.1.0"
+dependencies = [
+ "rac-diagnostics",
+]
 
 [[package]]
 name = "rac-diagnostics"
