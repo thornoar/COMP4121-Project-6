@@ -64,7 +64,7 @@ pub enum Expr<N> {
     Neg(Box<Expr<N>>, Span),
 
     // Function/constructor call
-    Call(N, VecDeque<Box<Expr<N>>>, Span),
+    Call(N, VecDeque<Expr<N>>, Span),
 
     // Control flow
     Sequence(Box<Expr<N>>, Box<Expr<N>>),
@@ -72,7 +72,7 @@ pub enum Expr<N> {
     Ite(Box<Expr<N>>, Box<Expr<N>>, Box<Expr<N>>, Span),
 
     // Pattern matching
-    Match(Box<Expr<N>>, VecDeque<(Box<Expr<N>>, Box<Expr<N>>)>, Span),
+    Match(Box<Expr<N>>, VecDeque<(Pattern<N>, Expr<N>)>, Span),
 
     // Errors
     Error(Box<Expr<N>>, Span),
@@ -83,13 +83,13 @@ pub type ArgList<A, N> = VecDeque<(A, Type<N>)>;
 // Pattern structure
 
 pub enum Pattern<N> {
-    Wildcard,
-    IdPattern(N),
-    BoolPattern(bool),
-    StringPattern(String),
-    IntPattern(i32),
-    UnitPattern,
-    ClassPattern(N, VecDeque<Pattern<N>>)
+    Wildcard(Span),
+    IdPattern(N, Span),
+    BoolPattern(bool, Span),
+    StringPattern(String, Span),
+    IntPattern(i32, Span),
+    UnitPattern(Span),
+    ClassPattern(N, VecDeque<Pattern<N>>, Span)
 }
 
 // Type structure

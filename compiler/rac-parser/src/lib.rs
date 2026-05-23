@@ -36,7 +36,7 @@ macro_rules! expect {
 }
 
 macro_rules! error {
-    ($span:expr, $msg:literal) => {
+    ($span:expr, $msg:expr) => {
         Err(Report { stage: Stage::Parsing, span: $span, msg: String::from($msg) })
     };
 }
@@ -276,6 +276,55 @@ fn parse_with_match<'a> (src: &'a [u8], ts: &mut TokenIter) -> Result<Expr<Name>
             TK::Percent => update!(0, Mod),
             _ => todo!()
         }
+    }
+}
+
+// // Parses a list of match cases *without* the surrounding curly brackets.
+// // This is done so that the span of a `match` statement could be set by the `parse_with_match` function
+// fn parse_match_cases<'a> (src: &'a [u8], ts: &mut TokenIter) -> Result<VecDeque<(Pattern<Name>, Expr<Name>)>, Report> {
+//     expect
+// }
+
+// Parses a match case *without* the `case` keyword.
+fn parse_match_case<'a> (src: &'a [u8], ts: &mut TokenIter) -> Result<(Pattern<Name>, Expr<Name>), Report> {
+    todo!()
+}
+
+fn parse_pattern<'a> (src: &'a [u8], ts: &mut TokenIter) -> Result<Pattern<Name>, Report> {
+    let tk = ts.pop();
+    match tk.kind {
+        TK::Underscore => Ok(Pattern::Wildcard(tk.range)),
+        TK::LitTrue => Ok(Pattern::BoolPattern(true, tk.range)),
+        TK::LitFalse => Ok(Pattern::BoolPattern(false, tk.range)),
+        TK::LitInt => {
+            let val_str = mkstring(src, tk.range)?;
+            match val_str.parse::<i32>() {
+                Ok(v) => Ok(Pattern::IntPattern(v, tk.range)),
+                Err(_) => error!(tk.range, "Could not convert this string to an integer.")
+            }
+        }
+        TK::LitString => {
+            let val = mkstring(src, Span::new(tk.range.start + 1, tk.range.end - 1))?;
+            Ok(Pattern::StringPattern(val, tk.range))
+        }
+        TK::OpenParen => {
+            let cp = ts.peek();
+            match cp.kind {
+                TK::CloseParen => {
+                    ts.consume();
+                    Ok(Pattern::UnitPattern(join(tk.range, cp.range)))
+                }
+                _ => error!(cp.range, "Expected a closing parenthesis to finish the unit literal pattern.")
+            }
+        }
+        // TK::Identifier => {
+        //     let match ts.peek().kind {
+        //         TK::Dot => {
+        //             let tk2 = expect!(src, TK::Identifier)
+        //         }
+        //     }
+        // }
+        _ => error!(tk.range, format!("Undexpected token of kind {:?}", tk.kind))
     }
 }
 

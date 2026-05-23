@@ -4,9 +4,9 @@ pub struct Span {
     pub end: usize
 }
 
-// impl Span {
-//     pub fn new(start: usize, end: usize) -> Self { Span { start, end } }
-// }
+impl Span {
+    pub fn new(start: usize, end: usize) -> Self { Span { start, end } }
+}
 
 pub fn join (s1: Span, s2: Span) -> Span {
     Span { start: s1.start, end: s2.end }

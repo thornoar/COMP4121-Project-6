@@ -122,7 +122,7 @@ fn lex_token(src: &[u8], limit: usize, start: usize) -> Token {
 
         c if c.is_ascii_digit() => {
             let mut end: usize = start+1;
-            while end < limit && is_id_continue(src[end]) {
+            while end < limit && src[end].is_ascii_digit() {
                 end += 1;
             }
             Token::new(LitInt, start .. end)
@@ -171,7 +171,13 @@ fn lex_token(src: &[u8], limit: usize, start: usize) -> Token {
         b'/' => Token::new(Slash, span(1)),
         b'*' => Token::new(Star, span(1)),
         b'_' => Token::new(Underscore, span(1)),
-
+        b'"' => {
+            let mut end = start + 1;
+            while end < limit && src[end] != b'"' {
+                end += 1;
+            }
+            Token::new(LitString, start .. (end + 1))
+        },
         _ => Token::new(Unknown, span(1)),
     }
 }
