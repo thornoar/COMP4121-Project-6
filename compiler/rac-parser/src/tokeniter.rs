@@ -142,6 +142,8 @@ fn lex_token(src: &[u8], limit: usize, start: usize) -> Token {
         b'=' => {
             if has_next && src[start+1] == b'=' {
                 Token::new(EqualEqual, span(2))
+            } else if has_next && src[start+1] == b'>' {
+                Token::new(RightArrow, span(2))
             } else {
                 Token::new(Equal, span(1))
             }
@@ -155,8 +157,10 @@ fn lex_token(src: &[u8], limit: usize, start: usize) -> Token {
         },
         b'-' => Token::new(Minus, span(1)),
         b'[' => Token::new(OpenBracket, span(1)),
+        b'{' => Token::new(OpenCurly, span(1)),
         b'(' => Token::new(OpenParen, span(1)),
         b')' => Token::new(CloseParen, span(1)),
+        b'}' => Token::new(CloseCurly, span(1)),
         b']' => Token::new(CloseBracket, span(1)),
         b'%' => Token::new(Percent, span(1)),
         b'|' if has_next && src[start+1] == b'|' => Token::new(PipePipe, span(2)),

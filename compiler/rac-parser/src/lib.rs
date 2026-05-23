@@ -261,7 +261,22 @@ fn parse_with_match<'a> (src: &'a [u8], ts: &mut TokenIter) -> Result<Expr<Name>
         match ts.peek().kind {
             TK::KwMatch => {
                 ts.consume();
-                todo!()
+                expect!(ts, TK::OpenCurly, "The `match` keyword must be followes by a curly bracket.");
+                let mut cases = VecDeque::new();
+                loop {
+                    let tk = ts.pop();
+                    match tk.kind {
+                        TK::CloseCurly => {
+                            res = Expr::Match(Box::new(res), cases, tk.range);
+                            break;
+                        }
+                        TK::KwCase => {
+                            let case = parse_match_case(src, ts)?;
+                            cases.push_back(case);
+                        }
+                        _ => { return error!(tk.range, "Expected either a `case` keyword or a closing curly bracket"); }
+                    }
+                }
             }
             TK::PipePipe => update!(5, Or),
             TK::AndAnd => update!(4, And),
@@ -274,9 +289,10 @@ fn parse_with_match<'a> (src: &'a [u8], ts: &mut TokenIter) -> Result<Expr<Name>
             TK::Star => update!(0, Times),
             TK::Slash => update!(0, Div),
             TK::Percent => update!(0, Mod),
-            _ => todo!()
+            _ => { break; }
         }
     }
+    Ok(res)
 }
 
 // // Parses a list of match cases *without* the surrounding curly brackets.
@@ -287,7 +303,10 @@ fn parse_with_match<'a> (src: &'a [u8], ts: &mut TokenIter) -> Result<Expr<Name>
 
 // Parses a match case *without* the `case` keyword.
 fn parse_match_case<'a> (src: &'a [u8], ts: &mut TokenIter) -> Result<(Pattern<Name>, Expr<Name>), Report> {
-    todo!()
+    let pat = parse_pattern(src, ts)?;
+    expect!(ts, TK::RightArrow, "A match pattern must be followed by a right arrow.");
+    let expr = parse_expr(src, ts)?;
+    Ok((pat, expr))
 }
 
 fn parse_pattern<'a> (src: &'a [u8], ts: &mut TokenIter) -> Result<Pattern<Name>, Report> {
@@ -317,21 +336,70 @@ fn parse_pattern<'a> (src: &'a [u8], ts: &mut TokenIter) -> Result<Pattern<Name>
                 _ => error!(cp.range, "Expected a closing parenthesis to finish the unit literal pattern.")
             }
         }
-        // TK::Identifier => {
-        //     let match ts.peek().kind {
-        //         TK::Dot => {
-        //             let tk2 = expect!(src, TK::Identifier)
-        //         }
-        //     }
-        // }
+        TK::Identifier => {
+            let (qname, idrange) = match ts.peek().kind {
+                TK::Dot => {
+                    ts.consume();
+                    let tk2 = expect!(ts, TK::Identifier, "Expected a valid identifier as part of a qualified name.");
+                    let owner = mkstring(src, tk.range)?;
+                    let name = mkstring(src, tk2.range)?;
+                    ((Some(owner), name), join(tk.range, tk2.range))
+                }
+                _ => {
+                    let name = mkstring(src, tk.range)?;
+                    ((None, name), tk.range)
+                }
+            };
+            let next = ts.peek();
+            match next.kind {
+                TK::OpenParen => {
+                    ts.consume();
+                    let argpats = parse_pattern_list(src, ts)?;
+                    let cp = expect!(ts, TK::CloseParen, "Expected a closing parenthesis at the end of a pattern list");
+                    Ok(Pattern::ClassPattern(qname, argpats, join(idrange, cp.range)))
+                }
+                _ => match qname.0 {
+                    None => Ok(Pattern::IdPattern(qname, idrange)),
+                    _ => error!(idrange, "Variable bindings cannot be quantified.")
+                }
+            }
+        }
         _ => error!(tk.range, format!("Undexpected token of kind {:?}", tk.kind))
+    }
+}
+
+// Parses a list of patterns, like `_, 34, true, Cons(_, _)`, *without* the surrounding parentheses.
+fn parse_pattern_list<'a> (src: &'a [u8], ts: &mut TokenIter) -> Result<VecDeque<Pattern<Name>>, Report> {
+    match ts.peek().kind {
+        TK::CloseParen => { Ok(VecDeque::new()) },
+        _ => parse_many_patterns(src, ts)
+    }
+}
+
+// Parses a *non-empty* list of patterns
+fn parse_many_patterns<'a> (src: &'a [u8], ts: &mut TokenIter) -> Result<VecDeque<Pattern<Name>>, Report> {
+    let pat = parse_pattern(src, ts)?;
+    let delim = ts.peek();
+    match delim.kind {
+        TK::Comma => {
+            ts.consume();
+            let mut rest = parse_many_patterns(src, ts)?;
+            rest.push_back(pat);
+            Ok(rest)
+        },
+        TK::CloseParen => {
+            let mut rest = VecDeque::new();
+            rest.push_back(pat);
+            Ok(rest)
+        },
+        _ => error!(delim.range, "Expected either a comma separator of a closing parenthesis")
     }
 }
 
 // Parses an expression which may contain infix operators at different levels of precedence.
 //
-// The `level` argument denotes the precedence category of infix operators that still needs to be
-// considered.
+// The `level` argument denotes the precedence category of infix operators that
+// is currently being parsed.
 // If an operator `op` has precedence category `n`, then `level < n` means that
 // the function will stop parsing if it sees `op` in the token stream.
 // When `level` is 0, parsing is stopped as soon as any infix operation is seen.
@@ -347,33 +415,49 @@ fn parse_infix_expr<'a> (src: &'a [u8], ts: &mut TokenIter, level: u8) -> Result
     if level <= 0 {
         return parse_unary_expr(src, ts);
     }
-    let lhs = parse_infix_expr(src, ts, level - 1)?;
-    match ts.peek().kind {
-        TK::PipePipe if level >= 6 => {
-            todo!()
-        }
-        TK::AndAnd if level >= 5 => {
-            todo!()
-        }
-        TK::EqualEqual if level >= 4 => {
-            todo!()
-        }
-        TK::Less | TK::LessEquals if level >= 3 => {
-            todo!()
-        }
-        TK::Plus | TK::Minus | TK::PlusPlus if level >= 2 => {
-            todo!()
-        }
-        TK::Star | TK::Slash | TK::Percent => {
-            todo!()
-        }
-        _ => Ok(lhs)
+    let mut res = parse_infix_expr(src, ts, level - 1)?;
+    macro_rules! update {
+        ($constr:ident) => {{
+            ts.consume();
+            let rhs = parse_infix_expr(src, ts, level - 1)?;
+            res = Expr::$constr(Box::new(res), Box::new(rhs));
+        }};
     }
+    loop {
+        match ts.peek().kind {
+            TK::PipePipe if level == 6 => update!(Or),
+            TK::AndAnd if level == 5 => update!(And),
+            TK::EqualEqual if level == 4 => update!(Equals),
+            TK::Less if level == 3 => update!(LessThan),
+            TK::LessEquals if level == 3 => update!(LessEquals),
+            TK::Plus if level == 2 => update!(Plus),
+            TK::Minus if level == 2 => update!(Minus),
+            TK::PlusPlus if level == 2 => update!(Concat),
+            TK::Star if level == 1 => update!(Times),
+            TK::Slash if level == 1 => update!(Div),
+            TK::Percent if level == 1 => update!(Mod),
+            _ => { break; }
+        }
+    }
+    Ok(res)
 }
 
 // Parse an expression which may contain unary operators
 fn parse_unary_expr<'a> (src: &'a [u8], ts: &mut TokenIter) -> Result<Expr<Name>, Report> {
-    todo!()
+    let op = ts.peek();
+    match op.kind {
+        TK::Minus => {
+            ts.consume();
+            let operand = parse_simple_expr(src, ts)?;
+            Ok(Expr::Neg(Box::new(operand), op.range))
+        }
+        TK::Bang => {
+            ts.consume();
+            let operand = parse_simple_expr(src, ts)?;
+            Ok(Expr::Not(Box::new(operand), op.range))
+        }
+        _ => parse_simple_expr(src, ts)
+    }
 }
 
 fn parse_simple_expr<'a> (src: &'a [u8], ts: &mut TokenIter) -> Result<Expr<Name>, Report> {

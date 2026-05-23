@@ -10,6 +10,7 @@ pub enum TokenKind {
     AndAnd,
     Bang,
     CloseBracket,
+    CloseCurly,
     CloseParen,
     Colon,
     ColonEqual,
@@ -21,6 +22,7 @@ pub enum TokenKind {
     Less,
     Minus,
     OpenBracket,
+    OpenCurly,
     OpenParen,
     Percent,
     PipePipe,
@@ -29,6 +31,7 @@ pub enum TokenKind {
     Semicolon,
     Slash,
     Star,
+    RightArrow,
 
     // Primitive types
     TypString,
