@@ -145,15 +145,15 @@ impl<N: Display> Display for Expr<N> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         use Expr::*;
 
-        fn work<M: Display> (e: &Expr<M>, indent1: usize, indent2: usize) -> String {
-            let prefix1 = " ".repeat(indent1);
-            let prefix2 = " ".repeat(indent2);
+        fn work<M: Display> (e: &Expr<M>, indent: usize) -> String {
+            let prefix1 = "   ".repeat(indent);
+            let prefix2 = "   ".repeat(indent + 1);
             macro_rules! binop {
                 ($lhs:expr, $op:literal, $rhs:expr) => {
-                    format!("( {} {} {} )", work($lhs, 0, indent2), $op, work($rhs, 0, indent2))
+                    format!("( {} {} {} )", work($lhs, indent), $op, work($rhs, indent))
                 };
             }
-            let expr_str = match e {
+            match e {
                 Variable(name, _) => format!("{}", name),
                 IntLiteral(v, _) => format!("{}", v),
                 BoolLiteral(v, _) => format!("{}", v),
@@ -170,33 +170,36 @@ impl<N: Display> Display for Expr<N> {
                 Or(lhs, rhs) => binop!(lhs, "||", rhs),
                 Equals(lhs, rhs) => binop!(lhs, "==", rhs),
                 Concat(lhs, rhs) => binop!(lhs, "++", rhs),
-                Not(e, _) => format!("!({})", work(e, 0, indent2)),
-                Neg(e, _) => format!("-({})", work(e, 0, indent2)),
+                Not(e, _) => format!("!({})", work(e, indent)),
+                Neg(e, _) => format!("-({})", work(e, indent)),
                 Call(name, args, _) => {
-                    let args_str = args.iter().map(|arg| work(arg, 0, indent2)).collect::<Vec<String>>().join(", ");
+                    let args_str = args.iter().map(|arg| work(arg, indent)).collect::<Vec<String>>().join(", ");
                     format!("{}({})", name, args_str)
                 }
-                Sequence(lhs, rhs) => format!("{};\n{}", work(lhs, 0, indent2), work(rhs, indent1, indent2)),
-                Let(name, typ, val, body, _) => format!("let {}: {} = {} in ({})", name, typ, *val, *body),
+                Sequence(lhs, rhs) => format!("{};\n{}", work(lhs, indent), work(rhs, indent)),
+                Let(name, typ, val, body, _) => format!("let {}: {} = {} in ( {} )", name, typ, work(val, indent), work(body, indent)),
                 Ite(cond, thenb, elseb, _) => format!(
-                    "if ({}) {{\n{}\n{}}} else {{\n{}\n{}}}",
-                    work(cond, 0, indent2),
-                    work(thenb, indent2+2, indent2+2),
-                    prefix2, work(elseb, indent2+2, indent2+2),
-                    prefix2
+                    "if ({}) {{\n{}{}\n{}}} else {{\n{}{}\n{}}}",
+                    work(cond, indent),
+                    prefix2,
+                    work(thenb, indent+1),
+                    prefix1,
+                    prefix2,
+                    work(elseb, indent+1),
+                    prefix1
                 ),
                 Match(scrut, pats, _) => {
                     let pats_str = pats.iter().map(|(pat, expr)| {
-                        format!("{}{} => {}", prefix2, pat, work(expr, 0, indent2 + 2))
+                        format!("{}{} => {}", prefix2, pat, work(expr, indent+2))
                     }).collect::<Vec<String>>().join("\n");
-                    format!("( {} match {{\n{}\n{}}} )", work(scrut, 0, indent2), pats_str, prefix1)
+                    format!("( {} match {{\n{}\n{}}} )", work(scrut, indent), pats_str, prefix1)
                 },
                 Error(arg, _) => format!("error({})", *arg)
-            };
-            format!("{}{}", prefix1, expr_str)
+            }
+            // format!("{}{}", prefix1, expr_str)
         }
 
-        write!(f, "{}", work(self, 0, 2))
+        write!(f, "{}", work(self, 0))
     }
 }
 

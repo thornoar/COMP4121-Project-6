@@ -35,7 +35,7 @@ macro_rules! expect {
     ($ts:expr, $tk:expr, $msg:expr) => {{
         let token = $ts.pop();
         if token.kind != $tk {
-            return Err(Report { stage: Stage::Parsing, span: token.range, msg: String::from($msg) });
+            return Err(Report { stage: Stage::Parsing, range: token.range, msg: String::from($msg) });
         }
         token
     }};
@@ -43,7 +43,7 @@ macro_rules! expect {
 
 macro_rules! error {
     ($span:expr, $msg:expr) => {
-        Err(Report { stage: Stage::Parsing, span: $span, msg: String::from($msg) })
+        Err(Report { stage: Stage::Parsing, range: $span, msg: String::from($msg) })
     };
 }
 
@@ -239,7 +239,7 @@ fn parse_atomic_expr<'a> (src: &'a [u8], ts: &mut TokenIter) -> Result<Expr<Name
             expect!(ts, TK::Colon, "Expected a colon after the variable name.");
             let var_type = parse_type(src, ts)?;
             expect!(ts, TK::Equal, "Expected an equal sign after the variable type");
-            let var_expr = parse_expr(src, ts)?;
+            let var_expr = parse_atomic_expr(src, ts)?;
             let sc = expect!(ts, TK::Semicolon, "Expected a semicolon after a `val` declaration.");
             let body = parse_expr(src, ts)?;
             Ok(Expr::Let(Name::new(None, var_name), var_type, Box::new(var_expr), Box::new(body), join(t1.range, sc.range)))
@@ -481,6 +481,7 @@ fn parse_simple_expr<'a> (src: &'a [u8], ts: &mut TokenIter) -> Result<Expr<Name
             let next = ts.peek();
             match next.kind {
                 TK::OpenParen => {
+                    ts.consume();
                     let args = parse_expr_list(src, ts)?;
                     let cp = expect!(ts, TK::CloseParen, "Expected a closing parenthesis at the end of a pattern list");
                     Ok(Expr::Call(qname, args, join(tk.range, cp.range)))
@@ -577,6 +578,8 @@ fn get_name<'a> (src: &'a [u8], ts: &mut TokenIter, span: Span) -> Result<(Name,
 
 #[cfg(test)]
 mod tests {
+    use rac_diagnostics::report;
+
     use super::*;
     
     #[test]
@@ -594,6 +597,39 @@ mod tests {
                   else BigCons(d % 10, increment(sum(t1, t2)))
                   end if
               }
+            };
+            lhs match {
+              case BigNil() => rhs match {
+                case BigNil() => ORD.EQ()
+                case _ => ORD.LT()
+              }
+              case BigCons(d1, t1) => rhs match {
+                case BigNil() => ORD.GT()
+                case BigCons(d2, t2) => compare(t1, t2) match {
+                  case ORD.EQ() => ORD.compareInt(d1, d2)
+                  case o => o
+                }
+              }
+            };
+            if (i < 0) then
+              \"-\" ++ intToString(-i)
+            else
+              val rem: Int(32) = i % 10;
+              val div: Int(32) = i / 10;
+              if (div == 0) then digitToString(rem)
+              else intToString(div) ++ digitToString(rem)
+              end if
+            end if;
+            l match {
+              case Nil() => -1
+              case Cons(h, t) =>
+                if (h == i) then 0
+                else
+                  val rec: Int(32) = indexOf(t, i);
+                  if (0 <= rec) then rec + 1
+                  else -1
+                  end if
+                end if
             }
         ".as_bytes();
         let mut ts = TokenIter::new(src, src.len());
@@ -603,7 +639,7 @@ mod tests {
                 println!("\n{}", e);
                 println!("\nrange: {:?}", range(e));
             }
-            Err(r) => println!("{:?}", r)
+            Err(r) => report(src, &r)
         }
         println!("--- END ---");
     }

@@ -1,3 +1,5 @@
+use std::{cmp::{max, min}, fmt::Display};
+
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct Span {
     pub start: usize,
@@ -18,29 +20,44 @@ pub fn join (s1: Span, s2: Span) -> Span {
 pub enum Stage {
     Parsing,
     Resolving,
-    Typechecking
+    Typechecking,
+    Interpreting
+}
+
+impl Display for Stage {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Parsing => write!(f, "parsing"),
+            Self::Resolving => write!(f, "resolution"),
+            Self::Typechecking => write!(f, "type checking"),
+            Self::Interpreting => write!(f, "interpreting")
+        }
+    }
 }
 
 #[derive(Debug, Clone)]
 pub struct Report {
     pub stage: Stage,
-    pub span: Span,
+    pub range: Span,
     pub msg: String
 }
 
-// pub enum Result<T> {
-//     Value(T),
-//     Error(
-//         Span, // span of the erroneous code
-//         String // the error message
-//     )
-// }
-//
-// impl<T> Result<T> {
-//     pub fn bind<V> (self, f: impl FnOnce(T) -> Result<V>) -> Result<V> {
-//         match self {
-//             Result::Value(t) => f(t),
-//             Result::Error(sp, str) => Result::Error(sp, str)
-//         }
-//     }
-// }
+pub fn report<'a> (src: &'a [u8], r: &Report) {
+    let stage_msg = format!("Compilation error during the *{}* stage:", r.stage);
+    let limit = src.len();
+    let mut line = 1;
+    let mut col = 1;
+    let mut curpos = 0;
+    while curpos < r.range.start {
+        if src[curpos] == b'\n' {
+            line += 1; col = 1;
+        } else {
+            col += 1;
+        }
+        curpos += 1;
+    }
+    let offset = 10;
+    let slice = str::from_utf8(&src[max(0, curpos - offset) .. min(limit, r.range.end + offset)]).unwrap_or("...decoding error...");
+    let src_msg = format!("{}:{}    {}", line, col, slice);
+    eprintln!("{}\n{}\n-- {}", stage_msg, src_msg, r.msg);
+}
