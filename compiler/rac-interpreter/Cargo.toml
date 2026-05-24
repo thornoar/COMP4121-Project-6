@@ -1,0 +1,9 @@
+[package]
+name = "rac-interpreter"
+authors = { workspace = true }
+edition = { workspace = true }
+version = { workspace = true }
+rust-version = { workspace = true }
+
+[dependencies]
+rac-ast = { path = "../rac-ast" }

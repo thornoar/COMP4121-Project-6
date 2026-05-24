@@ -1,9 +1,10 @@
 [workspace]
 members = [
     "compiler/rac",
-    "compiler/rac-parser",
     "compiler/rac-ast",
     "compiler/rac-diagnostics",
+    "compiler/rac-interpreter",
+    "compiler/rac-parser",
 ]
 resolver = "3"
 

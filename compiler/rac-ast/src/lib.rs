@@ -74,7 +74,7 @@ enum SymbolKind { Variable, Function, Class, Type }
 type SID = u64;
 
 #[derive(Debug, Clone)]
-struct Symbol {
+pub struct Symbol {
     name: String,
     id: SID,
     kind: SymbolKind
@@ -82,10 +82,10 @@ struct Symbol {
 
 #[derive(Debug, Clone)]
 pub struct SymbolicProgram {
-    userTypes: VecDeque<Symbol>,
-    classDefs: HashMap<SID, (ArgList<Symbol, Symbol>, Symbol)>,
-    funDefs: HashMap<SID, (ArgList<Symbol, Symbol>, Type<Symbol>, Expr<Symbol>)>,
-    exprs: VecDeque<Expr<Symbol>>
+    pub user_types: VecDeque<Symbol>,
+    pub class_defs: HashMap<SID, (ArgList<Symbol, Symbol>, Symbol)>,
+    pub fun_defs: HashMap<SID, (ArgList<Symbol, Symbol>, Type<Symbol>, Expr<Symbol>)>,
+    pub exprs: VecDeque<Expr<Symbol>>
 }
 
 // Expression structures, shared between nominal and symbolic trees.
