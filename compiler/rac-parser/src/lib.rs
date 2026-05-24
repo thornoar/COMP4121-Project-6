@@ -41,45 +41,14 @@ macro_rules! error {
     };
 }
 
-fn get_string<'a> (src: &'a [u8], span: Span) -> Result<String, Report> {
-    match str::from_utf8(&src[span.start .. span.end]) {
-        Ok(s) => Ok(String::from(s)),
-        _ => error!(span, "This string does not contain valid ASCII.")
-    }
-}
-
-fn get_int<'a> (src: &'a [u8], span: Span) -> Result<i32, Report> {
-    match str::from_utf8(&src[span.start .. span.end]) {
-        Ok(s) => match s.parse::<i32>() {
-            Ok(val) => Ok(val),
-            _ => error!(span, "Could not parse this as an integer")
-        }
-        _ => error!(span, "This string does not contain valid ASCII.")
-    }
-}
-
-fn get_name<'a> (src: &'a [u8], ts: &mut TokenIter, span: Span) -> Result<(Name, Span), Report> {
-    match ts.peek().kind {
-        TK::Dot => {
-            ts.consume();
-            let tk2 = expect!(ts, TK::Identifier, "Expected a valid identifier as part of a qualified name.");
-            let owner = get_string(src, span)?;
-            let name = get_string(src, tk2.range)?;
-            Ok(((Some(owner), name), join(span, tk2.range)))
-        }
-        _ => {
-            let name = get_string(src, span)?;
-            Ok(((None, name), span))
-        }
-    }
-}
-
+// The top-level parsing function
 pub fn parse<'a> (src: &'a [u8]) -> Result<NominalModule, Report> {
     let mut ts = TokenIter::new(src, src.len());
     parse_module(src, &mut ts)
 }
 
-// Parses a single Amy module
+// Parses a nominal module.
+// Example: `object Test error("asdf") end Test`
 fn parse_module<'a> (src: &'a [u8], ts: &mut TokenIter) -> Result<NominalModule, Report> {
     expect!(ts, TK::KwObject, "A module must start with the keyword `object`.");
     let id1 = expect!(ts, TK::Identifier, "A module must be given a valid identifier name.");
@@ -99,7 +68,8 @@ fn parse_module<'a> (src: &'a [u8], ts: &mut TokenIter) -> Result<NominalModule,
     Ok(NominalModule { name: name, defs: defs, expr: mexpr })
 }
 
-// Parses a sequence of 0 or more definitions
+// Parses a sequence of 0 or more definitions.
+// Examples: ``, `def f (): Unit := () end f`
 fn parse_many_definitions<'a> (src: &'a [u8], ts: &mut TokenIter) -> Result<VecDeque<NominalDefinition>, Report> {
     match ts.peek().kind {
         TK::KwDef | TK::KwAbstract | TK::KwCase => {
@@ -112,7 +82,8 @@ fn parse_many_definitions<'a> (src: &'a [u8], ts: &mut TokenIter) -> Result<VecD
     }
 }
 
-// Parses an abstract class, case class, or function definition
+// Parses an abstract class, case class, or function definition.
+// Examples: `abstract class T`, `case class C(x: Unit) extends T`, `def f(x: String): Int(32) := 5 end f`
 fn parse_definition<'a> (src: &'a [u8], ts: &mut TokenIter) -> Result<NominalDefinition, Report> {
     let kw = ts.pop();
     match kw.kind {
@@ -143,7 +114,7 @@ fn parse_definition<'a> (src: &'a [u8], ts: &mut TokenIter) -> Result<NominalDef
             let id = expect!(ts, TK::Identifier, "A function must have a valid name identifier.");
             let name = get_string(src, id.range)?;
             let args = parse_arglist(src, ts)?;
-            expect!(ts, TK::KwExtends, "A case class definition must be ended with an `extends` clause.");
+            expect!(ts, TK::KwExtends, "A case class definition must end with an `extends` clause.");
             let parent = expect!(ts, TK::Identifier, "Expected a valid name of an abstract class.");
             let pname = get_string(src, parent.range)?;
             Ok(NominalDefinition::CaseClassDef(name, args, pname, id.range))
@@ -152,7 +123,8 @@ fn parse_definition<'a> (src: &'a [u8], ts: &mut TokenIter) -> Result<NominalDef
     }
 }
 
-// Parses `(x: String, y: Int(32), z: Unit)` or `()`
+// Parses an argument list in a constructor or function definition.
+// Examples: `(x: String, y: Int(32), z: Unit)`, `()`
 fn parse_arglist<'a> (src: &'a [u8], ts: &mut TokenIter) -> Result<ArgList<String, Name>, Report> {
     expect!(ts, TK::OpenParen, "Expected an opening parenthesis to start the argument list.");
     match ts.peek().kind {
@@ -164,7 +136,8 @@ fn parse_arglist<'a> (src: &'a [u8], ts: &mut TokenIter) -> Result<ArgList<Strin
     }
 }
 
-// Parses a *non-empty* argument list `x: String, y: Int(32), z: Unit \)` <- with the closing parenthesis
+// Parses a *non-empty* argument list *with* the closing parenthesis
+// Examples: `x: String, y: Int(32), z: Unit \)`
 fn parse_many_arguments<'a> (src: &'a [u8], ts: &mut TokenIter) -> Result<ArgList<String, Name>, Report> {
     let arg = parse_argument(src, ts)?;
     let delim = ts.pop();
@@ -183,7 +156,8 @@ fn parse_many_arguments<'a> (src: &'a [u8], ts: &mut TokenIter) -> Result<ArgLis
     }
 }
 
-// Parses `x: String` or `y: Int(32)`
+// Parses an argument in a definition.
+// Examples: `x: String`, `y: Int(32)`
 fn parse_argument<'a> (src: &'a [u8], ts: &mut TokenIter) -> Result<(String, Type<Name>), Report> {
     let id = expect!(ts, TK::Identifier, "An argument must have a valid name identifier.");
     let name = get_string(src, id.range)?;
@@ -192,7 +166,8 @@ fn parse_argument<'a> (src: &'a [u8], ts: &mut TokenIter) -> Result<(String, Typ
     Ok((name, typ))
 }
 
-// Parses `String` or `Unit` or `Int(32)` or ``
+// Parses a type.
+// Examples: `String`, `Unit`, `Int(32)`, `UserType`
 fn parse_type<'a> (src: &'a [u8], ts: &mut TokenIter) -> Result<Type<Name>, Report> {
     let typ1 = ts.pop();
     match typ1.kind {
@@ -226,16 +201,8 @@ fn parse_type<'a> (src: &'a [u8], ts: &mut TokenIter) -> Result<Type<Name>, Repo
     }
 }
 
-// fn get_qualified_cont<'a> (src: &'a [u8], ts: &mut TokenIter) -> Option<Token> {
-//     match ts.peek().kind {
-//         TK::Dot => {
-//
-//         }
-//         _ => None
-//     }
-// }
-
-// Parses an expression, which is a sequence of one or more atomic expressions
+// Parses an expression, which is a sequence of one or more atomic expressions.
+// Examples: `5; x + f(45); "hahaha"`
 fn parse_expr<'a> (src: &'a [u8], ts: &mut TokenIter) -> Result<Expr<Name>, Report> {
     let cur = parse_atomic_expr(src, ts)?;
     match ts.peek().kind {
@@ -248,7 +215,8 @@ fn parse_expr<'a> (src: &'a [u8], ts: &mut TokenIter) -> Result<Expr<Name>, Repo
     }
 }
 
-// Parses an atomic expression (i.e. not a sequence of expressions)
+// Parses an atomic expression (i.e. not a sequence of expressions).
+// Examples: `5 match { _ => 4 }`, `5 + 6`
 fn parse_atomic_expr<'a> (src: &'a [u8], ts: &mut TokenIter) -> Result<Expr<Name>, Report> {
     let t1 = ts.pop();
     match t1.kind {
@@ -282,6 +250,7 @@ fn parse_atomic_expr<'a> (src: &'a [u8], ts: &mut TokenIter) -> Result<Expr<Name
 }
 
 // Parses an expression which may contain the (dreaded) `match` keyword.
+// Examples: `a * b / c match { 5 => 0, _ => 1 } - x % 2`
 fn parse_with_match<'a> (src: &'a [u8], ts: &mut TokenIter) -> Result<Expr<Name>, Report> {
     let mut res = parse_infix_expr(src, ts, 6)?;
     macro_rules! update {
@@ -329,13 +298,8 @@ fn parse_with_match<'a> (src: &'a [u8], ts: &mut TokenIter) -> Result<Expr<Name>
     Ok(res)
 }
 
-// // Parses a list of match cases *without* the surrounding curly brackets.
-// // This is done so that the span of a `match` statement could be set by the `parse_with_match` function
-// fn parse_match_cases<'a> (src: &'a [u8], ts: &mut TokenIter) -> Result<VecDeque<(Pattern<Name>, Expr<Name>)>, Report> {
-//     expect
-// }
-
 // Parses a match case *without* the `case` keyword.
+// Examples: `C(_, _) => 9`, `_ => 4 + x`
 fn parse_match_case<'a> (src: &'a [u8], ts: &mut TokenIter) -> Result<(Pattern<Name>, Expr<Name>), Report> {
     let pat = parse_pattern(src, ts)?;
     expect!(ts, TK::RightArrow, "A match pattern must be followed by a right arrow.");
@@ -343,6 +307,8 @@ fn parse_match_case<'a> (src: &'a [u8], ts: &mut TokenIter) -> Result<(Pattern<N
     Ok((pat, expr))
 }
 
+// Parses a match pattern.
+// Examples: `_`, `"haha"`, `Mod.C(_, 89, _)`
 fn parse_pattern<'a> (src: &'a [u8], ts: &mut TokenIter) -> Result<Pattern<Name>, Report> {
     let tk = ts.pop();
     match tk.kind {
@@ -384,7 +350,8 @@ fn parse_pattern<'a> (src: &'a [u8], ts: &mut TokenIter) -> Result<Pattern<Name>
     }
 }
 
-// Parses a list of patterns, like `_, 34, true, Cons(_, _)`, *without* the surrounding parentheses.
+// Parses a list of patterns *without* the surrounding parentheses.
+// Examoles: `_, 34, true, Cons(_, _)`
 fn parse_pattern_list<'a> (src: &'a [u8], ts: &mut TokenIter) -> Result<VecDeque<Pattern<Name>>, Report> {
     match ts.peek().kind {
         TK::CloseParen => { Ok(VecDeque::new()) },
@@ -392,7 +359,8 @@ fn parse_pattern_list<'a> (src: &'a [u8], ts: &mut TokenIter) -> Result<VecDeque
     }
 }
 
-// Parses a *non-empty* list of patterns
+// Parses a *non-empty* list of patterns, *without* the surrounding parentheses.
+// Examples: `_, 45, 23`
 fn parse_many_patterns<'a> (src: &'a [u8], ts: &mut TokenIter) -> Result<VecDeque<Pattern<Name>>, Report> {
     let pat = parse_pattern(src, ts)?;
     let delim = ts.peek();
@@ -427,6 +395,8 @@ fn parse_many_patterns<'a> (src: &'a [u8], ts: &mut TokenIter) -> Result<VecDequ
 // - `<`, `<=` -- level 3
 // - `+`, `-`, `++` -- level 2
 // - `*`, `/`, `%`  -- level 1
+//
+// Examples: `x - 5 / 6 + 8 < 7 || f(3)`
 fn parse_infix_expr<'a> (src: &'a [u8], ts: &mut TokenIter, level: u8) -> Result<Expr<Name>, Report> {
     if level <= 0 {
         return parse_unary_expr(src, ts);
@@ -458,7 +428,8 @@ fn parse_infix_expr<'a> (src: &'a [u8], ts: &mut TokenIter, level: u8) -> Result
     Ok(res)
 }
 
-// Parse an expression which may contain unary operators
+// Parses an expression which may contain unary operators.
+// Examples: `-x`, `!(1 < 2 && x + y >= 7)`
 fn parse_unary_expr<'a> (src: &'a [u8], ts: &mut TokenIter) -> Result<Expr<Name>, Report> {
     let op = ts.peek();
     match op.kind {
@@ -476,6 +447,8 @@ fn parse_unary_expr<'a> (src: &'a [u8], ts: &mut TokenIter) -> Result<Expr<Name>
     }
 }
 
+// Parses a simple expression.
+// Examples: `f(x, y, z)`, `45`, `"haha"`, `error("bad")`
 fn parse_simple_expr<'a> (src: &'a [u8], ts: &mut TokenIter) -> Result<Expr<Name>, Report> {
     let tk = ts.pop();
     match tk.kind {
@@ -514,7 +487,7 @@ fn parse_simple_expr<'a> (src: &'a [u8], ts: &mut TokenIter) -> Result<Expr<Name
 }
 
 // Parses a comma-separated list of expressions.
-// Example: `45, x, Cons(234, Nil())`
+// Examples: `45, x, Cons(234, Nil())`
 fn parse_expr_list<'a> (src: &'a [u8], ts: &mut TokenIter) -> Result<VecDeque<Expr<Name>>, Report> {
     match ts.peek().kind {
         TK::CloseParen => { Ok(VecDeque::new()) },
@@ -522,6 +495,8 @@ fn parse_expr_list<'a> (src: &'a [u8], ts: &mut TokenIter) -> Result<VecDeque<Ex
     }
 }
 
+// Parses a *non-empty* comma-separated list of expressions.
+// Examples: `45, x, Cons(234, Nil())`
 fn parse_many_exprs<'a> (src: &'a [u8], ts: &mut TokenIter) -> Result<VecDeque<Expr<Name>>, Report> {
     let cur = parse_expr(src, ts)?;
     let delim = ts.peek();
@@ -538,5 +513,41 @@ fn parse_many_exprs<'a> (src: &'a [u8], ts: &mut TokenIter) -> Result<VecDeque<E
             Ok(rest)
         },
         _ => error!(delim.range, "Expected either a comma separator of a closing parenthesis")
+    }
+}
+
+// Parses a string
+fn get_string<'a> (src: &'a [u8], span: Span) -> Result<String, Report> {
+    match str::from_utf8(&src[span.start .. span.end]) {
+        Ok(s) => Ok(String::from(s)),
+        _ => error!(span, "This string does not contain valid ASCII.")
+    }
+}
+
+// Parses an integer literal
+fn get_int<'a> (src: &'a [u8], span: Span) -> Result<i32, Report> {
+    match str::from_utf8(&src[span.start .. span.end]) {
+        Ok(s) => match s.parse::<i32>() {
+            Ok(val) => Ok(val),
+            _ => error!(span, "Could not parse this as an integer")
+        }
+        _ => error!(span, "This string does not contain valid ASCII.")
+    }
+}
+
+// Parses a qualified name, and return its span on success.
+fn get_name<'a> (src: &'a [u8], ts: &mut TokenIter, span: Span) -> Result<(Name, Span), Report> {
+    match ts.peek().kind {
+        TK::Dot => {
+            ts.consume();
+            let tk2 = expect!(ts, TK::Identifier, "Expected a valid identifier as part of a qualified name.");
+            let owner = get_string(src, span)?;
+            let name = get_string(src, tk2.range)?;
+            Ok(((Some(owner), name), join(span, tk2.range)))
+        }
+        _ => {
+            let name = get_string(src, span)?;
+            Ok(((None, name), span))
+        }
     }
 }
