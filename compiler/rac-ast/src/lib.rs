@@ -141,67 +141,73 @@ pub fn range<N> (e: Expr<N>) -> Span {
 }
 
 
-impl<N: Display> Display for Expr<N> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl<N: Display> Expr<N> {
+    pub fn show (&self, indent: usize) -> String {
         use Expr::*;
-
-        fn work<M: Display> (e: &Expr<M>, indent: usize) -> String {
-            let prefix1 = "   ".repeat(indent);
-            let prefix2 = "   ".repeat(indent + 1);
-            macro_rules! binop {
-                ($lhs:expr, $op:literal, $rhs:expr) => {
-                    format!("( {} {} {} )", work($lhs, indent), $op, work($rhs, indent))
-                };
-            }
-            match e {
-                Variable(name, _) => format!("{}", name),
-                IntLiteral(v, _) => format!("{}", v),
-                BoolLiteral(v, _) => format!("{}", v),
-                StringLiteral(v, _) => format!("\"{}\"", v),
-                UnitLiteral(_) => format!("()"),
-                Plus(lhs, rhs) => binop!(lhs, "+", rhs),
-                Minus(lhs, rhs) => binop!(lhs, "-", rhs),
-                Times(lhs, rhs) => binop!(lhs, "*", rhs),
-                Div(lhs, rhs) => binop!(lhs, "/", rhs),
-                Mod(lhs, rhs) => binop!(lhs, "%", rhs),
-                LessThan(lhs, rhs) => binop!(lhs, "<", rhs),
-                LessEquals(lhs, rhs) => binop!(lhs, "<=", rhs),
-                And(lhs, rhs) => binop!(lhs, "&&", rhs),
-                Or(lhs, rhs) => binop!(lhs, "||", rhs),
-                Equals(lhs, rhs) => binop!(lhs, "==", rhs),
-                Concat(lhs, rhs) => binop!(lhs, "++", rhs),
-                Not(e, _) => format!("!({})", work(e, indent)),
-                Neg(e, _) => format!("-({})", work(e, indent)),
-                Call(name, args, _) => {
-                    let args_str = args.iter().map(|arg| work(arg, indent)).collect::<Vec<String>>().join(", ");
-                    format!("{}({})", name, args_str)
-                }
-                Sequence(lhs, rhs) => format!("{};\n{}", work(lhs, indent), work(rhs, indent)),
-                Let(name, typ, val, body, _) => format!("let {}: {} = {} in ( {} )", name, typ, work(val, indent), work(body, indent)),
-                Ite(cond, thenb, elseb, _) => format!(
-                    "if ({}) {{\n{}{}\n{}}} else {{\n{}{}\n{}}}",
-                    work(cond, indent),
-                    prefix2,
-                    work(thenb, indent+1),
-                    prefix1,
-                    prefix2,
-                    work(elseb, indent+1),
-                    prefix1
-                ),
-                Match(scrut, pats, _) => {
-                    let pats_str = pats.iter().map(|(pat, expr)| {
-                        format!("{}{} => {}", prefix2, pat, work(expr, indent+2))
-                    }).collect::<Vec<String>>().join("\n");
-                    format!("( {} match {{\n{}\n{}}} )", work(scrut, indent), pats_str, prefix1)
-                },
-                Error(arg, _) => format!("error({})", *arg)
-            }
-            // format!("{}{}", prefix1, expr_str)
+        let prefix1 = "   ".repeat(indent);
+        let prefix2 = "   ".repeat(indent + 1);
+        macro_rules! binop {
+            ($lhs:expr, $op:literal, $rhs:expr) => {
+                format!("( {} {} {} )", $lhs.show(indent), $op, $rhs.show(indent))
+            };
         }
-
-        write!(f, "{}", work(self, 0))
+        match self {
+            Variable(name, _) => format!("{}", name),
+            IntLiteral(v, _) => format!("{}", v),
+            BoolLiteral(v, _) => format!("{}", v),
+            StringLiteral(v, _) => format!("\"{}\"", v),
+            UnitLiteral(_) => format!("()"),
+            Plus(lhs, rhs) => binop!(lhs, "+", rhs),
+            Minus(lhs, rhs) => binop!(lhs, "-", rhs),
+            Times(lhs, rhs) => binop!(lhs, "*", rhs),
+            Div(lhs, rhs) => binop!(lhs, "/", rhs),
+            Mod(lhs, rhs) => binop!(lhs, "%", rhs),
+            LessThan(lhs, rhs) => binop!(lhs, "<", rhs),
+            LessEquals(lhs, rhs) => binop!(lhs, "<=", rhs),
+            And(lhs, rhs) => binop!(lhs, "&&", rhs),
+            Or(lhs, rhs) => binop!(lhs, "||", rhs),
+            Equals(lhs, rhs) => binop!(lhs, "==", rhs),
+            Concat(lhs, rhs) => binop!(lhs, "++", rhs),
+            Not(e, _) => format!("!({})", e.show(indent)),
+            Neg(e, _) => format!("-({})", e.show(indent)),
+            Call(name, args, _) => {
+                let args_str = args.iter().map(|arg| arg.show(indent)).collect::<Vec<String>>().join(", ");
+                format!("{}({})", name, args_str)
+            }
+            Sequence(lhs, rhs) => format!("{};\n{}", lhs.show(indent), rhs.show(indent)),
+            Let(name, typ, val, body, _) => format!("let {}: {} = {} in ( {} )", name, typ, val.show(indent), body.show(indent)),
+            Ite(cond, thenb, elseb, _) => format!(
+                "if ({}) {{\n{}{}\n{}}} else {{\n{}{}\n{}}}",
+                cond.show(indent),
+                prefix2,
+                thenb.show(indent+1),
+                prefix1,
+                prefix2,
+                elseb.show(indent+1),
+                prefix1
+            ),
+            Match(scrut, pats, _) => {
+                let pats_str = pats.iter().map(|(pat, expr)| {
+                    format!("{}{} => {}", prefix2, pat, expr.show(indent+2))
+                }).collect::<Vec<String>>().join("\n");
+                format!("( {} match {{\n{}\n{}}} )", scrut.show(indent), pats_str, prefix1)
+            },
+            Error(arg, _) => format!("error({})", arg.show(indent))
+        }
+        // format!("{}{}", prefix1, expr_str)
     }
 }
+
+
+
+// impl<N: Display> Display for Expr<N> {
+//     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+//         use Expr::*;
+//
+//
+//         write!(f, "{}", work(self, 0))
+//     }
+// }
 
 // Pattern structure
 

@@ -636,7 +636,7 @@ mod tests {
         // ts.print();
         match parse_expr(src, &mut ts) {
             Ok(e) => {
-                println!("\n{}", e);
+                println!("\n{}", e.show(0));
                 println!("\nrange: {:?}", range(e));
             }
             Err(r) => report(src, &r)
