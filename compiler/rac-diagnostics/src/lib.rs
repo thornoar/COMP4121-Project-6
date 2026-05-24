@@ -14,12 +14,14 @@ pub fn join (s1: Span, s2: Span) -> Span {
 
 // pub type Span = (usize, usize);
 
+#[derive(Debug, Clone, Copy, Eq, PartialEq)]
 pub enum Stage {
     Parsing,
     Resolving,
     Typechecking
 }
 
+#[derive(Debug, Clone)]
 pub struct Report {
     pub stage: Stage,
     pub span: Span,

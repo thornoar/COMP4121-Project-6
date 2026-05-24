@@ -4,11 +4,15 @@ use rac_diagnostics::{Span, join};
 // Nominal AST structure
 
 pub type Name = (Option<String>, String);
+
+#[derive(Debug, Clone)]
 pub enum NominalDefinition {
     AbstractDef(String, Span),
     CaseClassDef(String, ArgList<String, Name>, String, Span),
     FunDef(String, ArgList<String, Name>, Type<Name>, Expr<Name>, Span),
 }
+
+#[derive(Debug, Clone)]
 pub struct NominalModule {
     pub name: String,
     pub defs: VecDeque<NominalDefinition>,
@@ -17,14 +21,18 @@ pub struct NominalModule {
 
 // Symbolic (resolved) AST structure
 
+#[derive(Debug, Clone)]
 enum SymbolKind { Variable, Function, Class, Type }
 type SID = u64;
+
+#[derive(Debug, Clone)]
 struct Symbol {
     name: String,
     id: SID,
     kind: SymbolKind
 }
 
+#[derive(Debug, Clone)]
 pub struct SymbolicProgram {
     userTypes: VecDeque<Symbol>,
     classDefs: HashMap<SID, (ArgList<Symbol, Symbol>, Symbol)>,
@@ -36,6 +44,7 @@ pub struct SymbolicProgram {
 // Some of the constructors include a `Span`, others do not, as the span of an expression
 // can sometimes be computed from its subexpressions.
 
+#[derive(Debug, Clone)]
 pub enum Expr<N> {
     // Variables. The `Span` is the range of the variable
     Variable(N, Span),
@@ -113,6 +122,7 @@ pub fn range<N> (e: Expr<N>) -> Span {
 
 // Pattern structure
 
+#[derive(Debug, Clone)]
 pub enum Pattern<N> {
     Wildcard(Span),
     IdPattern(N, Span),
@@ -125,6 +135,7 @@ pub enum Pattern<N> {
 
 // Type structure
 
+#[derive(Debug, Clone)]
 pub enum Type<N> {
     // Primitive types
     IntType(Span),

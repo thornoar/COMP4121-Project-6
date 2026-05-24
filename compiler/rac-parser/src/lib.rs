@@ -564,6 +564,15 @@ mod tests {
     
     #[test]
     fn test_parse_expr () {
-        println!("haha")
+        println!("--- EXPRESSION ---");
+        let src = "
+            3 + f(4)
+        ".as_bytes();
+        let mut ts = TokenIter::new(src, src.len());
+        match parse_expr(src, &mut ts) {
+            Ok(e) => println!("{:?}", e),
+            Err(r) => println!("{:?}", r)
+        }
+        println!("--- END ---");
     }
 }
