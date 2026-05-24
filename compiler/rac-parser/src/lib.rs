@@ -230,9 +230,10 @@ fn parse_expr<'a> (src: &'a [u8], ts: &mut TokenIter) -> Result<Expr<Name>, Repo
 // Parses an atomic expression (i.e. not a sequence of expressions).
 // Examples: `5 match { _ => 4 }`, `5 + 6`
 fn parse_atomic_expr<'a> (src: &'a [u8], ts: &mut TokenIter) -> Result<Expr<Name>, Report> {
-    let t1 = ts.pop();
+    let t1 = ts.peek();
     match t1.kind {
         TK::KwVal => {
+            ts.consume();
             let var_token = expect!(ts, TK::Identifier, "Expected a variable identifier after `val`.");
             let var_name = get_string(src, var_token.range)?;
             expect!(ts, TK::Colon, "Expected a colon after the variable name.");
@@ -244,6 +245,7 @@ fn parse_atomic_expr<'a> (src: &'a [u8], ts: &mut TokenIter) -> Result<Expr<Name
             Ok(Expr::Let(Name::new(None, var_name), var_type, Box::new(var_expr), Box::new(body), join(t1.range, sc.range)))
         }
         TK::KwIf => {
+            ts.consume();
             expect!(ts, TK::OpenParen, "Expected an opening parenthesis after the `if` keyword");
             let cond = parse_expr(src, ts)?;
             expect!(ts, TK::CloseParen, "Expected a closing parenthesis after the `if` condition");
@@ -490,9 +492,18 @@ fn parse_simple_expr<'a> (src: &'a [u8], ts: &mut TokenIter) -> Result<Expr<Name
             }
         }
         TK::OpenParen => {
-            let expr = parse_expr(src, ts)?;
-            expect!(ts, TK::CloseParen, "Expected a closing parenthesis here.");
-            Ok(expr)
+            let next = ts.peek();
+            match next.kind {
+                TK::CloseParen => {
+                    ts.consume();
+                    Ok(Expr::UnitLiteral(join(tk.range, next.range)))
+                }
+                _ => {
+                    let expr = parse_expr(src, ts)?;
+                    expect!(ts, TK::CloseParen, "Expected a closing parenthesis here.");
+                    Ok(expr)
+                }
+            }
         }
         _ => error!(tk.range, format!("Unexpected token kind for a simple expression: {:?}", tk.kind))
     }
@@ -572,14 +583,25 @@ mod tests {
     fn test_parse_expr () {
         println!("--- EXPRESSION ---");
         let src = "
-            3
+            lhs match {
+              case BigNil() => rhs
+              case BigCons(d1, t1) => rhs match {
+                case BigNil() => lhs
+                case BigCons(d2, t2) => 
+                  val d: Int(32) = d1 + d2;
+                  if (d < 10)
+                  then BigCons(d, sum(t1, t2))
+                  else BigCons(d % 10, increment(sum(t1, t2)))
+                  end if
+              }
+            }
         ".as_bytes();
         let mut ts = TokenIter::new(src, src.len());
         // ts.print();
         match parse_expr(src, &mut ts) {
             Ok(e) => {
-                println!("{}", e);
-                println!("range: {:?}", range(e));
+                println!("\n{}", e);
+                println!("\nrange: {:?}", range(e));
             }
             Err(r) => println!("{:?}", r)
         }

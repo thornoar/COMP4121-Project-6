@@ -181,15 +181,15 @@ impl<N: Display> Display for Expr<N> {
                 Ite(cond, thenb, elseb, _) => format!(
                     "if ({}) {{\n{}\n{}}} else {{\n{}\n{}}}",
                     work(cond, 0, indent2),
-                    work(thenb, indent1+2, indent2+2),
-                    prefix1, work(elseb, indent1+2, indent2+2),
-                    prefix1
+                    work(thenb, indent2+2, indent2+2),
+                    prefix2, work(elseb, indent2+2, indent2+2),
+                    prefix2
                 ),
                 Match(scrut, pats, _) => {
                     let pats_str = pats.iter().map(|(pat, expr)| {
                         format!("{}{} => {}", prefix2, pat, work(expr, 0, indent2 + 2))
                     }).collect::<Vec<String>>().join("\n");
-                    format!("({} match{{\n{}\n{}}})", work(scrut, 0, indent2), pats_str, prefix1)
+                    format!("( {} match {{\n{}\n{}}} )", work(scrut, 0, indent2), pats_str, prefix1)
                 },
                 Error(arg, _) => format!("error({})", *arg)
             };
