@@ -84,7 +84,8 @@ struct Symbol {
 pub struct SymbolicProgram {
     userTypes: VecDeque<Symbol>,
     classDefs: HashMap<SID, (ArgList<Symbol, Symbol>, Symbol)>,
-    funDefs: HashMap<SID, (ArgList<Symbol, Symbol>, Type<Symbol>, Expr<Symbol>)>
+    funDefs: HashMap<SID, (ArgList<Symbol, Symbol>, Type<Symbol>, Expr<Symbol>)>,
+    exprs: VecDeque<Expr<Symbol>>
 }
 
 // Expression structures, shared between nominal and symbolic trees.
