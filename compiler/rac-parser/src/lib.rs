@@ -557,3 +557,13 @@ fn get_name<'a> (src: &'a [u8], ts: &mut TokenIter, span: Span) -> Result<(Name,
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    
+    #[test]
+    fn test_parse_expr () {
+        println!("haha")
+    }
+}

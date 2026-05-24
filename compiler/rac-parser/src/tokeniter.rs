@@ -52,20 +52,20 @@ impl<'a> TokenIter<'a> {
     }
 }
 
-impl<'a> Iterator for TokenIter<'a> {
-    type Item = Token;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        let tok = lex_token(self.src, self.limit, self.position);
-        self.position = tok.range.end;
-
-        if tok.kind == TokenKind::Eof {
-            None
-        } else {
-            Some(tok)
-        }
-    }
-}
+// impl<'a> Iterator for TokenIter<'a> {
+//     type Item = Token;
+//
+//     fn next(&mut self) -> Option<Self::Item> {
+//         let tok = lex_token(self.src, self.limit, self.position);
+//         self.position = tok.range.end;
+//
+//         if tok.kind == TokenKind::Eof {
+//             None
+//         } else {
+//             Some(tok)
+//         }
+//     }
+// }
 
 // Produce the next token from the `start` position.
 fn lex_token(src: &[u8], limit: usize, start: usize) -> Token {
@@ -209,42 +209,46 @@ fn lex_token(src: &[u8], limit: usize, start: usize) -> Token {
     }
 }
 
-pub fn is_id_start(c: u8) -> bool {
+fn is_id_start(c: u8) -> bool {
     c.is_ascii_alphabetic()
 }
 
-pub fn is_id_continue(c: u8) -> bool {
+fn is_id_continue(c: u8) -> bool {
     c.is_ascii_alphanumeric() || c == b'_'
 }
 
-#[test]
-fn test_tokeniter () {
-    println!("--- TOKENS ---");
-    let src = "
-        abstract class Char
-        case class MkChar(code: Int(32)) extends Char
+#[cfg(test)]
+mod tests {
+    use super::*;
+    
+    #[test]
+    fn test_tokeniter () {
+        println!("--- TOKENS ---");
+        let src = "
+            abstract class Char
+            case class MkChar(code: Int(32)) extends Char
 
-        // A comment
-        // A comment
-        // 
-        // A comment
+            // A comment
+            // A comment
+            // 
+            // A comment
 
-        abstract class CharList
+            abstract class CharList
 
-        /* a multiline comment
-                hasdhasd
-    ".as_bytes();
-    let mut ts = TokenIter::new(src, src.len());
-    loop {
-        let cur = ts.pop();
-        match cur.kind {
-            TokenKind::Eof => break,
-            tk => match str::from_utf8(&src[cur.range.start .. cur.range.end]) {
-                Ok(str) => println!("{:?} -- {:?}", tk, str),
-                _ => println!("--- Error ---")
+            /* a multiline comment
+                    hasdhasd
+        ".as_bytes();
+        let mut ts = TokenIter::new(src, src.len());
+        loop {
+            let cur = ts.pop();
+            match cur.kind {
+                TokenKind::Eof => break,
+                tk => match str::from_utf8(&src[cur.range.start .. cur.range.end]) {
+                    Ok(str) => println!("{:?} -- {:?}", tk, str),
+                    _ => println!("--- Error ---")
+                }
             }
         }
+        println!("--- END ---");
     }
-    println!("--- END ---");
-    // assert_eq!(0,1)
 }
