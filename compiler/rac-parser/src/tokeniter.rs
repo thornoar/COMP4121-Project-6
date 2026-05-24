@@ -172,7 +172,30 @@ fn lex_token(src: &[u8], limit: usize, start: usize) -> Token {
             }
         }
         b';' => Token::new(Semicolon, span(1)),
-        b'/' => Token::new(Slash, span(1)),
+        b'/' => {
+            if has_next && src[start+1] == b'/' {
+                let mut end = start + 2;
+                while end < limit && src[end] != b'\n' {
+                    end += 1;
+                }
+                lex_token(src, limit, end + 1)
+            } else if has_next && src[start+1] == b'*' {
+                let mut end = start + 3;
+                while end < limit && (src[end-1] != b'*' || src[end] != b'/') {
+                    end += 1;
+                }
+                // if end == limit {
+                //     Token::new(UnclosedComment, start .. end)
+                // } else {
+                //     lex_token(src, limit, end + 1)
+                // }
+                lex_token(src, limit, end + 1)
+            } else {
+                Token::new(Slash, span(1))
+            }
+        }
+
+            
         b'*' => Token::new(Star, span(1)),
         b'_' => Token::new(Underscore, span(1)),
         b'"' => {
@@ -201,20 +224,15 @@ fn test_tokeniter () {
         abstract class Char
         case class MkChar(code: Int(32)) extends Char
 
+        // A comment
+        // A comment
+        // 
+        // A comment
+
         abstract class CharList
-        case class CharNil() extends CharList
-        case class CharCons(h: Char, t: CharList) extends CharList
 
-        abstract class CharList2
-        case class CharNil2() extends CharList2
-        case class CharCons2(h: CharList, t: CharList2) extends CharList2
-
-        def length (lst: CharList): Int(32) :=
-        lst match {
-          case CharNil() => 0
-          case CharCons(h, t) => 1 + length(t)
-        }
-        end length,,,,,,,,,,,
+        /* a multiline comment
+                hasdhasd
     ".as_bytes();
     let mut ts = TokenIter::new(src, src.len());
     loop {

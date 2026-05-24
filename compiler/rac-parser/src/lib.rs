@@ -64,6 +64,12 @@ fn parse_module<'a> (src: &'a [u8], ts: &mut TokenIter) -> Result<NominalModule,
     if select!(src, id2.range) != select!(src, id1.range) {
         return error!(id2.range, "The names at the start and end of a module must match.");
     }
+
+    let next = ts.pop();
+    match next.kind {
+        TK::Eof => {},
+        _ => { return error!(next.range, "Unexpected token after the module definition.") }
+    }
     
     Ok(NominalModule { name: name, defs: defs, expr: mexpr })
 }
@@ -119,7 +125,7 @@ fn parse_definition<'a> (src: &'a [u8], ts: &mut TokenIter) -> Result<NominalDef
             let pname = get_string(src, parent.range)?;
             Ok(NominalDefinition::CaseClassDef(name, args, pname, id.range))
         },
-        _ => error!(kw.range, "A definition must start with either `def`, `abstract`, or `case`."),
+        _ => error!(kw.range, "A module definition must start with either `def`, `abstract`, or `case`."),
     }
 }
 
