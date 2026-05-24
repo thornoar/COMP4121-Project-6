@@ -1,9 +1,29 @@
-use std::collections::{HashMap, VecDeque};
+use std::{collections::{HashMap, VecDeque}, fmt::Display};
 use rac_diagnostics::{Span, join};
 
 // Nominal AST structure
 
-pub type Name = (Option<String>, String);
+#[derive(Debug, Clone)]
+pub struct Name {
+    pub owner: Option<String>,
+    pub name: String
+}
+
+impl Name {
+    pub fn new(owner: Option<String>, name: String) -> Self {
+        Self { owner, name }
+    }
+}
+
+// pub type Name = (Option<String>, String);
+impl Display for Name {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match &self.owner {
+            None => write!(f, "{}", self.name),
+            Some(owner) => write!(f, "{}.{}", owner, self.name)
+        }
+    }
+}
 
 #[derive(Debug, Clone)]
 pub enum NominalDefinition {
@@ -120,6 +140,61 @@ pub fn range<N> (e: Expr<N>) -> Span {
     }
 }
 
+
+impl<N: Display> Display for Expr<N> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        use Expr::*;
+
+        fn work<M: Display> (e: &Expr<M>, indent: usize) -> String {
+            let prefix = " ".repeat(indent);
+            let expr_str = match e {
+                Variable(name, _) => format!("{}", name),
+                IntLiteral(v, _) => format!("{}", v),
+                BoolLiteral(v, _) => format!("{}", v),
+                StringLiteral(v, _) => format!("\"{}\"", v),
+                UnitLiteral(_) => format!("()"),
+                Plus(lhs, rhs) => format!("( {} + {} )", work(lhs, 0), work(rhs, 0)),
+                Minus(lhs, rhs) => format!("( {} - {} )", work(lhs, 0), work(rhs, 0)),
+                Times(lhs, rhs) => format!("( {} * {} )", work(lhs, 0), work(rhs, 0)),
+                Div(lhs, rhs) => format!("( {} / {} )", work(lhs, 0), work(rhs, 0)),
+                Mod(lhs, rhs) => format!("( {} % {} )", work(lhs, 0), work(rhs, 0)),
+                LessThan(lhs, rhs) => format!("( {} < {} )", work(lhs, 0), work(rhs, 0)),
+                LessEquals(lhs, rhs) => format!("( {} <= {} )", work(lhs, 0), work(rhs, 0)),
+                And(lhs, rhs) => format!("( {} && {} )", work(lhs, 0), work(rhs, 0)),
+                Or(lhs, rhs) => format!("( {} || {} )", work(lhs, 0), work(rhs, 0)),
+                Equals(lhs, rhs) => format!("( {} == {} )", work(lhs, 0), work(rhs, 0)),
+                Concat(lhs, rhs) => format!("( {} ++ {} )", work(lhs, 0), work(rhs, 0)),
+                Not(e, _) => format!("!({})", work(e, 0)),
+                Neg(e, _) => format!("-({})", work(e, 0)),
+                Call(name, args, _) => {
+                    let args_str = args.iter().map(|arg| work(arg, 0)).collect::<Vec<String>>().join(", ");
+                    format!("{}({})", name, args_str)
+                }
+                Sequence(lhs, rhs) => format!("{};\n{}", work(lhs, 0), work(rhs, indent)),
+                Let(name, typ, val, body, _) => format!("let {}: {} = {} in ({})", name, typ, *val, *body),
+                Ite(cond, thenb, elseb, _) => format!(
+                    "if ({}) {{\n{}\n{}}} else {{\n{}\n{}}}",
+                    work(cond, 0),
+                    work(thenb, indent+2),
+                    prefix, work(elseb, indent+2),
+                    prefix
+                ),
+                Match(scrut, pats, _) => todo!(),
+                Error(arg, _) => format!("error({})", *arg)
+            };
+            format!("{}{}", prefix, expr_str)
+        }
+
+        write!(f, "{}", work(self, 0))
+
+        // macro_rules! binop {
+        //     ($lhs:expr, $rhs:expr) => {
+        //         write!()
+        //     };
+        // }
+    }
+}
+
 // Pattern structure
 
 #[derive(Debug, Clone)]
@@ -144,4 +219,17 @@ pub enum Type<N> {
     UnitType(Span),
     // User-defined types
     ClassType(N, Span),
+}
+
+impl<N: Display> Display for Type<N> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        use Type::*;
+        match self {
+            IntType(_) => write!(f, "Int(32)"),
+            BoolType(_) => write!(f, "Boolean"),
+            StringType(_) => write!(f, "String"),
+            UnitType(_) => write!(f, "Unit"),
+            ClassType(name, _) => write!(f, "{}", name)
+        }
+    }
 }

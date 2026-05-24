@@ -19,6 +19,12 @@ use rac_diagnostics::{Report, Span, Stage, join};
 use crate::tokeniter::TokenIter;
 use crate::token::{TokenKind as TK};
 
+macro_rules! mkname {
+    ($owner:expr, $name:expr) => {
+        Name { owner: $owner, name: $name }
+    };
+}
+
 macro_rules! select {
     ($src:expr, $span:expr) => {
         $src[$span.start .. $span.end]
@@ -197,9 +203,9 @@ fn parse_type<'a> (src: &'a [u8], ts: &mut TokenIter) -> Result<Type<Name>, Repo
                 ts.consume();
                 let typ2 = expect!(ts, TK::Identifier, "Expected a valid identifier as part of a qualified name.");
                 let name = get_string(src, typ2.range)?;
-                Ok(Type::ClassType((Some(owner), name), join(typ1.range, typ2.range)))
+                Ok(Type::ClassType(Name::new(Some(owner), name), join(typ1.range, typ2.range)))
             },
-            _ => get_string(src, typ1.range).map(|s| Type::ClassType((None, s), typ1.range))
+            _ => get_string(src, typ1.range).map(|s| Type::ClassType(Name::new(None, s), typ1.range))
         }
 
             
@@ -235,7 +241,7 @@ fn parse_atomic_expr<'a> (src: &'a [u8], ts: &mut TokenIter) -> Result<Expr<Name
             let var_expr = parse_expr(src, ts)?;
             let sc = expect!(ts, TK::Semicolon, "Expected a semicolon after a `val` declaration.");
             let body = parse_expr(src, ts)?;
-            Ok(Expr::Let((None, var_name), var_type, Box::new(var_expr), Box::new(body), join(t1.range, sc.range)))
+            Ok(Expr::Let(Name::new(None, var_name), var_type, Box::new(var_expr), Box::new(body), join(t1.range, sc.range)))
         }
         TK::KwIf => {
             expect!(ts, TK::OpenParen, "Expected an opening parenthesis after the `if` keyword");
@@ -346,7 +352,7 @@ fn parse_pattern<'a> (src: &'a [u8], ts: &mut TokenIter) -> Result<Pattern<Name>
                     let cp = expect!(ts, TK::CloseParen, "Expected a closing parenthesis at the end of a pattern list");
                     Ok(Pattern::ClassPattern(qname, argpats, join(idrange, cp.range)))
                 }
-                _ => match qname.0 {
+                _ => match qname.owner {
                     None => Ok(Pattern::IdPattern(qname, idrange)),
                     _ => error!(idrange, "Variable names cannot be quantified.")
                 }
@@ -477,7 +483,7 @@ fn parse_simple_expr<'a> (src: &'a [u8], ts: &mut TokenIter) -> Result<Expr<Name
                     let cp = expect!(ts, TK::CloseParen, "Expected a closing parenthesis at the end of a pattern list");
                     Ok(Expr::Call(qname, args, join(tk.range, cp.range)))
                 }
-                _ => match qname.0 {
+                _ => match qname.owner {
                     None => Ok(Expr::Variable(qname, idrange)),
                     _ => error!(idrange, "Variable names cannot be quantified.")
                 }
@@ -549,11 +555,11 @@ fn get_name<'a> (src: &'a [u8], ts: &mut TokenIter, span: Span) -> Result<(Name,
             let tk2 = expect!(ts, TK::Identifier, "Expected a valid identifier as part of a qualified name.");
             let owner = get_string(src, span)?;
             let name = get_string(src, tk2.range)?;
-            Ok(((Some(owner), name), join(span, tk2.range)))
+            Ok((Name::new(Some(owner), name), join(span, tk2.range)))
         }
         _ => {
             let name = get_string(src, span)?;
-            Ok(((None, name), span))
+            Ok((Name::new(None, name), span))
         }
     }
 }
@@ -566,11 +572,15 @@ mod tests {
     fn test_parse_expr () {
         println!("--- EXPRESSION ---");
         let src = "
-            3 + f(4)
+            3 || true + 4 - 5 + f(x)
         ".as_bytes();
         let mut ts = TokenIter::new(src, src.len());
-        match parse_expr(src, &mut ts) {
-            Ok(e) => println!("{:?}", e),
+        // ts.print();
+        match parse_infix_expr(src, &mut ts, 6) {
+            Ok(e) => {
+                println!("{}", e);
+                println!("range: {:?}", range(e));
+            }
             Err(r) => println!("{:?}", r)
         }
         println!("--- END ---");

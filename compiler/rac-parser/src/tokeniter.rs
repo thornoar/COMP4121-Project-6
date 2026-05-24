@@ -50,6 +50,19 @@ impl<'a> TokenIter<'a> {
             }
         }
     }
+
+    pub fn print(&mut self) -> () {
+        loop {
+            let cur = self.pop();
+            match cur.kind {
+                TokenKind::Eof => break,
+                tk => match str::from_utf8(&self.src[cur.range.start .. cur.range.end]) {
+                    Ok(str) => println!("{:?} -- {:?}", tk, str),
+                    _ => println!("--- Error ---")
+                }
+            }
+        }
+    }
 }
 
 // impl<'a> Iterator for TokenIter<'a> {
@@ -239,16 +252,7 @@ mod tests {
                     hasdhasd
         ".as_bytes();
         let mut ts = TokenIter::new(src, src.len());
-        loop {
-            let cur = ts.pop();
-            match cur.kind {
-                TokenKind::Eof => break,
-                tk => match str::from_utf8(&src[cur.range.start .. cur.range.end]) {
-                    Ok(str) => println!("{:?} -- {:?}", tk, str),
-                    _ => println!("--- Error ---")
-                }
-            }
-        }
+        ts.print();
         println!("--- END ---");
     }
 }
