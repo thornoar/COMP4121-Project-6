@@ -15,7 +15,6 @@ impl Name {
     }
 }
 
-// pub type Name = (Option<String>, String);
 impl Display for Name {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match &self.owner {
@@ -37,6 +36,35 @@ pub struct NominalModule {
     pub name: String,
     pub defs: VecDeque<NominalDefinition>,
     pub expr: Option<Expr<Name>>
+}
+
+impl NominalModule {
+    pub fn print(&self) {
+        println!("object {}", self.name);
+        for def in self.defs.iter() {
+            use NominalDefinition::*;
+            match def {
+                AbstractDef(name, _) => println!("   abstract class {}", name),
+                CaseClassDef(name, args, parent, _) => {
+                    print!("   case class {} ", name);
+                    let args_str = args.iter().map(|(n, t)| format!("{}: {}", n, t)).collect::<Vec<String>>().join(", ");
+                    println!("({}) extends {}", args_str, parent);
+                },
+                FunDef(name, args, rt, body, _) => {
+                    print!("   def {} ", name);
+                    let args_str = args.iter().map(|(n, t)| format!("{}: {}", n, t)).collect::<Vec<String>>().join(", ");
+                    println!("({}): {} :=", args_str, rt);
+                    println!("      {}", body.show(2));
+                    println!("   end {}", name);
+                }
+            }
+        }
+        match &self.expr {
+            Some(e) => println!("   {}", e.show(2)),
+            None => {}
+        }
+        println!("end {}", self.name);
+    }
 }
 
 // Symbolic (resolved) AST structure
