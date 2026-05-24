@@ -145,53 +145,58 @@ impl<N: Display> Display for Expr<N> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         use Expr::*;
 
-        fn work<M: Display> (e: &Expr<M>, indent: usize) -> String {
-            let prefix = " ".repeat(indent);
+        fn work<M: Display> (e: &Expr<M>, indent1: usize, indent2: usize) -> String {
+            let prefix1 = " ".repeat(indent1);
+            let prefix2 = " ".repeat(indent2);
+            macro_rules! binop {
+                ($lhs:expr, $op:literal, $rhs:expr) => {
+                    format!("( {} {} {} )", work($lhs, 0, indent2), $op, work($rhs, 0, indent2))
+                };
+            }
             let expr_str = match e {
                 Variable(name, _) => format!("{}", name),
                 IntLiteral(v, _) => format!("{}", v),
                 BoolLiteral(v, _) => format!("{}", v),
                 StringLiteral(v, _) => format!("\"{}\"", v),
                 UnitLiteral(_) => format!("()"),
-                Plus(lhs, rhs) => format!("( {} + {} )", work(lhs, 0), work(rhs, 0)),
-                Minus(lhs, rhs) => format!("( {} - {} )", work(lhs, 0), work(rhs, 0)),
-                Times(lhs, rhs) => format!("( {} * {} )", work(lhs, 0), work(rhs, 0)),
-                Div(lhs, rhs) => format!("( {} / {} )", work(lhs, 0), work(rhs, 0)),
-                Mod(lhs, rhs) => format!("( {} % {} )", work(lhs, 0), work(rhs, 0)),
-                LessThan(lhs, rhs) => format!("( {} < {} )", work(lhs, 0), work(rhs, 0)),
-                LessEquals(lhs, rhs) => format!("( {} <= {} )", work(lhs, 0), work(rhs, 0)),
-                And(lhs, rhs) => format!("( {} && {} )", work(lhs, 0), work(rhs, 0)),
-                Or(lhs, rhs) => format!("( {} || {} )", work(lhs, 0), work(rhs, 0)),
-                Equals(lhs, rhs) => format!("( {} == {} )", work(lhs, 0), work(rhs, 0)),
-                Concat(lhs, rhs) => format!("( {} ++ {} )", work(lhs, 0), work(rhs, 0)),
-                Not(e, _) => format!("!({})", work(e, 0)),
-                Neg(e, _) => format!("-({})", work(e, 0)),
+                Plus(lhs, rhs) => binop!(lhs, "+", rhs),
+                Minus(lhs, rhs) => binop!(lhs, "-", rhs),
+                Times(lhs, rhs) => binop!(lhs, "*", rhs),
+                Div(lhs, rhs) => binop!(lhs, "/", rhs),
+                Mod(lhs, rhs) => binop!(lhs, "%", rhs),
+                LessThan(lhs, rhs) => binop!(lhs, "<", rhs),
+                LessEquals(lhs, rhs) => binop!(lhs, "<=", rhs),
+                And(lhs, rhs) => binop!(lhs, "&&", rhs),
+                Or(lhs, rhs) => binop!(lhs, "||", rhs),
+                Equals(lhs, rhs) => binop!(lhs, "==", rhs),
+                Concat(lhs, rhs) => binop!(lhs, "++", rhs),
+                Not(e, _) => format!("!({})", work(e, 0, indent2)),
+                Neg(e, _) => format!("-({})", work(e, 0, indent2)),
                 Call(name, args, _) => {
-                    let args_str = args.iter().map(|arg| work(arg, 0)).collect::<Vec<String>>().join(", ");
+                    let args_str = args.iter().map(|arg| work(arg, 0, indent2)).collect::<Vec<String>>().join(", ");
                     format!("{}({})", name, args_str)
                 }
-                Sequence(lhs, rhs) => format!("{};\n{}", work(lhs, 0), work(rhs, indent)),
+                Sequence(lhs, rhs) => format!("{};\n{}", work(lhs, 0, indent2), work(rhs, indent1, indent2)),
                 Let(name, typ, val, body, _) => format!("let {}: {} = {} in ({})", name, typ, *val, *body),
                 Ite(cond, thenb, elseb, _) => format!(
                     "if ({}) {{\n{}\n{}}} else {{\n{}\n{}}}",
-                    work(cond, 0),
-                    work(thenb, indent+2),
-                    prefix, work(elseb, indent+2),
-                    prefix
+                    work(cond, 0, indent2),
+                    work(thenb, indent1+2, indent2+2),
+                    prefix1, work(elseb, indent1+2, indent2+2),
+                    prefix1
                 ),
-                Match(scrut, pats, _) => todo!(),
+                Match(scrut, pats, _) => {
+                    let pats_str = pats.iter().map(|(pat, expr)| {
+                        format!("{}{} => {}", prefix2, pat, work(expr, 0, indent2 + 2))
+                    }).collect::<Vec<String>>().join("\n");
+                    format!("({} match{{\n{}\n{}}})", work(scrut, 0, indent2), pats_str, prefix1)
+                },
                 Error(arg, _) => format!("error({})", *arg)
             };
-            format!("{}{}", prefix, expr_str)
+            format!("{}{}", prefix1, expr_str)
         }
 
-        write!(f, "{}", work(self, 0))
-
-        // macro_rules! binop {
-        //     ($lhs:expr, $rhs:expr) => {
-        //         write!()
-        //     };
-        // }
+        write!(f, "{}", work(self, 0, 2))
     }
 }
 
@@ -206,6 +211,24 @@ pub enum Pattern<N> {
     IntPattern(i32, Span),
     UnitPattern(Span),
     ClassPattern(N, VecDeque<Pattern<N>>, Span)
+}
+
+impl<N: Display> Display for Pattern<N> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        use Pattern::*;
+        match self {
+            Wildcard(_) => write!(f, "_"),
+            IdPattern(name, _) => write!(f, "{}", name),
+            BoolPattern(val, _) => write!(f, "{}", val),
+            StringPattern(str, _) => write!(f, "\"{}\"", str),
+            IntPattern(val, _) => write!(f, "{}", val),
+            UnitPattern(_) => write!(f, "()"),
+            ClassPattern(name, args, _) => {
+                let args_str = args.iter().map(|a| format!("{}", a)).collect::<Vec<String>>().join(", ");
+                write!(f, "{}({})", name, args_str)
+            }
+        }
+    }
 }
 
 // Type structure

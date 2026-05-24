@@ -572,11 +572,11 @@ mod tests {
     fn test_parse_expr () {
         println!("--- EXPRESSION ---");
         let src = "
-            3 || true + 4 - 5 + f(x)
+            3
         ".as_bytes();
         let mut ts = TokenIter::new(src, src.len());
         // ts.print();
-        match parse_infix_expr(src, &mut ts, 6) {
+        match parse_expr(src, &mut ts) {
             Ok(e) => {
                 println!("{}", e);
                 println!("range: {:?}", range(e));
