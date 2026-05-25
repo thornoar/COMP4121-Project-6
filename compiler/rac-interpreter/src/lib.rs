@@ -1,6 +1,19 @@
-use rac_ast::SymbolicProgram;
+mod environ;
 
-pub fn interpret(program: SymbolicProgram) {
-    // program.exprs
-    todo!()
+use rac_ast::{Expr, Symbol, SymbolicProgram};
+use crate::environ::{Environment, Value};
+
+pub fn interpret_program(program: SymbolicProgram) {
+    let env = Environment::new();
+    program.exprs.iter().for_each(|expr| { interpret(expr, &mut env.clone()); })
+}
+
+pub fn interpret(expr: &Expr<Symbol>, env: &mut Environment) -> Value {
+    match expr {
+        Expr::BoolLiteral(b, _) => Value::Bool(*b),
+        Expr::IntLiteral(i, _) => Value::Int(*i),
+        Expr::StringLiteral(s, _) => Value::String(s.clone()),
+        Expr::UnitLiteral(_) => Value::Unit,
+        _ => todo!()
+    }
 }
