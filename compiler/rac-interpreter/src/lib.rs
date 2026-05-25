@@ -72,7 +72,12 @@ pub fn interpret(expr: &Expr<Symbol>, env: &mut Environment) -> Value {
             interpret(discard, env);
             interpret(ret, env)
         }
-        Expr::Let(name, _, _, _, _) => todo!(),
+        Expr::Let(name, _, value, body, _) => {
+            let value = interpret(value, env);
+            env.define(name.clone(), value);
+
+            interpret(body, env)
+        },
         Expr::Ite(cond, then, elze, _) => {
             let Value::Bool(condval) = interpret(cond, env) else {
                 panic!()
@@ -87,7 +92,13 @@ pub fn interpret(expr: &Expr<Symbol>, env: &mut Environment) -> Value {
 
         Expr::Match(scrut, cases, _) => todo!(),
 
-        Expr::Error(msg, _) => todo!(),
+        Expr::Error(msg, _) => {
+            let Value::String(str) = interpret(msg, env) else {
+                panic!()
+            };
+
+            panic!("Error: {str}")
+        },
 
         _ => todo!()
     }
