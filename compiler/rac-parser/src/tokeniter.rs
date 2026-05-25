@@ -232,27 +232,28 @@ fn is_id_continue(c: u8) -> bool {
 
 #[cfg(test)]
 mod tests {
+    use std::fs;
     use super::*;
-    use crate::file::*;
     
     #[test]
     fn test_tokeniter () {
         println!("--- TOKENS ---");
-        let src = "
-            abstract class Char
-            case class MkChar(code: Int(32)) extends Char
-
-            // A comment
-            // A comment
-            // 
-            // A comment
-
-            abstract class CharList
-
-            /* a multiline comment
-                    hasdhasd
-        ".as_bytes();
-        let mut ts = TokenIter::new(src, src.len());
+        // let src = "
+        //     abstract class Char
+        //     case class MkChar(code: Int(32)) extends Char
+        //
+        //     // A comment
+        //     // A comment
+        //     // 
+        //     // A comment
+        //
+        //     abstract class CharList
+        //
+        //     /* a multiline comment
+        //             hasdhasd
+        // ".as_bytes();
+        let src = fs::read("../test-files/Test.amy").unwrap();
+        let mut ts = TokenIter::new(src.as_slice(), src.len());
         ts.print();
         println!("--- END ---");
     }
