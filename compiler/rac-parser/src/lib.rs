@@ -9,6 +9,7 @@
 // #![deny(warnings)]
 
 pub mod token;
+pub mod file;
 pub mod tokeniter;
 
 use std::collections::{VecDeque};

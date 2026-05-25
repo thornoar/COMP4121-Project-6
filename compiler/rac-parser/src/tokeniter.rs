@@ -233,6 +233,7 @@ fn is_id_continue(c: u8) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::file::*;
     
     #[test]
     fn test_tokeniter () {
