@@ -1,0 +1,10 @@
+[package]
+name = "rac-name-analyzer"
+authors = { workspace = true }
+edition = { workspace = true }
+version = { workspace = true }
+rust-version = { workspace = true }
+
+[dependencies]
+rac-ast = { path = "../rac-ast" }
+rac-diagnostics = { path = "../rac-diagnostics" }
