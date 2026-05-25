@@ -1,0 +1,234 @@
+/*
+Support for arbitrary precision non-negative integers
+
+Needs: Ordering.amy, Std.amy
+*/
+
+object BN
+
+  abstract class BigInt
+  case class BigNil() extends BigInt
+  case class BigCons(d: Int(32), t: BigInt) extends BigInt
+
+  def scaleByTen (n: BigInt) : BigInt :=
+    n match {
+      case BigNil() => BigNil()
+      case _ => BigCons(0, n)
+    }
+  end scaleByTen
+
+  def length (n: BigInt) : Int(32) :=
+    n match {
+      case BigNil() => 0
+      case BigCons(_, t) => 1 + length(t)
+    }
+  end length
+
+  def increment (n: BigInt) : BigInt :=
+    n match {
+      case BigNil() => BigCons(1, BigNil())
+      case BigCons(9, t) => BigCons(0, increment(t))
+      case BigCons(d, t) => BigCons(d+1, t)
+    }
+  end increment
+
+  def decrement (n: BigInt) : BigInt :=
+    n match {
+      case BigNil() => error("cannot decrement zero")
+      case BigCons(1, BigNil()) => BigNil()
+      case BigCons(0, t) => BigCons(9, decrement(t))
+      case BigCons(d, t) => BigCons(d-1, t)
+    }
+  end decrement
+
+  def toBig (n: Int(32)) : BigInt :=
+    if (n == 0) then BigNil() else
+      if (n < 10)
+      then BigCons(n, BigNil())
+      else BigCons(n % 10, toBig(n / 10))
+      end if
+    end if
+  end toBig
+
+  // Mathematical operations
+
+  // Add a small integer to a big integer
+  def sumInt (lhs: BigInt, rhs: Int(32)) : BigInt :=
+    lhs match {
+      case BigNil() => toBig(rhs)
+      case BigCons(d, t) =>
+        val temp: Int(32) = d + rhs;
+        BigCons(temp % 10, sumInt(t, temp / 10))
+    }
+  end sumInt
+
+  def sum (lhs: BigInt, rhs: BigInt) : BigInt :=
+    lhs match {
+      case BigNil() => rhs
+      case BigCons(d1, t1) => rhs match {
+        case BigNil() => lhs
+        case BigCons(d2, t2) => 
+          val d: Int(32) = d1 + d2;
+          if (d < 10)
+          then BigCons(d, sum(t1, t2))
+          else BigCons(d % 10, increment(sum(t1, t2)))
+          end if
+      }
+    }
+  end sum
+
+  def difference (lhs: BigInt, rhs: BigInt) : BigInt :=
+    rhs match {
+      case BigNil() => lhs
+      case BigCons(d2, t2) => lhs match {
+        case BigNil() => error("cannot subtract a larger number from a smaller number")
+        case BigCons(d1, t1) => ORD.compareInt(d1, d2) match {
+          case ORD.LT() => BigCons(10 + d1 - d2, difference(decrement(t1), t2))
+          case ORD.EQ() => difference(t1, t2) match {
+            case BigNil() => BigNil()
+            case t3 => BigCons(0, t3)
+          }
+          case ORD.GT() => BigCons(d1 - d2, difference(t1, t2))
+        }
+      }
+    }
+  end difference
+
+  def productInt (lhs: BigInt, rhs: Int(32)) : BigInt :=
+    if (rhs == 0)
+    then BigNil()
+    else sum(lhs, productInt(lhs, rhs - 1))
+    end if
+  end productInt
+
+  def product (lhs: BigInt, rhs: BigInt) : BigInt :=
+    rhs match {
+      case BigNil() => BigNil()
+      case BigCons(d, t) => sum(productInt(lhs, d), BigCons(0, product(lhs, t)))
+    }
+  end product
+
+  def compare (lhs: BigInt, rhs: BigInt): ORD.Ordering :=
+    lhs match {
+      case BigNil() => rhs match {
+        case BigNil() => ORD.EQ()
+        case _ => ORD.LT()
+      }
+      case BigCons(d1, t1) => rhs match {
+        case BigNil() => ORD.GT()
+        case BigCons(d2, t2) => compare(t1, t2) match {
+          case ORD.EQ() => ORD.compareInt(d1, d2)
+          case o => o
+        }
+      }
+    }
+  end compare
+
+  def modInt (lhs: BigInt, rhs: Int(32)) : Int(32) :=
+    lhs match {
+      case BigNil() => 0
+      case BigCons(d, t) => (d % rhs + (10 % rhs) * modInt(t, rhs)) % rhs
+    }
+  end modInt
+
+  def modNaive (lhs: BigInt, rhs: BigInt) : BigInt :=
+    compare(lhs, rhs) match {
+      case ORD.LT() => lhs
+      case ORD.EQ() => BigNil()
+      case ORD.GT() => modNaive(difference(lhs, rhs), rhs)
+    }
+  end modNaive
+
+  def mod (lhs: BigInt, rhs: BigInt) : BigInt :=
+    ORD.compareInt(length(lhs), length(rhs) + 1) match {
+      case ORD.GT() => lhs match {
+        case BigCons(d, t) => mod(BigCons(d, mod(t, rhs)), rhs)
+      }
+      case _ => modNaive(lhs, rhs)
+    }
+  end mod
+
+  def div (lhs: BigInt, rhs: BigInt) : BigInt :=
+    compare(lhs, rhs) match {
+      case ORD.LT() => BigNil()
+      case _ => increment(div(difference(lhs, rhs), rhs))
+    }
+  end div
+
+  def factorialInt (n: Int(32)) : BigInt :=
+    if (n == 0)
+    then BigCons(1, BigNil())
+    else productInt(factorialInt(n-1), n)
+    end if
+  end factorialInt
+
+  def factorial (n: BigInt) : BigInt :=
+    n match {
+      case BigNil() => BigCons(1, BigNil())
+      case _ => product(n, factorial(decrement(n)))
+    }
+  end factorial
+
+  def factorialAlt (n: BigInt, m: BigInt): BigInt :=
+    m match {
+      case BigNil() => BigCons(1, BigNil())
+      case BigCons(d, t) => product(n, factorialAlt(decrement(n), decrement(m)))
+    }
+  end factorialAlt
+
+  def binomialNaive (n: BigInt, m: BigInt): BigInt :=
+    m match {
+      case BigNil() => BigCons(1, BigNil())
+      case _ => n match {
+        case BigNil() => BigNil()
+        case _ =>
+          val nprev: BigInt = decrement(n);
+          sum(binomialNaive(nprev, m), binomialNaive(nprev, decrement(m)))
+      }
+    }
+  end binomialNaive
+
+  def powInt (n: BigInt, exp: Int(32)): BigInt :=
+    if (exp <= 0)
+    then BigCons(1, BigNil())
+    else product(n, powInt(n, exp-1))
+    end if
+  end powInt
+
+  // Conversion and printing
+
+  def fromBig (n: BigInt) : Int(32) :=
+    n match {
+      case BigNil() => 0
+      case BigCons(d, t) => d + 10 * fromBig(t)
+    }
+  end fromBig
+
+  def show (n: BigInt) : String :=
+    n match {
+      case BigNil() => "BN:"
+      case BigCons(d, t) => show(t) ++ Std.intToString(d)
+    }
+  end show
+
+  def printBig (n: BigInt) : Unit := Std.printString(show(n)) end printBig
+
+  // Testing
+
+  val bn: BigInt = BigCons(453, BigNil());
+
+  // Std.printInt(
+  //   bn match {
+  //     case BigNil() => -1
+  //     case BigCons(d, t) => d
+  //   }
+  // )
+
+  // Std.printString(Std.intToString(1))
+  // printBig(bn)
+  // printBig(factorialInt(5))
+  // Std.printInt(modInt(toBig(1111111111), 100))
+  printBig(mod(toBig(100293000), toBig(17603)));
+  printBig(powInt(toBig(1291), 20));
+  printBig(binomialNaive(toBig(12), toBig(6)))
+end BN

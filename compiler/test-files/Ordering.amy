@@ -1,0 +1,24 @@
+// Comparing values
+
+object ORD
+
+  abstract class Ordering
+  case class LT() extends Ordering
+  case class EQ() extends Ordering
+  case class GT() extends Ordering
+
+  def compareInt (lhs: Int(32), rhs: Int(32)): Ordering :=
+    if (lhs == rhs) then EQ()
+    else if (lhs < rhs) then LT() else GT() end if
+    end if
+  end compareInt
+
+  def showOrd (o: Ordering): String := o match {
+    case LT() => "LT"
+    case EQ() => "EQ"
+    case GT() => "GT"
+  }
+  end showOrd
+
+  // Std.printString(showOrd(compareInt(5,5)))
+end ORD
