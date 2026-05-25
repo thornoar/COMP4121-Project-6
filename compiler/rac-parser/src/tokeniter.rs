@@ -57,7 +57,7 @@ impl<'a> TokenIter<'a> {
             match cur.kind {
                 TokenKind::Eof => break,
                 tk => match str::from_utf8(&self.src[cur.range.start .. cur.range.end]) {
-                    Ok(str) => println!("{:?} -- {:?}", tk, str),
+                    Ok(str) => println!("{:?} -- {:?} ({}-{})", str, tk, cur.range.start, cur.range.end),
                     _ => println!("--- Error ---")
                 }
             }

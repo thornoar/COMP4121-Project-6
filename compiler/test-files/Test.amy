@@ -1,4 +1,4 @@
 object Test
-
-  def f 
+  val x: Int(32) = 5;
+  x + 5
 end Test

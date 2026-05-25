@@ -44,18 +44,18 @@ impl NominalModule {
         for def in self.defs.iter() {
             use NominalDefinition::*;
             match def {
-                AbstractDef(name, _) => println!("   abstract class {}", name),
+                AbstractDef(name, _) => println!("   abstract class {}\n", name),
                 CaseClassDef(name, args, parent, _) => {
                     print!("   case class {} ", name);
                     let args_str = args.iter().map(|(n, t)| format!("{}: {}", n, t)).collect::<Vec<String>>().join(", ");
-                    println!("({}) extends {}", args_str, parent);
+                    println!("({}) extends {}\n", args_str, parent);
                 },
                 FunDef(name, args, rt, body, _) => {
                     print!("   def {} ", name);
                     let args_str = args.iter().map(|(n, t)| format!("{}: {}", n, t)).collect::<Vec<String>>().join(", ");
                     println!("({}): {} :=", args_str, rt);
                     println!("      {}", body.show(2));
-                    println!("   end {}", name);
+                    println!("   end {}\n", name);
                 }
             }
         }
@@ -203,8 +203,8 @@ impl<N: Display> Expr<N> {
                 let args_str = args.iter().map(|arg| arg.show(indent)).collect::<Vec<String>>().join(", ");
                 format!("{}({})", name, args_str)
             }
-            Sequence(lhs, rhs) => format!("{};\n{}", lhs.show(indent), rhs.show(indent)),
-            Let(name, typ, val, body, _) => format!("let {}: {} = {} in ( {} )", name, typ, val.show(indent), body.show(indent)),
+            Sequence(lhs, rhs) => format!("{};\n{}{}", lhs.show(indent+1), prefix1, rhs.show(indent)),
+            Let(name, typ, val, body, _) => format!("let {}: {} = {} in\n{}( {} )", name, typ, val.show(indent+1), prefix1, body.show(indent)),
             Ite(cond, thenb, elseb, _) => format!(
                 "if ({}) {{\n{}{}\n{}}} else {{\n{}{}\n{}}}",
                 cond.show(indent),

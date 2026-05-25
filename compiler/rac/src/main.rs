@@ -14,6 +14,8 @@
 
 use std::{collections::VecDeque, env, fs};
 
+use rac_parser::{tokeniter::TokenIter, parse};
+
 #[derive(Debug, Eq, PartialEq)]
 enum Operation {
     PrintTokens,
@@ -36,7 +38,7 @@ pub fn main() {
 
     let mut moper = None;
     let mut fnames: VecDeque<String> = VecDeque::new();
-    for arg in env::args() {
+    for arg in env::args().skip(1) {
         let len = arg.len();
         if len >= 2 && &arg[0..2] == "--" {
             match &arg[2..len] {
@@ -73,11 +75,36 @@ pub fn main() {
         );
     }
 
-    let mut sources: VecDeque<Vec<u8>> = VecDeque::new();
+    let mut sources = VecDeque::new();
+    // let mut tokenStreams = VecDeque::new();
     for fname in fnames.iter() {
         match fs::read(&fname) {
             Ok(contents) => { sources.push_back(contents); },
             Err(_) => init_error!(format!("could not read file `{}`", fname))
         }
+    }
+
+    let mut nominal_trees = VecDeque::new();
+    for source in sources.iter() {
+        let src = source.as_slice();
+        let mut ts = TokenIter::new(src, src.len());
+        if oper == PrintTokens {
+            ts.print();
+        } else {
+            match parse(src) {
+                Ok(m) => { nominal_trees.push_back(m); },
+                Err(r) => {
+                    r.print();
+                    return;
+                }
+            }
+        }
+    }
+
+    if oper == PrintNominal {
+        for module in nominal_trees.iter() {
+            module.print(); print!("\n");
+        }
+        return;
     }
 }
