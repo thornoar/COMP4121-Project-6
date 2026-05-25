@@ -69,11 +69,11 @@ impl NominalModule {
 
 // Symbolic (resolved) AST structure
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Hash, Eq, PartialEq)]
 enum SymbolKind { Variable, Function, Class, Type }
 type SID = u64;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Hash, Eq, PartialEq)]
 pub struct Symbol {
     name: String,
     id: SID,

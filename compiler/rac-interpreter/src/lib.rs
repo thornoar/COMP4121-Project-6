@@ -14,6 +14,15 @@ pub fn interpret(expr: &Expr<Symbol>, env: &mut Environment) -> Value {
         Expr::IntLiteral(i, _) => Value::Int(*i),
         Expr::StringLiteral(s, _) => Value::String(s.clone()),
         Expr::UnitLiteral(_) => Value::Unit,
+
+        Expr::Variable(name, _) if let Some(value) = env.lookup(name) => value,
+
+        Expr::Plus(lhs, rhs) => interpret(lhs, env) + interpret(rhs, env),
+        Expr::Minus(lhs, rhs) => interpret(lhs, env) - interpret(rhs, env),
+        Expr::Times(lhs, rhs) => interpret(lhs, env) * interpret(rhs, env),
+        Expr::Div(lhs, rhs) => interpret(lhs, env) / interpret(rhs, env),
+        Expr::Mod(lhs, rhs) => interpret(lhs, env) % interpret(rhs, env),
+
         _ => todo!()
     }
 }
