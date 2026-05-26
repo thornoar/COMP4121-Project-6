@@ -125,10 +125,17 @@ impl Display for Symbol {
 }
 
 #[derive(Debug)]
+pub struct SymbolicAbstDef {
+    pub name: Symbol,
+    pub range: Span,
+}
+
+#[derive(Debug)]
 pub struct SymbolicClassDef {
     pub name: Symbol,
     pub args: ArgList<Symbol, Symbol>,
     pub parent: Symbol,
+    pub range: Span,
 }
 
 #[derive(Debug)]
@@ -137,11 +144,12 @@ pub struct SymbolicFunDef {
     pub args: ArgList<Symbol, Symbol>,
     pub rt: Type<Symbol>,
     pub body: Expr<Symbol>,
+    pub range: Span,
 }
 
 #[derive(Debug)]
 pub struct SymbolicProgram {
-    pub user_types: VecDeque<Symbol>,
+    pub user_types: HashMap<SID, SymbolicAbstDef>,
     pub class_defs: HashMap<SID, SymbolicClassDef>,
     pub fun_defs: HashMap<SID, SymbolicFunDef>,
     pub exprs: VecDeque<Expr<Symbol>>,
