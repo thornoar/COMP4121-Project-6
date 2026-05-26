@@ -132,6 +132,7 @@ pub struct SymbolicClassDef {
 
 #[derive(Debug)]
 pub struct SymbolicFunDef {
+    pub name: Symbol,
     pub args: ArgList<Symbol, Symbol>,
     pub rt: Type<Symbol>,
     pub body: Expr<Symbol>,

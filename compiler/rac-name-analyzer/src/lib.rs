@@ -38,7 +38,7 @@ pub fn resolve(modules: &VecDeque<NominalModule>) -> Result<SymbolicProgram, Rep
     // Discovering user types
     for md in modules.iter() {
         for def in md.abstract_defs.iter() {
-            if !contains_with_name(&user_types, &def.name) {
+            if contains_with_name(&user_types, &def.name) {
                 return error!(
                     def.range,
                     format!("An abstract class named `{}` is already defined.", def.name)
@@ -50,7 +50,14 @@ pub fn resolve(modules: &VecDeque<NominalModule>) -> Result<SymbolicProgram, Rep
 
     // Discovering class definitions
     for md in modules.iter() {
-        for def in md.class_defs.iter() {}
+        for def in md.class_defs.iter() {
+            if !contains_with_name(&user_types, &def.parent) {
+                return error!(
+                    def.range,
+                    format!("Could not find an abstract class named `{}`", def.parent)
+                );
+            }
+        }
     }
 
     todo!()
