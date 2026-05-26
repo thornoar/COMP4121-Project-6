@@ -124,6 +124,26 @@ impl Display for Symbol {
     }
 }
 
+pub struct SymbolGenerator {
+    next_id: SID
+}
+
+impl SymbolGenerator {
+    pub fn new() -> Self {
+        SymbolGenerator { next_id: 0 }
+    }
+
+    pub fn fresh(&mut self, name: String, kind: SymbolKind) -> Symbol {
+        let sym = Symbol { name, id: self.next_id, kind: kind };
+        self.next_id += 1;
+        sym
+    }
+
+    pub fn fresh_type_var(&mut self) -> Type<Symbol> {
+        Type::Var(self.fresh(String::from(format!("'a:{}", self.next_id)), SymbolKind::TypeVariable))
+    }
+}
+
 #[derive(Debug)]
 pub struct SymbolicAbstDef {
     pub name: Symbol,
