@@ -15,6 +15,7 @@ macro_rules! error {
 }
 
 pub fn resolve(modules: &VecDeque<NominalModule>) -> Result<SymbolicProgram, Report> {
+    // Temporary maps. The first key is the module name, the second is the type/class/function name
     let mut user_types: HashMap<&String, HashMap<&String, SymbolicAbstDef>> = HashMap::new();
     let mut class_defs: HashMap<&String, HashMap<&String, SymbolicClassDef>> = HashMap::new();
     let mut fun_defs: HashMap<&String, HashMap<&String, SymbolicFunDef>> = HashMap::new();
@@ -32,13 +33,11 @@ pub fn resolve(modules: &VecDeque<NominalModule>) -> Result<SymbolicProgram, Rep
         }};
     }
 
-    // let fresh_symbol = |name, kind| {
-    // };
-
     // Discovering user types
     for md in modules.iter() {
         let mut cur_types = HashMap::new();
         for def in md.abstract_defs.iter() {
+            // Check if type is already defined
             if cur_types.contains_key(&def.name) {
                 return error!(
                     def.range,
@@ -57,6 +56,15 @@ pub fn resolve(modules: &VecDeque<NominalModule>) -> Result<SymbolicProgram, Rep
     for md in modules.iter() {
         let mut cur_cls_defs = HashMap::new();
         for def in md.class_defs.iter() {
+            // Check if the class is already defined
+            if cur_cls_defs.contains_key(&def.name) {
+                return error!(
+                    def.range,
+                    format!("A case class named `{}` is already defined.", def.name)
+                );
+            }
+
+            // Resolve the parent
             let sym_parent = match user_types[&md.name].get(&def.parent) {
                 Some(df) => df.name.clone(),
                 None => {
@@ -66,14 +74,8 @@ pub fn resolve(modules: &VecDeque<NominalModule>) -> Result<SymbolicProgram, Rep
                     );
                 }
             };
-            
-            if cur_cls_defs.contains_key(&def.name) {
-                return error!(
-                    def.range,
-                    format!("A case class named `{}` is already defined.", def.name)
-                );
-            }
 
+            // Resolve the arguments
             let mut sym_args = VecDeque::new();
             for (name, typ) in def.args.iter() {
                 let sym_typ = resolve_type(typ, &md.name, &user_types)?;
@@ -95,6 +97,7 @@ pub fn resolve(modules: &VecDeque<NominalModule>) -> Result<SymbolicProgram, Rep
     for md in modules.iter() {
         let mut cur_fun_defs = HashMap::new();
         for def in md.fun_defs.iter() {
+            // Check if the function is already defined
             if cur_fun_defs.contains_key(&def.name) {
                 return error!(
                     def.range,
@@ -102,6 +105,7 @@ pub fn resolve(modules: &VecDeque<NominalModule>) -> Result<SymbolicProgram, Rep
                 );
             }
 
+            // Resolve the arguments
             let mut sym_args = VecDeque::new();
             for (name, typ) in def.args.iter() {
                 let sym_typ = resolve_type(typ, &md.name, &user_types)?;
@@ -109,15 +113,61 @@ pub fn resolve(modules: &VecDeque<NominalModule>) -> Result<SymbolicProgram, Rep
                 sym_args.push_back((sym_name, sym_typ));
             }
         
+            // Resolve the return type
             let sym_rt = resolve_type(&def.rt, &md.name, &user_types)?;
 
+            // Resolve the body
             let sym_body = todo!();
+
+            cur_fun_defs.insert(&def.name, SymbolicFunDef {
+                name: fresh_sym!(def.name, SK::Function),
+                args: sym_args,
+                rt: sym_rt,
+                body: sym_body,
+                range: def.range
+            });
         }
 
         fun_defs.insert(&md.name, cur_fun_defs);
     }
 
-    todo!()
+    let mut exprs = VecDeque::new();
+    for md in modules.iter() {
+        match &md.expr {
+            None => {},
+            Some(expr) => {
+
+            }
+        }
+    }
+    
+    let mut final_types = HashMap::new();
+    for mp in user_types.values() {
+        for def in mp.values() {
+            final_types.insert(def.name.id, def);
+        }
+    }
+
+    let mut final_classes = HashMap::new();
+    for mp in class_defs.values() {
+        for def in mp.values() {
+            final_classes.insert(def.name.id, def);
+        }
+    }
+
+    let mut final_functions = HashMap::new();
+    for mp in fun_defs.values() {
+        for def in mp.values() {
+            final_functions.insert(def.name.id, def);
+        }
+    }
+
+    Ok(SymbolicProgram {
+        user_types: final_types,
+        class_defs: final_classes,
+        fun_defs: final_functions,
+        exprs: exprs
+    })
 }
 
 fn resolve_type (arg: &Type<Name>, cur_mod: &String, types: &HashMap<&String, HashMap<&String, SymbolicAbstDef>>) -> Result<Type<Symbol>, Report> {
