@@ -19,7 +19,7 @@ impl Environment {
             current_scope.insert(name, value);
         }
     }
-    
+
     pub fn define_many(&mut self, iter: impl IntoIterator<Item = (Symbol, Value)>) {
         if let Some(current_scope) = self.scopes.last_mut() {
             current_scope.extend(iter);
@@ -29,7 +29,7 @@ impl Environment {
     pub fn lookup(&self, name: &Symbol) -> Option<Value> {
         self.scopes
             .iter()
-            .rfold(None, |acc, map| acc.or(map.get(name).cloned()))
+            .rfold(None, |acc, map| acc.or_else(|| map.get(name).cloned()))
     }
 
     pub fn push_scope(&mut self) {

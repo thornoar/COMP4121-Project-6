@@ -2,6 +2,7 @@ use std::{
     cmp::Ordering,
     ops::{Add, Div, Mul, Rem, Sub},
 };
+
 use rac_ast::Symbol;
 
 #[derive(Clone, Eq, PartialEq)]

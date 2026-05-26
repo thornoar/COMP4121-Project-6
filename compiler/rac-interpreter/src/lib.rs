@@ -1,4 +1,4 @@
-use rac_ast::{Expr, Symbol, SymbolicProgram};
+use rac_ast::{Expr, Pattern, Symbol, SymbolicProgram};
 
 use crate::{environ::Environment, value::Value};
 
@@ -80,12 +80,18 @@ pub fn interpret(expr: &Expr<Symbol>, env: &mut Environment, prog: &SymbolicProg
 
         Expr::Call(name, args, _) => {
             if let Some((arglist, _, body)) = prog.fun_defs.get(&name.id) {
-                let values = args.iter().map(|e| interpret(e, env, prog)).collect::<Vec<_>>();
+                let values = args
+                    .iter()
+                    .map(|e| interpret(e, env, prog))
+                    .collect::<Vec<_>>();
                 if values.len() != arglist.len() {
                     panic!("mismatched arity of function call");
                 }
 
-                let map = arglist.iter().zip(values).map(|((sym, _), val)| (sym.clone(), val));
+                let map = arglist
+                    .iter()
+                    .zip(values)
+                    .map(|((sym, _), val)| (sym.clone(), val));
                 env.push_scope();
                 env.define_many(map);
                 let ret = interpret(body, env, prog);
@@ -93,7 +99,10 @@ pub fn interpret(expr: &Expr<Symbol>, env: &mut Environment, prog: &SymbolicProg
 
                 ret
             } else if let Some((arglist, id)) = prog.class_defs.get(&name.id) {
-                let values = args.iter().map(|e| Box::new(interpret(e, env, prog))).collect::<Vec<_>>();
+                let values = args
+                    .iter()
+                    .map(|e| Box::new(interpret(e, env, prog)))
+                    .collect::<Vec<_>>();
                 if values.len() != arglist.len() {
                     panic!("mismatched arity of constructor call");
                 }
@@ -126,7 +135,26 @@ pub fn interpret(expr: &Expr<Symbol>, env: &mut Environment, prog: &SymbolicProg
             }
         }
 
-        Expr::Match(scrut, cases, _) => todo!(),
+        Expr::Match(e, cases, _) => {
+            let scrutinee = interpret(e, env, prog);
+
+            cases
+                .iter()
+                .fold(None, |acc, (pattern, body)| {
+                    acc.or_else(|| {
+                        let Some(bindings) = match_and_bind(&scrutinee, pattern) else {
+                            panic!("Match error");
+                        };
+                        env.push_scope();
+                        env.define_many(bindings);
+                        let ret = interpret(body, env, prog);
+                        env.pop_scope();
+
+                        Some(ret)
+                    })
+                })
+                .unwrap()
+        }
 
         Expr::Error(msg, _) => {
             let Value::String(str) = interpret(msg, env, prog) else {
@@ -135,7 +163,27 @@ pub fn interpret(expr: &Expr<Symbol>, env: &mut Environment, prog: &SymbolicProg
 
             panic!("Error: {str}")
         }
+    }
+}
 
-        _ => todo!(),
+fn match_and_bind(scrutinee: &Value, pattern: &Pattern<Symbol>) -> Option<Vec<(Symbol, Value)>> {
+    match (scrutinee, pattern) {
+        (_, Pattern::Wildcard(_)) => Some(vec![]),
+        (value, Pattern::IdPattern(sym, _)) => Some(vec![(sym.clone(), value.clone())]),
+        (Value::Bool(b), Pattern::BoolPattern(b2, _)) if b == b2 => Some(vec![]),
+        (Value::Int(i), Pattern::IntPattern(i2, _)) if i == i2 => Some(vec![]),
+        (Value::String(s), Pattern::StringPattern(s2, _)) if s == s2 => Some(vec![]),
+        (Value::Unit, Pattern::UnitPattern(_)) => Some(vec![]),
+        (Value::CaseClassValue(n, args), Pattern::ClassPattern(id, arg_patterns, _)) if n == id => {
+            args.iter().zip(arg_patterns).map(|(scrut, pat)| match_and_bind(scrut, pat))
+                .fold(Some(vec![]), |acc, opt| {
+                    if let (Some(v1), Some(v2)) = (acc, opt) {
+                        Some([v1.as_slice(), v2.as_slice()].concat())
+                    } else {
+                        None
+                    }
+                })
+        }
+        _ => None,
     }
 }
