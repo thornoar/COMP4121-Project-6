@@ -24,12 +24,12 @@ impl Display for Name {
     }
 }
 
-#[derive(Debug, Clone)]
-pub enum NominalDefinition {
-    AbstractDef(String, Span),
-    CaseClassDef(String, ArgList<String, Name>, String, Span),
-    FunDef(String, ArgList<String, Name>, Type<Name>, Expr<Name>, Span),
-}
+// #[derive(Debug, Clone)]
+// pub enum NominalDefinition {
+//     AbstractDef(String, Span),
+//     CaseClassDef(String, ArgList<String, Name>, String, Span),
+//     FunDef(String, ArgList<String, Name>, Type<Name>, Expr<Name>, Span),
+// }
 
 pub type NominalAbstDef = (String, Span);
 pub type NominalClassDef = (String, ArgList<String, Name>, String, Span);
@@ -103,11 +103,14 @@ pub struct Symbol {
     kind: SymbolKind
 }
 
+pub type SymbolicClassDef = (ArgList<Symbol, Symbol>, Symbol);
+pub type SymbolicFunDef = (ArgList<Symbol, Symbol>, Type<Symbol>, Expr<Symbol>);
+
 #[derive(Debug, Clone)]
 pub struct SymbolicProgram {
     pub user_types: VecDeque<Symbol>,
-    pub class_defs: HashMap<SID, (ArgList<Symbol, Symbol>, Symbol)>,
-    pub fun_defs: HashMap<SID, (ArgList<Symbol, Symbol>, Type<Symbol>, Expr<Symbol>)>,
+    pub class_defs: HashMap<SID, SymbolicClassDef>,
+    pub fun_defs: HashMap<SID, SymbolicFunDef>,
     pub exprs: VecDeque<Expr<Symbol>>
 }
 
