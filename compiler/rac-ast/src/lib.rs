@@ -46,7 +46,7 @@ pub struct NominalClassDef {
 pub struct NominalFunDef {
     pub name: String,
     pub args: ArgList<String, Name>,
-    pub rt: Type<Name>,
+    pub rt: (Type<Name>, Span),
     pub body: Expr<Name>,
     pub range: Span,
 }
@@ -72,7 +72,7 @@ impl NominalModule {
             let args_str = def
                 .args
                 .iter()
-                .map(|(n, t)| format!("{}: {}", n, t))
+                .map(|(n, t, _)| format!("{}: {}", n, t))
                 .collect::<Vec<String>>()
                 .join(", ");
             println!("({}) extends {}\n", args_str, def.parent);
@@ -82,10 +82,10 @@ impl NominalModule {
             let args_str = def
                 .args
                 .iter()
-                .map(|(n, t)| format!("{}: {}", n, t))
+                .map(|(n, t, _)| format!("{}: {}", n, t))
                 .collect::<Vec<String>>()
                 .join(", ");
-            println!("({}): {} :=", args_str, def.rt);
+            println!("({}): {} :=", args_str, def.rt.0);
             println!("      {}", def.body.show(2));
             println!("   end {}\n", def.name);
         }
@@ -203,7 +203,7 @@ pub enum Expr<N> {
     Error(Box<Expr<N>>, Span),
 }
 
-pub type ArgList<A, N> = VecDeque<(A, Type<N>)>;
+pub type ArgList<A, N> = VecDeque<(A, Type<N>, Span)>;
 
 // Computes the *true* range of a given expression.
 pub fn range<N>(e: Expr<N>) -> Span {
@@ -353,26 +353,26 @@ impl<N: Display> Display for Pattern<N> {
 #[derive(Debug, Clone)]
 pub enum Type<N> {
     // Primitive types
-    IntType(Span),
-    BoolType(Span),
-    StringType(Span),
-    UnitType(Span),
+    IntType,
+    BoolType,
+    StringType,
+    UnitType,
     // User-defined types
-    ClassType(N, Span),
+    ClassType(N),
     // Type variables
-    Variable(N, Span),
+    Variable(N),
 }
 
 impl<N: Display> Display for Type<N> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         use Type::*;
         match self {
-            IntType(_) => write!(f, "Int(32)"),
-            BoolType(_) => write!(f, "Boolean"),
-            StringType(_) => write!(f, "String"),
-            UnitType(_) => write!(f, "Unit"),
-            ClassType(name, _) => write!(f, "{}", name),
-            Variable(name, _) => write!(f, "'{}", name),
+            IntType => write!(f, "Int(32)"),
+            BoolType => write!(f, "Boolean"),
+            StringType => write!(f, "String"),
+            UnitType => write!(f, "Unit"),
+            ClassType(name) => write!(f, "{}", name),
+            Variable(name) => write!(f, "'{}", name),
         }
     }
 }

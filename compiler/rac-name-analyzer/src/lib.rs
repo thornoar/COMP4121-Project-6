@@ -1,7 +1,7 @@
 use rac_ast::{
-    Name, NominalModule, SID, Symbol, SymbolKind as SK, SymbolicAbstDef, SymbolicClassDef, SymbolicFunDef, SymbolicProgram, Type
+    Expr, Name, NominalModule, SID, Symbol, SymbolKind as SK, SymbolicAbstDef, SymbolicClassDef, SymbolicFunDef, SymbolicProgram, Type
 };
-use rac_diagnostics::{Report, Stage};
+use rac_diagnostics::{Report, Span, Stage};
 use std::collections::{HashMap, VecDeque};
 
 macro_rules! error {
@@ -77,10 +77,10 @@ pub fn resolve(modules: &VecDeque<NominalModule>) -> Result<SymbolicProgram, Rep
 
             // Resolve the arguments
             let mut sym_args = VecDeque::new();
-            for (name, typ) in def.args.iter() {
-                let sym_typ = resolve_type(typ, &md.name, &user_types)?;
+            for (name, typ, s) in def.args.iter() {
+                let sym_typ = resolve_type(typ, *s, &md.name, &user_types)?;
                 let sym_name = fresh_sym!(name, SK::Field);
-                sym_args.push_back((sym_name, sym_typ));
+                sym_args.push_back((sym_name, sym_typ, *s));
             }
 
             cur_cls_defs.insert(&def.name, SymbolicClassDef {
@@ -107,14 +107,14 @@ pub fn resolve(modules: &VecDeque<NominalModule>) -> Result<SymbolicProgram, Rep
 
             // Resolve the arguments
             let mut sym_args = VecDeque::new();
-            for (name, typ) in def.args.iter() {
-                let sym_typ = resolve_type(typ, &md.name, &user_types)?;
+            for (name, typ, s) in def.args.iter() {
+                let sym_typ = resolve_type(typ, *s, &md.name, &user_types)?;
                 let sym_name = fresh_sym!(name, SK::Field);
-                sym_args.push_back((sym_name, sym_typ));
+                sym_args.push_back((sym_name, sym_typ, *s));
             }
         
             // Resolve the return type
-            let sym_rt = resolve_type(&def.rt, &md.name, &user_types)?;
+            let sym_rt = resolve_type(&def.rt.0, def.rt.1, &md.name, &user_types)?;
 
             // Resolve the body
             let sym_body = todo!();
@@ -131,7 +131,7 @@ pub fn resolve(modules: &VecDeque<NominalModule>) -> Result<SymbolicProgram, Rep
         fun_defs.insert(&md.name, cur_fun_defs);
     }
 
-    let mut exprs = VecDeque::new();
+    let mut exprs: VecDeque<Expr<Symbol>> = VecDeque::new();
     for md in modules.iter() {
         match &md.expr {
             None => {},
@@ -162,35 +162,36 @@ pub fn resolve(modules: &VecDeque<NominalModule>) -> Result<SymbolicProgram, Rep
         }
     }
 
-    Ok(SymbolicProgram {
-        user_types: final_types,
-        class_defs: final_classes,
-        fun_defs: final_functions,
-        exprs: exprs
-    })
+    // Ok(SymbolicProgram {
+    //     user_types: final_types,
+    //     class_defs: final_classes,
+    //     fun_defs: final_functions,
+    //     exprs: exprs
+    // })
+    todo!()
 }
 
-fn resolve_type (arg: &Type<Name>, cur_mod: &String, types: &HashMap<&String, HashMap<&String, SymbolicAbstDef>>) -> Result<Type<Symbol>, Report> {
+fn resolve_type (arg: &Type<Name>, range: Span, cur_mod: &String, types: &HashMap<&String, HashMap<&String, SymbolicAbstDef>>) -> Result<Type<Symbol>, Report> {
     use rac_ast::Type::*;
     match arg {
-        IntType(s) => Ok(IntType(*s)),
-        BoolType(s) => Ok(BoolType(*s)),
-        StringType(s) => Ok(StringType(*s)),
-        UnitType(s) => Ok(UnitType(*s)),
-        ClassType(qn, s) => match qn.owner.clone() {
+        IntType => Ok(IntType),
+        BoolType => Ok(BoolType),
+        StringType => Ok(StringType),
+        UnitType => Ok(UnitType),
+        ClassType(qn) => match qn.owner.clone() {
             None => match types[cur_mod].get(&qn.name) {
-                Some(df) => Ok(ClassType(df.name.clone(), *s)),
-                None => error!(*s, format!("Type `{}` could not be found in the current module.", qn.name))
+                Some(df) => Ok(ClassType(df.name.clone())),
+                None => error!(range, format!("Type `{}` could not be found in the current module.", qn.name))
             },
             Some(parent) => match types.get(&parent) {
                 Some(mp) => match mp.get(&qn.name) {
-                    Some(df) => Ok(ClassType(df.name.clone(), *s)),
-                    None => error!(*s, format!("Type `{}` could not be found in the module `{}`.", qn.name, parent))
+                    Some(df) => Ok(ClassType(df.name.clone())),
+                    None => error!(range, format!("Type `{}` could not be found in the module `{}`.", qn.name, parent))
                 },
-                None => error!(*s, format!("Module `{}` could not be found.", parent))
+                None => error!(range, format!("Module `{}` could not be found.", parent))
             }
         },
-        Variable(qn, s) => todo!()
+        Variable(qn) => todo!()
     }
 }
 

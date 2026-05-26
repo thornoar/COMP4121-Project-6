@@ -298,7 +298,7 @@ fn parse_many_arguments<'a>(
 
 // Parses an argument in a definition.
 // Examples: `x: String`, `y: Int(32)`
-fn parse_argument<'a>(src: &'a [u8], ts: &mut TokenIter) -> Result<(String, Type<Name>), Report> {
+fn parse_argument<'a>(src: &'a [u8], ts: &mut TokenIter) -> Result<(String, Type<Name>, Span), Report> {
     let id = expect!(
         ts,
         TK::Identifier,
@@ -307,12 +307,12 @@ fn parse_argument<'a>(src: &'a [u8], ts: &mut TokenIter) -> Result<(String, Type
     let name = get_string(src, id.range)?;
     expect!(ts, TK::Colon, "Expected a colon after the argument name");
     let typ = parse_type(src, ts)?;
-    Ok((name, typ))
+    Ok((name, typ.0, typ.1))
 }
 
 // Parses a type.
 // Examples: `String`, `Unit`, `Int(32)`, `UserType`
-fn parse_type<'a>(src: &'a [u8], ts: &mut TokenIter) -> Result<Type<Name>, Report> {
+fn parse_type<'a>(src: &'a [u8], ts: &mut TokenIter) -> Result<(Type<Name>, Span), Report> {
     let typ1 = ts.pop();
     match typ1.kind {
         TK::TypInt => {
@@ -329,7 +329,7 @@ fn parse_type<'a>(src: &'a [u8], ts: &mut TokenIter) -> Result<Type<Name>, Repor
             match str::from_utf8(&select!(src, size.range)) {
                 Ok("32") => {
                     let cp = expect!(ts, TK::CloseParen, "Expected a closing parenthesis");
-                    Ok(Type::IntType(join(typ1.range, cp.range)))
+                    Ok((Type::IntType, join(typ1.range, cp.range)))
                 }
                 _ => error!(
                     size.range,
@@ -337,9 +337,9 @@ fn parse_type<'a>(src: &'a [u8], ts: &mut TokenIter) -> Result<Type<Name>, Repor
                 ),
             }
         }
-        TK::TypBoolean => Ok(Type::BoolType(typ1.range)),
-        TK::TypString => Ok(Type::StringType(typ1.range)),
-        TK::TypUnit => Ok(Type::UnitType(typ1.range)),
+        TK::TypBoolean => Ok((Type::BoolType, typ1.range)),
+        TK::TypString => Ok((Type::StringType, typ1.range)),
+        TK::TypUnit => Ok((Type::UnitType, typ1.range)),
         TK::Identifier => match ts.peek().kind {
             TK::Dot => {
                 let owner = get_string(src, typ1.range)?;
@@ -350,13 +350,13 @@ fn parse_type<'a>(src: &'a [u8], ts: &mut TokenIter) -> Result<Type<Name>, Repor
                     "Expected a valid identifier as part of a qualified name"
                 );
                 let name = get_string(src, typ2.range)?;
-                Ok(Type::ClassType(
-                    Name::new(Some(owner), name),
+                Ok((Type::ClassType(
+                    Name::new(Some(owner), name)),
                     join(typ1.range, typ2.range),
                 ))
             }
             _ => {
-                get_string(src, typ1.range).map(|s| Type::ClassType(Name::new(None, s), typ1.range))
+                get_string(src, typ1.range).map(|s| (Type::ClassType(Name::new(None, s)), typ1.range))
             }
         },
 
@@ -410,7 +410,7 @@ fn parse_atomic_expr<'a>(src: &'a [u8], ts: &mut TokenIter) -> Result<Expr<Name>
             let body = parse_expr(src, ts)?;
             Ok(Expr::Let(
                 Name::new(None, var_name),
-                var_type,
+                var_type.0,
                 Box::new(var_expr),
                 Box::new(body),
                 join(t1.range, sc.range),
