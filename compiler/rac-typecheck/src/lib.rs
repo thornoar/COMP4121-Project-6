@@ -1,6 +1,6 @@
 use std::collections::{HashMap, VecDeque};
 
-use rac_ast::{Expr, Symbol, Type};
+use rac_ast::{Expr, Symbol, Type, range};
 use rac_diagnostics::{Report, Stage};
 
 use crate::constraint::Constraint;
@@ -25,14 +25,63 @@ macro_rules! error {
     };
 }
 
-fn collect_constraints(e: Expr<Symbol>, expected: Type<Symbol>, env: HashMap<Symbol, Type<Symbol>>) -> Result<VecDeque<Constraint>, Report> {
+fn collect_constraints(e: &Expr<Symbol>, expected: Type<Symbol>, env: &mut HashMap<Symbol, Type<Symbol>>) -> Result<VecDeque<Constraint>, Report> {
     use Expr::*;
+    use Type::*;
+
+    macro_rules! binop {
+        ($lhs:expr, $rhs:expr, $rt:expr, $lhstyp:expr, $rhstyp:expr) => {{
+            let mut res = collect_constraints($lhs, $lhstyp, env)?;
+            let mut rhs_constr = collect_constraints($rhs, $rhstyp, env)?;
+            res.append(&mut rhs_constr);
+            res.push_front(Constraint::new(expected, $rt, range(e)));
+            Ok(res)
+        }};
+    }
+
+    macro_rules! unary {
+        ($arg:expr, $range:expr, $rt:expr, $argtyp:expr) => {{
+            let mut res = collect_constraints($arg, $argtyp, env)?;
+            res.push_front(Constraint::new(expected, $rt, $range));
+            Ok(res)
+        }};
+    }
+
     match e {
         Variable(name, s) => match env.get(&name) {
-            Some(typ) => Ok(single!(Constraint::new(expected, typ.clone(), s))),
-            None => error!(s, "Variable not present in the environment.")
+            Some(typ) => Ok(single!(Constraint::new(expected, typ.clone(), *s))),
+            None => error!(*s, "Variable not present in the environment.")
         }
-        // IntLiteral(val, s) => Ok(single!(Constraint::new(expected, Type::IntType(), s)))
-        _ => todo!()
+        IntLiteral(_, s) => Ok(single!(Constraint::new(expected, IntType, *s))),
+        BoolLiteral(_, s) => Ok(single!(Constraint::new(expected, BoolType, *s))),
+        StringLiteral(_, s) => Ok(single!(Constraint::new(expected, StringType, *s))),
+        UnitLiteral(s) => Ok(single!(Constraint::new(expected, UnitType, *s))),
+        Plus(lhs, rhs) => binop!(lhs, rhs, IntType, IntType, IntType),
+        Minus(lhs, rhs) => binop!(lhs, rhs, IntType, IntType, IntType),
+        Times(lhs, rhs) => binop!(lhs, rhs, IntType, IntType, IntType),
+        Div(lhs, rhs) => binop!(lhs, rhs, IntType, IntType, IntType),
+        Mod(lhs, rhs) => binop!(lhs, rhs, IntType, IntType, IntType),
+        LessThan(lhs, rhs) => binop!(lhs, rhs, BoolType, IntType, IntType),
+        LessEquals(lhs, rhs) => binop!(lhs, rhs, BoolType, IntType, IntType),
+        And(lhs, rhs) => binop!(lhs, rhs, BoolType, BoolType, BoolType),
+        Or(lhs, rhs) => binop!(lhs, rhs, BoolType, BoolType, BoolType),
+        Concat(lhs, rhs) => binop!(lhs, rhs, StringType, StringType, StringType),
+        // Need a way to generate fresh type variables...
+        Equals(lhs, rhs) => todo!(),
+        Not(arg, s) => unary!(arg, *s, BoolType, BoolType),
+        Neg(arg, s) => unary!(arg, *s, IntType, IntType),
+        Call(_, _, _) => todo!(),
+        Sequence(lhs, rhs) => todo!(),
+        Let(_, _, _, _, _) => todo!(),
+        Ite(cond, thenb, elseb, s) => {
+            let mut res = collect_constraints(cond, BoolType, env)?;
+            let mut then_constr = collect_constraints(thenb, expected.clone(), env)?;
+            let mut else_constr = collect_constraints(elseb, expected, env)?;
+            res.append(&mut then_constr);
+            res.append(&mut else_constr);
+            Ok(res)
+        },
+        Match(_, _, _) => todo!(),
+        Error(msg, _) => collect_constraints(msg, StringType, env),
     }
 }

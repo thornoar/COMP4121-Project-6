@@ -206,33 +206,33 @@ pub enum Expr<N> {
 pub type ArgList<A, N> = VecDeque<(A, Type<N>, Span)>;
 
 // Computes the *true* range of a given expression.
-pub fn range<N>(e: Expr<N>) -> Span {
+pub fn range<N>(e: &Expr<N>) -> Span {
     use Expr::*;
     match e {
-        Variable(_, s) => s,
-        IntLiteral(_, s) => s,
-        BoolLiteral(_, s) => s,
-        StringLiteral(_, s) => s,
-        UnitLiteral(s) => s,
-        Plus(lhs, rhs) => join(range(*lhs), range(*rhs)),
-        Minus(lhs, rhs) => join(range(*lhs), range(*rhs)),
-        Times(lhs, rhs) => join(range(*lhs), range(*rhs)),
-        Div(lhs, rhs) => join(range(*lhs), range(*rhs)),
-        Mod(lhs, rhs) => join(range(*lhs), range(*rhs)),
-        LessThan(lhs, rhs) => join(range(*lhs), range(*rhs)),
-        LessEquals(lhs, rhs) => join(range(*lhs), range(*rhs)),
-        And(lhs, rhs) => join(range(*lhs), range(*rhs)),
-        Or(lhs, rhs) => join(range(*lhs), range(*rhs)),
-        Equals(lhs, rhs) => join(range(*lhs), range(*rhs)),
-        Concat(lhs, rhs) => join(range(*lhs), range(*rhs)),
-        Not(ep, s) => join(s, range(*ep)),
-        Neg(ep, s) => join(s, range(*ep)),
-        Call(_, _, s) => s,
-        Sequence(lhs, rhs) => join(range(*lhs), range(*rhs)),
-        Let(_, _, _, _, s) => s,
-        Ite(_, _, _, s) => s,
-        Match(scrut, _, s) => join(range(*scrut), s),
-        Error(_, s) => s,
+        Variable(_, s) => *s,
+        IntLiteral(_, s) => *s,
+        BoolLiteral(_, s) => *s,
+        StringLiteral(_, s) => *s,
+        UnitLiteral(s) => *s,
+        Plus(lhs, rhs) => join(range(lhs), range(rhs)),
+        Minus(lhs, rhs) => join(range(lhs), range(rhs)),
+        Times(lhs, rhs) => join(range(lhs), range(rhs)),
+        Div(lhs, rhs) => join(range(lhs), range(rhs)),
+        Mod(lhs, rhs) => join(range(lhs), range(rhs)),
+        LessThan(lhs, rhs) => join(range(lhs), range(rhs)),
+        LessEquals(lhs, rhs) => join(range(lhs), range(rhs)),
+        And(lhs, rhs) => join(range(lhs), range(rhs)),
+        Or(lhs, rhs) => join(range(lhs), range(rhs)),
+        Equals(lhs, rhs) => join(range(lhs), range(rhs)),
+        Concat(lhs, rhs) => join(range(lhs), range(rhs)),
+        Not(ep, s) => join(*s, range(ep)),
+        Neg(ep, s) => join(*s, range(ep)),
+        Call(_, _, s) => *s,
+        Sequence(lhs, rhs) => join(range(lhs), range(rhs)),
+        Let(_, _, _, _, s) => *s,
+        Ite(_, _, _, s) => *s,
+        Match(scrut, _, s) => join(range(scrut), *s),
+        Error(_, s) => *s,
     }
 }
 
@@ -360,7 +360,7 @@ pub enum Type<N> {
     // User-defined types
     ClassType(N),
     // Type variables
-    Variable(N),
+    Var(N),
 }
 
 impl<N: Display> Display for Type<N> {
@@ -372,7 +372,7 @@ impl<N: Display> Display for Type<N> {
             StringType => write!(f, "String"),
             UnitType => write!(f, "Unit"),
             ClassType(name) => write!(f, "{}", name),
-            Variable(name) => write!(f, "'{}", name),
+            Var(name) => write!(f, "'{}", name),
         }
     }
 }

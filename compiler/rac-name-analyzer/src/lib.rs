@@ -191,7 +191,7 @@ fn resolve_type (arg: &Type<Name>, range: Span, cur_mod: &String, types: &HashMa
                 None => error!(range, format!("Module `{}` could not be found.", parent))
             }
         },
-        Variable(qn) => todo!()
+        Var(qn) => todo!()
     }
 }
 

@@ -56,7 +56,7 @@ pub fn deliver(r: &Report, fname: &str, src: &[u8]) {
 
     macro_rules! prefix {
         ($line:expr) => {
-            format!("\x1b[34m{:2}\x1b[0m    ", $line)
+            format!("\x1b[34m{:<4}\x1b[0m  ", $line)
         };
     }
 
