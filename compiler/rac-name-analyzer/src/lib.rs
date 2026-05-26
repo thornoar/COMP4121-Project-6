@@ -1,5 +1,5 @@
 use rac_ast::{
-    Expr, Name, NominalModule, SID, Symbol, SymbolKind as SK, SymbolicAbstDef, SymbolicClassDef, SymbolicFunDef, SymbolicProgram, Type
+    Expr, Name, NominalModule, SID, Symbol, SymbolGenerator, SymbolKind as SK, SymbolicAbstDef, SymbolicClassDef, SymbolicFunDef, SymbolicProgram, Type
 };
 use rac_diagnostics::{Report, Span, Stage};
 use std::collections::{HashMap, VecDeque};
@@ -14,24 +14,11 @@ macro_rules! error {
     };
 }
 
-pub fn resolve(modules: &VecDeque<NominalModule>) -> Result<SymbolicProgram, Report> {
+pub fn resolve(modules: &VecDeque<NominalModule>, sg: &mut SymbolGenerator) -> Result<SymbolicProgram, Report> {
     // Temporary maps. The first key is the module name, the second is the type/class/function name
     let mut user_types: HashMap<&String, HashMap<&String, SymbolicAbstDef>> = HashMap::new();
     let mut class_defs: HashMap<&String, HashMap<&String, SymbolicClassDef>> = HashMap::new();
     let mut fun_defs: HashMap<&String, HashMap<&String, SymbolicFunDef>> = HashMap::new();
-    let mut free_id = 0;
-
-    macro_rules! fresh_sym {
-        ($name:expr, $kind:expr) => {{
-            let sym = Symbol {
-                name: $name.clone(),
-                kind: $kind,
-                id: free_id,
-            };
-            free_id += 1;
-            sym
-        }};
-    }
 
     // Discovering user types
     for md in modules.iter() {
@@ -45,7 +32,7 @@ pub fn resolve(modules: &VecDeque<NominalModule>) -> Result<SymbolicProgram, Rep
                 );
             }
             cur_types.insert(&def.name, SymbolicAbstDef {
-                name: fresh_sym!(def.name, SK::Type),
+                name: sg.fresh(def.name.clone(), SK::Type),
                 range: def.range,
             });
         }
@@ -79,12 +66,12 @@ pub fn resolve(modules: &VecDeque<NominalModule>) -> Result<SymbolicProgram, Rep
             let mut sym_args = VecDeque::new();
             for (name, typ, s) in def.args.iter() {
                 let sym_typ = resolve_type(typ, *s, &md.name, &user_types)?;
-                let sym_name = fresh_sym!(name, SK::Field);
+                let sym_name = sg.fresh(name.clone(), SK::Field);
                 sym_args.push_back((sym_name, sym_typ, *s));
             }
 
             cur_cls_defs.insert(&def.name, SymbolicClassDef {
-                name: fresh_sym!(def.name, SK::Constructor),
+                name: sg.fresh(def.name.clone(), SK::Constructor),
                 args: sym_args,
                 parent: sym_parent,
                 range: def.range
@@ -109,7 +96,7 @@ pub fn resolve(modules: &VecDeque<NominalModule>) -> Result<SymbolicProgram, Rep
             let mut sym_args = VecDeque::new();
             for (name, typ, s) in def.args.iter() {
                 let sym_typ = resolve_type(typ, *s, &md.name, &user_types)?;
-                let sym_name = fresh_sym!(name, SK::Field);
+                let sym_name = sg.fresh(name.clone(), SK::Field);
                 sym_args.push_back((sym_name, sym_typ, *s));
             }
         
@@ -120,7 +107,7 @@ pub fn resolve(modules: &VecDeque<NominalModule>) -> Result<SymbolicProgram, Rep
             let sym_body = todo!();
 
             cur_fun_defs.insert(&def.name, SymbolicFunDef {
-                name: fresh_sym!(def.name, SK::Function),
+                name: sg.fresh(def.name.clone(), SK::Function),
                 args: sym_args,
                 rt: sym_rt,
                 body: sym_body,

@@ -1,6 +1,6 @@
 use std::collections::{HashMap, VecDeque};
 
-use rac_ast::{Expr, Symbol, Type, range};
+use rac_ast::{Expr, Symbol, SymbolGenerator, Type, range};
 use rac_diagnostics::{Report, Stage};
 
 use crate::constraint::Constraint;
@@ -25,14 +25,14 @@ macro_rules! error {
     };
 }
 
-fn collect_constraints(e: &Expr<Symbol>, expected: Type<Symbol>, env: &mut HashMap<Symbol, Type<Symbol>>) -> Result<VecDeque<Constraint>, Report> {
+fn collect_constraints(e: &Expr<Symbol>, expected: Type<Symbol>, env: &mut HashMap<Symbol, Type<Symbol>>, sg: &mut SymbolGenerator) -> Result<VecDeque<Constraint>, Report> {
     use Expr::*;
     use Type::*;
 
     macro_rules! binop {
         ($lhs:expr, $rhs:expr, $rt:expr, $lhstyp:expr, $rhstyp:expr) => {{
-            let mut res = collect_constraints($lhs, $lhstyp, env)?;
-            let mut rhs_constr = collect_constraints($rhs, $rhstyp, env)?;
+            let mut res = collect_constraints($lhs, $lhstyp, env, sg)?;
+            let mut rhs_constr = collect_constraints($rhs, $rhstyp, env, sg)?;
             res.append(&mut rhs_constr);
             res.push_front(Constraint::new(expected, $rt, range(e)));
             Ok(res)
@@ -41,7 +41,7 @@ fn collect_constraints(e: &Expr<Symbol>, expected: Type<Symbol>, env: &mut HashM
 
     macro_rules! unary {
         ($arg:expr, $range:expr, $rt:expr, $argtyp:expr) => {{
-            let mut res = collect_constraints($arg, $argtyp, env)?;
+            let mut res = collect_constraints($arg, $argtyp, env, sg)?;
             res.push_front(Constraint::new(expected, $rt, $range));
             Ok(res)
         }};
@@ -67,21 +67,24 @@ fn collect_constraints(e: &Expr<Symbol>, expected: Type<Symbol>, env: &mut HashM
         Or(lhs, rhs) => binop!(lhs, rhs, BoolType, BoolType, BoolType),
         Concat(lhs, rhs) => binop!(lhs, rhs, StringType, StringType, StringType),
         // Need a way to generate fresh type variables...
-        Equals(lhs, rhs) => todo!(),
+        Equals(lhs, rhs) => {
+            let tv = sg.fresh_type_var();
+            binop!(lhs, rhs, BoolType, tv.clone(), tv)
+        }
         Not(arg, s) => unary!(arg, *s, BoolType, BoolType),
         Neg(arg, s) => unary!(arg, *s, IntType, IntType),
         Call(_, _, _) => todo!(),
         Sequence(lhs, rhs) => todo!(),
         Let(_, _, _, _, _) => todo!(),
         Ite(cond, thenb, elseb, s) => {
-            let mut res = collect_constraints(cond, BoolType, env)?;
-            let mut then_constr = collect_constraints(thenb, expected.clone(), env)?;
-            let mut else_constr = collect_constraints(elseb, expected, env)?;
+            let mut res = collect_constraints(cond, BoolType, env, sg)?;
+            let mut then_constr = collect_constraints(thenb, expected.clone(), env, sg)?;
+            let mut else_constr = collect_constraints(elseb, expected, env, sg)?;
             res.append(&mut then_constr);
             res.append(&mut else_constr);
             Ok(res)
         },
         Match(_, _, _) => todo!(),
-        Error(msg, _) => collect_constraints(msg, StringType, env),
+        Error(msg, _) => collect_constraints(msg, StringType, env, sg),
     }
 }
