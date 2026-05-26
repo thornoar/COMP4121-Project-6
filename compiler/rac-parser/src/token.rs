@@ -1,6 +1,5 @@
-use std::ops::Range;
-
 use rac_diagnostics::Span;
+use std::{fmt::Display, ops::Range};
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum TokenKind {
@@ -68,6 +67,47 @@ pub enum TokenKind {
     UnclosedComment,
     Eof,
     Underscore,
+}
+
+impl Display for TokenKind {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        use TokenKind::*;
+        let str = match self {
+            Identifier => "an identifier",
+            Semicolon => "a sequence delimiter",
+            RightArrow => "the `=>` operator",
+            AndAnd | EqualEqual | Slash | Star | LessEquals | Less | Minus | Plus | Percent
+            | PipePipe | PlusPlus | Bang => "an operator",
+            OpenCurly => "an opening curly brace",
+            OpenParen => "an opening parenthesis",
+            OpenBracket => "an opening bracket",
+            CloseCurly => "an closing curly brace",
+            CloseParen => "an closing parenthesis",
+            CloseBracket => "an closing bracket",
+            Colon | Comma | Dot => "a separator",
+            ColonEqual | Equal => "an assignment operator",
+            TypInt | TypUnit | TypString | TypBoolean => "a primitive type",
+            LitTrue | LitFalse | LitInt | LitString => "a literal value",
+            KwAbstract => "the `abstract` keyword",
+            KwCase => "the `case` keyword",
+            KwClass => "the `class` keyword",
+            KwDef => "the `def` keyword",
+            KwExtends => "the `extends` keyword",
+            KwIf => "the `if` keyword",
+            KwThen => "the `then` keyword",
+            KwElse => "the `else` keyword",
+            KwMatch => "the `match` keyword",
+            KwObject => "the `object` keyword",
+            KwVal => "the `val` keyword",
+            KwError => "the `error` keyword",
+            KwEnd => "the `end` keyword",
+            UnclosedComment => "an unclosed multiline comment",
+            Underscore => "a wildcard",
+            Unknown => "an unknown comment",
+            Eof => "the end of file",
+        };
+        write!(f, "{}", str)
+    }
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
