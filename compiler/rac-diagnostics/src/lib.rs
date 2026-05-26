@@ -1,8 +1,4 @@
-use std::{
-    cmp::{max, min},
-    collections::HashMap,
-    fmt::Display,
-};
+use std::{cmp::{max, min}, collections::{HashMap, VecDeque}, fmt::Display};
 
 pub type Source<'a> = &'a [u8];
 
@@ -56,36 +52,88 @@ pub struct Report {
 }
 
 pub fn deliver(r: &Report, fname: &str, src: &[u8]) {
-    let stage_msg = format!("Error during the \x1b[34m{}\x1b[0m stage:", r.stage);
+    eprintln!("Error during the \x1b[34m{}\x1b[0m stage.", r.stage);
+
+    macro_rules! prefix {
+        ($line:expr) => {
+            format!("\x1b[34m{:2}\x1b[0m    ", $line)
+        };
+    }
 
     let limit = src.len();
+
+    let mut newlines: VecDeque<usize> = VecDeque::new();
+
+    let mut beg_nl_idx = 0;
+    let mut end_nl_idx = 0;
+
     let mut line = 1;
     let mut col = 1;
     let mut curpos = 0;
     while curpos < r.range.start {
         if src[curpos] == b'\n' {
-            line += 1;
-            col = 1;
+            newlines.push_back(curpos);
+            line += 1; col = 1;
         } else {
             col += 1;
         }
         curpos += 1;
     }
+    beg_nl_idx = newlines.len() - 1;
+    while curpos < r.range.end {
+        if src[curpos] == b'\n' {
+            newlines.push_back(curpos);
+        }
+        curpos += 1;
+    }
+    end_nl_idx = newlines.len() - 1;
 
-    let file_msg = format!("-> \x1b[34m{}\x1b[0m:{}:{}", fname, line, col);
+    let mut cnt = 0;
+    while curpos < limit && cnt < 2 {
+        if src[curpos] == b'\n' {
+            newlines.push_back(curpos);
+            cnt += 1;
+        }
+        curpos += 1;
+    }
 
-    let offset = 10;
-    let slice_before =
-        str::from_utf8(&src[max(0, curpos - offset)..curpos]).unwrap_or("...decoding error...");
-    let slice_err = str::from_utf8(&src[curpos..r.range.end]).unwrap_or("...decoding error...");
-    let slice_after = str::from_utf8(&src[r.range.end..min(limit, r.range.end + offset)])
-        .unwrap_or("...decoding error...");
-    let src_msg = format!(
-        "\x1b[34m{}\x1b[0m    {}\x1b[31m{}\x1b[0m{}",
-        line, slice_before, slice_err, slice_after
-    );
+    let len = newlines.len();
 
-    eprintln!("{}\n{}\n\n{}\n\n-- {}", stage_msg, file_msg, src_msg, r.msg);
+    eprintln!("-> \x1b[34m{}\x1b[0m:{}:{}\n", fname, line, col);
+
+    if beg_nl_idx > 0 {
+        eprintln!("{}{}", prefix!(line-1), str::from_utf8(&src[(newlines[beg_nl_idx-1] + 1) .. newlines[beg_nl_idx]]).unwrap_or(""));
+    }
+    eprint!("{}{}", prefix!(line), str::from_utf8(&src[(newlines[beg_nl_idx] + 1) .. r.range.start]).unwrap_or(""));
+
+    eprint!("\x1b[31m");
+    if beg_nl_idx < end_nl_idx {
+        eprintln!("{}", str::from_utf8(&src[r.range.start .. newlines[beg_nl_idx+1]]).unwrap_or(""));
+        line += 1;
+        let mut nl_idx = beg_nl_idx + 1;
+        while nl_idx < end_nl_idx {
+            eprintln!("{}{}", prefix!(line), str::from_utf8(&src[(newlines[nl_idx] + 1) .. newlines[nl_idx+1]]).unwrap_or(""));
+            nl_idx += 1;
+            line += 1;
+        }
+        eprint!("{}", str::from_utf8(&src[(newlines[end_nl_idx] + 1) .. r.range.end]).unwrap_or(""));
+    } else {
+        // println!("hi");
+        eprint!("{}", str::from_utf8(&src[r.range.start .. r.range.end]).unwrap_or(""));
+    }
+    eprint!("\x1b[0m");
+
+    if end_nl_idx < len - 1 {
+        eprintln!("{}", str::from_utf8(&src[r.range.end .. newlines[end_nl_idx + 1]]).unwrap_or(""));
+        line += 1;
+    } else {
+        eprint!("\n");
+    }
+    if end_nl_idx < len - 2 {
+        eprintln!("{}{}", prefix!(line), str::from_utf8(&src[(newlines[beg_nl_idx+1] + 1) .. newlines[beg_nl_idx+2]]).unwrap_or(""));
+    }
+
+    eprintln!("\n{}", r.msg);
 }
 
 // impl<'a> Report<'a> {
