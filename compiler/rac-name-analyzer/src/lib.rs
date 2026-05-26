@@ -1,6 +1,8 @@
+use rac_ast::{
+    NominalModule, SID, Symbol, SymbolKind as SK, SymbolicClassDef, SymbolicFunDef, SymbolicProgram,
+};
+use rac_diagnostics::{Report, Stage};
 use std::collections::{HashMap, VecDeque};
-use rac_ast::{NominalModule, SID, Symbol, SymbolKind as SK, SymbolicClassDef, SymbolicFunDef, SymbolicProgram};
-use rac_diagnostics::{Stage, Report};
 
 macro_rules! error {
     ($span:expr, $msg:expr) => {
@@ -20,7 +22,11 @@ pub fn resolve(modules: &VecDeque<NominalModule>) -> Result<SymbolicProgram, Rep
 
     macro_rules! fresh_sym {
         ($name:expr, $kind:expr) => {{
-            let sym = Symbol { name: $name.clone(), kind: $kind, id: free_id };
+            let sym = Symbol {
+                name: $name.clone(),
+                kind: $kind,
+                id: free_id,
+            };
             free_id += 1;
             sym
         }};
@@ -33,7 +39,10 @@ pub fn resolve(modules: &VecDeque<NominalModule>) -> Result<SymbolicProgram, Rep
     for md in modules.iter() {
         for def in md.abstract_defs.iter() {
             if !contains_with_name(&user_types, &def.name) {
-                return error!(def.range, format!("An abstract class named `{}` is already defined.", def.name))
+                return error!(
+                    def.range,
+                    format!("An abstract class named `{}` is already defined.", def.name)
+                );
             }
             user_types.push_back(fresh_sym!(def.name, SK::Type));
         }
@@ -41,11 +50,8 @@ pub fn resolve(modules: &VecDeque<NominalModule>) -> Result<SymbolicProgram, Rep
 
     // Discovering class definitions
     for md in modules.iter() {
-        for def in md.class_defs.iter() {
-            
-        }
+        for def in md.class_defs.iter() {}
     }
-
 
     todo!()
 }
@@ -53,8 +59,8 @@ pub fn resolve(modules: &VecDeque<NominalModule>) -> Result<SymbolicProgram, Rep
 fn contains_with_name(lst: &VecDeque<Symbol>, nme: &String) -> bool {
     for item in lst.iter() {
         if item.name == *nme {
-            return true
+            return true;
         }
     }
-    return false
+    return false;
 }

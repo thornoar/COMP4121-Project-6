@@ -88,7 +88,8 @@ pub fn interpret(expr: &Expr<Symbol>, env: &mut Environment, prog: &SymbolicProg
                     panic!("mismatched arity of function call");
                 }
 
-                let map = def.args
+                let map = def
+                    .args
                     .iter()
                     .zip(values)
                     .map(|((sym, _), val)| (sym.clone(), val));
@@ -175,7 +176,9 @@ fn match_and_bind(scrutinee: &Value, pattern: &Pattern<Symbol>) -> Option<Vec<(S
         (Value::String(s), Pattern::StringPattern(s2, _)) if s == s2 => Some(vec![]),
         (Value::Unit, Pattern::UnitPattern(_)) => Some(vec![]),
         (Value::CaseClassValue(n, args), Pattern::ClassPattern(id, arg_patterns, _)) if n == id => {
-            args.iter().zip(arg_patterns).map(|(scrut, pat)| match_and_bind(scrut, pat))
+            args.iter()
+                .zip(arg_patterns)
+                .map(|(scrut, pat)| match_and_bind(scrut, pat))
                 .fold(Some(vec![]), |acc, opt| {
                     if let (Some(v1), Some(v2)) = (acc, opt) {
                         Some([v1.as_slice(), v2.as_slice()].concat())

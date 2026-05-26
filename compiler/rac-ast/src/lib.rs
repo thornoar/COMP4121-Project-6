@@ -31,7 +31,7 @@ impl Display for Name {
 #[derive(Debug)]
 pub struct NominalAbstDef {
     pub name: String,
-    pub range: Span
+    pub range: Span,
 }
 
 #[derive(Debug)]
@@ -48,7 +48,7 @@ pub struct NominalFunDef {
     pub args: ArgList<String, Name>,
     pub rt: Type<Name>,
     pub body: Expr<Name>,
-    pub range: Span
+    pub range: Span,
 }
 
 #[derive(Debug)]
@@ -69,7 +69,8 @@ impl NominalModule {
         }
         for def in self.class_defs.iter() {
             print!("   case class {} ", def.name);
-            let args_str = def.args
+            let args_str = def
+                .args
                 .iter()
                 .map(|(n, t)| format!("{}: {}", n, t))
                 .collect::<Vec<String>>()
@@ -78,7 +79,8 @@ impl NominalModule {
         }
         for def in self.fun_defs.iter() {
             print!("   def {} ", def.name);
-            let args_str = def.args
+            let args_str = def
+                .args
                 .iter()
                 .map(|(n, t)| format!("{}: {}", n, t))
                 .collect::<Vec<String>>()
@@ -125,14 +127,14 @@ impl Display for Symbol {
 pub struct SymbolicClassDef {
     pub name: Symbol,
     pub args: ArgList<Symbol, Symbol>,
-    pub parent: Symbol
+    pub parent: Symbol,
 }
 
 #[derive(Debug)]
 pub struct SymbolicFunDef {
     pub args: ArgList<Symbol, Symbol>,
     pub rt: Type<Symbol>,
-    pub body: Expr<Symbol>
+    pub body: Expr<Symbol>,
 }
 
 #[derive(Debug)]
