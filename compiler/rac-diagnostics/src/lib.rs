@@ -1,8 +1,4 @@
-use std::{
-    cmp::{max, min},
-    collections::{HashMap, VecDeque},
-    fmt::Display,
-};
+use std::fmt::Display;
 
 pub type Source<'a> = &'a [u8];
 
@@ -66,7 +62,7 @@ pub fn deliver(r: &Report, fname: &str, src: &[u8]) {
 
     let limit = src.len();
 
-    let mut newlines: VecDeque<usize> = VecDeque::new();
+    let mut newlines: Vec<usize> = Vec::new();
 
     let mut beg_nl_idx = 0;
     let mut end_nl_idx = 0;
@@ -76,7 +72,7 @@ pub fn deliver(r: &Report, fname: &str, src: &[u8]) {
     let mut curpos = 0;
     while curpos < r.range.start {
         if src[curpos] == b'\n' {
-            newlines.push_back(curpos);
+            newlines.push(curpos);
             line += 1;
             col = 1;
         } else {
@@ -87,7 +83,7 @@ pub fn deliver(r: &Report, fname: &str, src: &[u8]) {
     beg_nl_idx = newlines.len() - 1;
     while curpos < r.range.end {
         if src[curpos] == b'\n' {
-            newlines.push_back(curpos);
+            newlines.push(curpos);
         }
         curpos += 1;
     }
@@ -96,7 +92,7 @@ pub fn deliver(r: &Report, fname: &str, src: &[u8]) {
     let mut cnt = 0;
     while curpos < limit && cnt < 2 {
         if src[curpos] == b'\n' {
-            newlines.push_back(curpos);
+            newlines.push(curpos);
             cnt += 1;
         }
         curpos += 1;
