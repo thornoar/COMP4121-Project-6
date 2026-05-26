@@ -12,10 +12,13 @@
 // #[global_allocator]
 // static ALLOC: Jemalloc = Jemalloc;
 
-use std::{collections::{HashMap, VecDeque}, env, fs};
+use std::{
+    collections::{HashMap, VecDeque},
+    env, fs,
+};
 
 use rac_diagnostics::deliver;
-use rac_parser::{tokeniter::TokenIter, parse};
+use rac_parser::{parse, tokeniter::TokenIter};
 
 #[derive(Debug, Eq, PartialEq)]
 enum Operation {
@@ -24,7 +27,7 @@ enum Operation {
     PrintResolved,
     TypeCheck,
     Interpret,
-    Help
+    Help,
 }
 
 macro_rules! init_error {
@@ -45,24 +48,26 @@ pub fn main() {
         let len = arg.len();
         if len >= 2 && &arg[0..2] == "--" {
             match &arg[2..len] {
-                "tokens" => { moper = Some(PrintTokens) },
-                "parse" => { moper = Some(PrintNominal) },
-                "resolve" => { moper = Some(PrintResolved) },
-                "typecheck" => { moper = Some(TypeCheck) },
-                "interpret" => { moper = Some(Interpret) },
-                "help" => { moper = Some(Help) }
+                "tokens" => moper = Some(PrintTokens),
+                "parse" => moper = Some(PrintNominal),
+                "resolve" => moper = Some(PrintResolved),
+                "typecheck" => moper = Some(TypeCheck),
+                "interpret" => moper = Some(Interpret),
+                "help" => moper = Some(Help),
                 _ => {
                     init_error!(format!("unrecognized command-line flag: {}", &arg[2..len]));
                 }
             }
-        } else { fnames.push_back(arg); }
+        } else {
+            fnames.push_back(arg);
+        }
     }
-    
+
     let oper = match moper {
         None => init_error!("no operation given."),
-        Some(o) => o
+        Some(o) => o,
     };
-    
+
     if oper == Help {
         println!(
             "{}\n\n{}\n\n{}\n{}\n{}\n{}\n{}\n{}\n{}",
@@ -83,8 +88,10 @@ pub fn main() {
     let mut sources = VecDeque::new();
     for fname in fnames.iter() {
         match fs::read(&fname) {
-            Ok(contents) => { sources.push_back((fname.as_str(), contents)); },
-            Err(_) => init_error!(format!("could not read file `\x1b[31m{}\x1b[0m`", fname))
+            Ok(contents) => {
+                sources.push_back((fname.as_str(), contents));
+            }
+            Err(_) => init_error!(format!("could not read file `\x1b[31m{}\x1b[0m`", fname)),
         }
     }
 
@@ -101,7 +108,9 @@ pub fn main() {
             ts.print();
         } else {
             match parse(src, &mut ts) {
-                Ok(m) => { nominal_trees.push_back(m); },
+                Ok(m) => {
+                    nominal_trees.push_back(m);
+                }
                 Err(r) => {
                     deliver(&r, fname, src);
                     return;
@@ -112,11 +121,12 @@ pub fn main() {
         }
     }
 
-    // Stage 4: 
+    // Stage 4:
 
     if oper == PrintNominal {
         for module in nominal_trees.iter() {
-            module.print(); print!("\n");
+            module.print();
+            print!("\n");
         }
         return;
     }

@@ -1,4 +1,5 @@
 use std::ops::Range;
+
 use rac_diagnostics::Span;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -79,7 +80,11 @@ impl Token {
     pub fn new(kind: TokenKind, range: Range<usize>, tag: u8) -> Self {
         Self {
             kind,
-            range: Span { start: range.start, end: range.end, tag: tag }
+            range: Span {
+                start: range.start,
+                end: range.end,
+                tag: tag,
+            },
         }
     }
 }

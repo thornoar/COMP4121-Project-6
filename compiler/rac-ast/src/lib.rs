@@ -1,4 +1,8 @@
-use std::{collections::{HashMap, VecDeque}, fmt::Display};
+use std::{
+    collections::{HashMap, VecDeque},
+    fmt::Display,
+};
+
 use rac_diagnostics::{Source, Span, join};
 
 // Nominal AST structure
@@ -6,7 +10,7 @@ use rac_diagnostics::{Source, Span, join};
 #[derive(Debug, Clone)]
 pub struct Name {
     pub owner: Option<String>,
-    pub name: String
+    pub name: String,
 }
 
 impl Name {
@@ -19,7 +23,7 @@ impl Display for Name {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match &self.owner {
             None => write!(f, "{}", self.name),
-            Some(owner) => write!(f, "{}.{}", owner, self.name)
+            Some(owner) => write!(f, "{}.{}", owner, self.name),
         }
     }
 }
@@ -42,7 +46,7 @@ pub struct NominalModule {
     pub class_defs: VecDeque<NominalClassDef>,
     pub fun_defs: VecDeque<NominalFunDef>,
     // pub defs: VecDeque<NominalDefinition>,
-    pub expr: Option<Expr<Name>>
+    pub expr: Option<Expr<Name>>,
 }
 
 impl NominalModule {
@@ -53,12 +57,20 @@ impl NominalModule {
         }
         for (name, args, parent, _) in self.class_defs.iter() {
             print!("   case class {} ", name);
-            let args_str = args.iter().map(|(n, t)| format!("{}: {}", n, t)).collect::<Vec<String>>().join(", ");
+            let args_str = args
+                .iter()
+                .map(|(n, t)| format!("{}: {}", n, t))
+                .collect::<Vec<String>>()
+                .join(", ");
             println!("({}) extends {}\n", args_str, parent);
         }
         for (name, args, rt, body, _) in self.fun_defs.iter() {
             print!("   def {} ", name);
-            let args_str = args.iter().map(|(n, t)| format!("{}: {}", n, t)).collect::<Vec<String>>().join(", ");
+            let args_str = args
+                .iter()
+                .map(|(n, t)| format!("{}: {}", n, t))
+                .collect::<Vec<String>>()
+                .join(", ");
             println!("({}): {} :=", args_str, rt);
             println!("      {}", body.show(2));
             println!("   end {}\n", name);
@@ -92,14 +104,20 @@ impl NominalModule {
 // Symbolic (resolved) AST structure
 
 #[derive(Debug, Clone, Hash, Eq, PartialEq)]
-enum SymbolKind { Variable, Function, Class, Type, TypeVariable }
+enum SymbolKind {
+    Variable,
+    Function,
+    Class,
+    Type,
+    TypeVariable,
+}
 type SID = u64;
 
 #[derive(Debug, Clone, Hash, Eq, PartialEq)]
 pub struct Symbol {
     name: String,
-    id: SID,
-    kind: SymbolKind
+    pub id: SID,
+    kind: SymbolKind,
 }
 
 pub type SymbolicClassDef = (ArgList<Symbol, Symbol>, Symbol);
@@ -110,7 +128,7 @@ pub struct SymbolicProgram {
     pub user_types: VecDeque<Symbol>,
     pub class_defs: HashMap<SID, SymbolicClassDef>,
     pub fun_defs: HashMap<SID, SymbolicFunDef>,
-    pub exprs: VecDeque<Expr<Symbol>>
+    pub exprs: VecDeque<Expr<Symbol>>,
 }
 
 // Expression structures, shared between nominal and symbolic trees.
@@ -128,7 +146,7 @@ pub enum Expr<N> {
     BoolLiteral(bool, Span),
     StringLiteral(String, Span),
     UnitLiteral(Span),
-    
+
     // Binary operators. Range is computed as the `join` of the ranges of `lhs` and `rhs`
     Plus(Box<Expr<N>>, Box<Expr<N>>),
     Minus(Box<Expr<N>>, Box<Expr<N>>),
@@ -164,7 +182,7 @@ pub enum Expr<N> {
 pub type ArgList<A, N> = VecDeque<(A, Type<N>)>;
 
 // Computes the *true* range of a given expression.
-pub fn range<N> (e: Expr<N>) -> Span {
+pub fn range<N>(e: Expr<N>) -> Span {
     use Expr::*;
     match e {
         Variable(_, s) => s,
@@ -190,13 +208,12 @@ pub fn range<N> (e: Expr<N>) -> Span {
         Let(_, _, _, _, s) => s,
         Ite(_, _, _, s) => s,
         Match(scrut, _, s) => join(range(*scrut), s),
-        Error(_, s) => s
+        Error(_, s) => s,
     }
 }
 
-
 impl<N: Display> Expr<N> {
-    pub fn show (&self, indent: usize) -> String {
+    pub fn show(&self, indent: usize) -> String {
         use Expr::*;
         let prefix1 = "   ".repeat(indent);
         let prefix2 = "   ".repeat(indent + 1);
@@ -225,28 +242,48 @@ impl<N: Display> Expr<N> {
             Not(e, _) => format!("!({})", e.show(indent)),
             Neg(e, _) => format!("-({})", e.show(indent)),
             Call(name, args, _) => {
-                let args_str = args.iter().map(|arg| arg.show(indent)).collect::<Vec<String>>().join(", ");
+                let args_str = args
+                    .iter()
+                    .map(|arg| arg.show(indent))
+                    .collect::<Vec<String>>()
+                    .join(", ");
                 format!("{}({})", name, args_str)
             }
-            Sequence(lhs, rhs) => format!("{};\n{}{}", lhs.show(indent+1), prefix1, rhs.show(indent)),
-            Let(name, typ, val, body, _) => format!("let {}: {} = {} in\n{}( {} )", name, typ, val.show(indent+1), prefix1, body.show(indent)),
+            Sequence(lhs, rhs) => {
+                format!("{};\n{}{}", lhs.show(indent + 1), prefix1, rhs.show(indent))
+            }
+            Let(name, typ, val, body, _) => format!(
+                "let {}: {} = {} in\n{}( {} )",
+                name,
+                typ,
+                val.show(indent + 1),
+                prefix1,
+                body.show(indent)
+            ),
             Ite(cond, thenb, elseb, _) => format!(
                 "if ({}) {{\n{}{}\n{}}} else {{\n{}{}\n{}}}",
                 cond.show(indent),
                 prefix2,
-                thenb.show(indent+1),
+                thenb.show(indent + 1),
                 prefix1,
                 prefix2,
-                elseb.show(indent+1),
+                elseb.show(indent + 1),
                 prefix1
             ),
             Match(scrut, pats, _) => {
-                let pats_str = pats.iter().map(|(pat, expr)| {
-                    format!("{}{} => {}", prefix2, pat, expr.show(indent+2))
-                }).collect::<Vec<String>>().join("\n");
-                format!("( {} match {{\n{}\n{}}} )", scrut.show(indent), pats_str, prefix1)
-            },
-            Error(arg, _) => format!("error({})", arg.show(indent))
+                let pats_str = pats
+                    .iter()
+                    .map(|(pat, expr)| format!("{}{} => {}", prefix2, pat, expr.show(indent + 2)))
+                    .collect::<Vec<String>>()
+                    .join("\n");
+                format!(
+                    "( {} match {{\n{}\n{}}} )",
+                    scrut.show(indent),
+                    pats_str,
+                    prefix1
+                )
+            }
+            Error(arg, _) => format!("error({})", arg.show(indent)),
         }
         // format!("{}{}", prefix1, expr_str)
     }
@@ -262,7 +299,7 @@ pub enum Pattern<N> {
     StringPattern(String, Span),
     IntPattern(i32, Span),
     UnitPattern(Span),
-    ClassPattern(N, VecDeque<Pattern<N>>, Span)
+    ClassPattern(N, VecDeque<Pattern<N>>, Span),
 }
 
 impl<N: Display> Display for Pattern<N> {
@@ -276,7 +313,11 @@ impl<N: Display> Display for Pattern<N> {
             IntPattern(val, _) => write!(f, "{}", val),
             UnitPattern(_) => write!(f, "()"),
             ClassPattern(name, args, _) => {
-                let args_str = args.iter().map(|a| format!("{}", a)).collect::<Vec<String>>().join(", ");
+                let args_str = args
+                    .iter()
+                    .map(|a| format!("{}", a))
+                    .collect::<Vec<String>>()
+                    .join(", ");
                 write!(f, "{}({})", name, args_str)
             }
         }
@@ -307,7 +348,7 @@ impl<N: Display> Display for Type<N> {
             StringType(_) => write!(f, "String"),
             UnitType(_) => write!(f, "Unit"),
             ClassType(name, _) => write!(f, "{}", name),
-            Variable(name, _) => write!(f, "'{}", name)
+            Variable(name, _) => write!(f, "'{}", name),
         }
     }
 }

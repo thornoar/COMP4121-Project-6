@@ -1,10 +1,13 @@
-use std::cmp::Ordering;
-use std::ops::{Add, Div, Mul, Rem, Sub};
+use std::{
+    cmp::Ordering,
+    ops::{Add, Div, Mul, Rem, Sub},
+};
+use rac_ast::Symbol;
 
 #[derive(Clone, Eq, PartialEq)]
 pub enum Value {
     Bool(bool),
-    CaseClassValue(Vec<Box<Value>>),
+    CaseClassValue(Symbol, Vec<Box<Value>>),
     Int(i32),
     String(String),
     Unit,
@@ -16,7 +19,7 @@ impl Add for Value {
     fn add(self, other: Value) -> Value {
         match (self, other) {
             (Value::Int(a), Value::Int(b)) => Value::Int(a + b),
-            _ => panic!("unsupported operands of add")
+            _ => panic!("unsupported operands of add"),
         }
     }
 }
@@ -27,7 +30,7 @@ impl Sub for Value {
     fn sub(self, other: Value) -> Value {
         match (self, other) {
             (Value::Int(a), Value::Int(b)) => Value::Int(a - b),
-            _ => panic!("unsupported operands of minus")
+            _ => panic!("unsupported operands of minus"),
         }
     }
 }
@@ -38,7 +41,7 @@ impl Mul for Value {
     fn mul(self, other: Value) -> Value {
         match (self, other) {
             (Value::Int(a), Value::Int(b)) => Value::Int(a * b),
-            _ => panic!("unsupported operands of minus")
+            _ => panic!("unsupported operands of minus"),
         }
     }
 }
@@ -49,7 +52,7 @@ impl Div for Value {
     fn div(self, other: Value) -> Value {
         match (self, other) {
             (Value::Int(a), Value::Int(b)) => Value::Int(a / b),
-            _ => panic!("unsupported operands of minus")
+            _ => panic!("unsupported operands of minus"),
         }
     }
 }
@@ -60,7 +63,7 @@ impl Rem for Value {
     fn rem(self, other: Value) -> Value {
         match (self, other) {
             (Value::Int(a), Value::Int(b)) => Value::Int(a % b),
-            _ => panic!("unsupported operands of minus")
+            _ => panic!("unsupported operands of minus"),
         }
     }
 }
