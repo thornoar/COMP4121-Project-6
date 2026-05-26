@@ -19,7 +19,7 @@ impl Environment {
             current_scope.insert(name, value);
         }
     }
-    
+
     pub fn define_many(&mut self, iter: impl IntoIterator<Item = (Symbol, Value)>) {
         if let Some(current_scope) = self.scopes.last_mut() {
             current_scope.extend(iter);

@@ -80,12 +80,18 @@ pub fn interpret(expr: &Expr<Symbol>, env: &mut Environment, prog: &SymbolicProg
 
         Expr::Call(name, args, _) => {
             if let Some((arglist, _, body)) = prog.fun_defs.get(&name.id) {
-                let values = args.iter().map(|e| interpret(e, env, prog)).collect::<Vec<_>>();
+                let values = args
+                    .iter()
+                    .map(|e| interpret(e, env, prog))
+                    .collect::<Vec<_>>();
                 if values.len() != arglist.len() {
                     panic!("mismatched arity of function call");
                 }
 
-                let map = arglist.iter().zip(values).map(|((sym, _), val)| (sym.clone(), val));
+                let map = arglist
+                    .iter()
+                    .zip(values)
+                    .map(|((sym, _), val)| (sym.clone(), val));
                 env.push_scope();
                 env.define_many(map);
                 let ret = interpret(body, env, prog);
@@ -93,7 +99,10 @@ pub fn interpret(expr: &Expr<Symbol>, env: &mut Environment, prog: &SymbolicProg
 
                 ret
             } else if let Some((arglist, id)) = prog.class_defs.get(&name.id) {
-                let values = args.iter().map(|e| Box::new(interpret(e, env, prog))).collect::<Vec<_>>();
+                let values = args
+                    .iter()
+                    .map(|e| Box::new(interpret(e, env, prog)))
+                    .collect::<Vec<_>>();
                 if values.len() != arglist.len() {
                     panic!("mismatched arity of constructor call");
                 }

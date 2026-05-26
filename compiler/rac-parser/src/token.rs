@@ -1,5 +1,5 @@
-use std::{fmt::Display, ops::Range};
 use rac_diagnostics::Span;
+use std::{fmt::Display, ops::Range};
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum TokenKind {
@@ -76,7 +76,8 @@ impl Display for TokenKind {
             Identifier => "an identifier",
             Semicolon => "a sequence delimiter",
             RightArrow => "the `=>` operator",
-            AndAnd | EqualEqual | Slash | Star | LessEquals | Less | Minus | Plus | Percent | PipePipe | PlusPlus | Bang => "an operator",
+            AndAnd | EqualEqual | Slash | Star | LessEquals | Less | Minus | Plus | Percent
+            | PipePipe | PlusPlus | Bang => "an operator",
             OpenCurly => "an opening curly brace",
             OpenParen => "an opening parenthesis",
             OpenBracket => "an opening bracket",
@@ -103,7 +104,7 @@ impl Display for TokenKind {
             UnclosedComment => "an unclosed multiline comment",
             Underscore => "a wildcard",
             Unknown => "an unknown comment",
-            Eof => "the end of file"
+            Eof => "the end of file",
         };
         write!(f, "{}", str)
     }
