@@ -35,7 +35,7 @@ macro_rules! expect {
     ($ts:expr, $tk:expr, $msg:expr) => {{
         let token = $ts.pop();
         if token.kind != $tk {
-            return Err(Report { stage: Stage::Parsing, range: token.range, msg: String::from($msg) });
+            return Err(Report { stage: Stage::Parsing, range: token.range, msg: String::from(format!("{}, found {}", $msg, token.kind)) });
         }
         token
     }};
@@ -47,25 +47,19 @@ macro_rules! error {
     };
 }
 
-// // The top-level parsing function
-// pub fn parse<'a> (src: &'a [u8], tag: u8) -> Result<NominalModule, Report> {
-//     let mut ts = TokenIter::new(src, src.len(), tag);
-//     parse_module(src, &mut ts)
-// }
-
 // Parses a nominal module.
 // Example: `object Test error("asdf") end Test`
 pub fn parse<'a> (src: &'a [u8], ts: &mut TokenIter) -> Result<NominalModule, Report> {
-    expect!(ts, TK::KwObject, "A module must start with the keyword `object`.");
-    let id1 = expect!(ts, TK::Identifier, "A module must be given a valid identifier name.");
+    expect!(ts, TK::KwObject, "A module must start with the keyword `object`");
+    let id1 = expect!(ts, TK::Identifier, "A module must be given a valid identifier name");
     let name = get_string(src, id1.range)?;
     let (ad, cd, fd) = parse_many_definitions(src, ts)?;
     let mexpr = match ts.peek().kind {
         TK::KwEnd => Ok(None),
         _ => parse_expr(src, ts).map(|x| Some(x))
     }?;
-    expect!(ts, TK::KwEnd, "A module must end with the keyword `end`.");
-    let id2 = expect!(ts, TK::Identifier, "A module must end with its name.");
+    expect!(ts, TK::KwEnd, "A module must end with the keyword `end`");
+    let id2 = expect!(ts, TK::Identifier, "A module must end with its name");
 
     if select!(src, id2.range) != select!(src, id1.range) {
         return error!(id2.range, "The names at the start and end of a module must match.");
@@ -108,16 +102,16 @@ fn parse_many_definitions<'a> (src: &'a [u8], ts: &mut TokenIter) -> Result<(Vec
 }
 
 fn parse_fun_def<'a> (src: &'a [u8], ts: &mut TokenIter) -> Result<NominalFunDef, Report> {
-    let id1 = expect!(ts, TK::Identifier, "A function must have a valid name identifier.");
+    let id1 = expect!(ts, TK::Identifier, "A function must have a valid name identifier");
     let name = get_string(src, id1.range)?;
     let args = parse_arglist(src, ts)?;
-    expect!(ts, TK::Colon, "Expected a colon after the function argument list.");
+    expect!(ts, TK::Colon, "Expected a colon after the function argument list");
     let rt = parse_type(src, ts)?;
-    expect!(ts, TK::ColonEqual, "Expected `:=` after the function return type.");
+    expect!(ts, TK::ColonEqual, "Expected `:=` after the function return type");
     // parse the function body...
     let body = parse_expr(src, ts)?;
-    expect!(ts, TK::KwEnd, "A function body must be followed by the `end` keyword.");
-    let id2 = expect!(ts, TK::Identifier, "A function definition must have its name after the `end` keyword.");
+    expect!(ts, TK::KwEnd, "A function body must be followed by the `end` keyword");
+    let id2 = expect!(ts, TK::Identifier, "A function definition must have its name after the `end` keyword");
     if select!(src, id2.range) != select!(src, id1.range) {
         return error!(id2.range, "The names at the start and end of a function definition must match.");
     }
@@ -125,19 +119,19 @@ fn parse_fun_def<'a> (src: &'a [u8], ts: &mut TokenIter) -> Result<NominalFunDef
 }
 
 fn parse_abst_def<'a> (src: &'a [u8], ts: &mut TokenIter) -> Result<NominalAbstDef, Report> {
-    expect!(ts, TK::KwClass, "Expected the keyword `class` after `abstract`.");
-    let id = expect!(ts, TK::Identifier, "An abstract class must have a valid name identifier.");
+    expect!(ts, TK::KwClass, "Expected the keyword `class` after `abstract`");
+    let id = expect!(ts, TK::Identifier, "An abstract class must have a valid name identifier");
     let name = get_string(src, id.range)?;
     Ok((name, id.range))
 }
 
 fn parse_class_def<'a> (src: &'a [u8], ts: &mut TokenIter) -> Result<NominalClassDef, Report> {
-    expect!(ts, TK::KwClass, "Expected the keyword `class` after `case` in a definition.");
-    let id = expect!(ts, TK::Identifier, "A function must have a valid name identifier.");
+    expect!(ts, TK::KwClass, "Expected the keyword `class` after `case` in a definition");
+    let id = expect!(ts, TK::Identifier, "A function must have a valid name identifier");
     let name = get_string(src, id.range)?;
     let args = parse_arglist(src, ts)?;
-    expect!(ts, TK::KwExtends, "A case class definition must end with an `extends` clause.");
-    let parent = expect!(ts, TK::Identifier, "Expected a valid name of an abstract class.");
+    expect!(ts, TK::KwExtends, "A case class definition must end with an `extends` clause");
+    let parent = expect!(ts, TK::Identifier, "Expected a valid name of an abstract class");
     let pname = get_string(src, parent.range)?;
     Ok((name, args, pname, id.range))
 }
@@ -160,7 +154,7 @@ fn parse_class_def<'a> (src: &'a [u8], ts: &mut TokenIter) -> Result<NominalClas
 // Parses an argument list in a constructor or function definition.
 // Examples: `(x: String, y: Int(32), z: Unit)`, `()`
 fn parse_arglist<'a> (src: &'a [u8], ts: &mut TokenIter) -> Result<ArgList<String, Name>, Report> {
-    expect!(ts, TK::OpenParen, "Expected an opening parenthesis to start the argument list.");
+    expect!(ts, TK::OpenParen, "Expected an opening parenthesis to start the argument list");
     match ts.peek().kind {
         TK::CloseParen => {
             ts.consume();
@@ -193,9 +187,9 @@ fn parse_many_arguments<'a> (src: &'a [u8], ts: &mut TokenIter) -> Result<ArgLis
 // Parses an argument in a definition.
 // Examples: `x: String`, `y: Int(32)`
 fn parse_argument<'a> (src: &'a [u8], ts: &mut TokenIter) -> Result<(String, Type<Name>), Report> {
-    let id = expect!(ts, TK::Identifier, "An argument must have a valid name identifier.");
+    let id = expect!(ts, TK::Identifier, "An argument must have a valid name identifier");
     let name = get_string(src, id.range)?;
-    expect!(ts, TK::Colon, "Expected a colon after the argument name.");
+    expect!(ts, TK::Colon, "Expected a colon after the argument name");
     let typ = parse_type(src, ts)?;
     Ok((name, typ))
 }
@@ -206,11 +200,11 @@ fn parse_type<'a> (src: &'a [u8], ts: &mut TokenIter) -> Result<Type<Name>, Repo
     let typ1 = ts.pop();
     match typ1.kind {
         TK::TypInt => {
-            expect!(ts, TK::OpenParen, "The `Int` type must be applied to an integer size value.");
-            let size = expect!(ts, TK::LitInt, "Expected an integer literal for the `Int` type.");
+            expect!(ts, TK::OpenParen, "The `Int` type must be applied to an integer size value");
+            let size = expect!(ts, TK::LitInt, "Expected an integer literal for the `Int` type");
             match str::from_utf8(&select!(src, size.range)) {
                 Ok("32") => {
-                    let cp = expect!(ts, TK::CloseParen, "Expected a closing parenthesis.");
+                    let cp = expect!(ts, TK::CloseParen, "Expected a closing parenthesis");
                     Ok(Type::IntType(join(typ1.range, cp.range)))
                 },
                 _ => error!(size.range, "Only size `32` is supported for integer literals.")
@@ -223,7 +217,7 @@ fn parse_type<'a> (src: &'a [u8], ts: &mut TokenIter) -> Result<Type<Name>, Repo
             TK::Dot => {
                 let owner = get_string(src, typ1.range)?;
                 ts.consume();
-                let typ2 = expect!(ts, TK::Identifier, "Expected a valid identifier as part of a qualified name.");
+                let typ2 = expect!(ts, TK::Identifier, "Expected a valid identifier as part of a qualified name");
                 let name = get_string(src, typ2.range)?;
                 Ok(Type::ClassType(Name::new(Some(owner), name), join(typ1.range, typ2.range)))
             },
@@ -256,13 +250,13 @@ fn parse_atomic_expr<'a> (src: &'a [u8], ts: &mut TokenIter) -> Result<Expr<Name
     match t1.kind {
         TK::KwVal => {
             ts.consume();
-            let var_token = expect!(ts, TK::Identifier, "Expected a variable identifier after `val`.");
+            let var_token = expect!(ts, TK::Identifier, "Expected a variable identifier after `val`");
             let var_name = get_string(src, var_token.range)?;
-            expect!(ts, TK::Colon, "Expected a colon after the variable name.");
+            expect!(ts, TK::Colon, "Expected a colon after the variable name");
             let var_type = parse_type(src, ts)?;
             expect!(ts, TK::Equal, "Expected an equal sign after the variable type");
             let var_expr = parse_atomic_expr(src, ts)?;
-            let sc = expect!(ts, TK::Semicolon, "Expected a semicolon after a `val` declaration.");
+            let sc = expect!(ts, TK::Semicolon, "Expected a semicolon after a `val` declaration");
             let body = parse_expr(src, ts)?;
             Ok(Expr::Let(Name::new(None, var_name), var_type, Box::new(var_expr), Box::new(body), join(t1.range, sc.range)))
         }
@@ -271,9 +265,9 @@ fn parse_atomic_expr<'a> (src: &'a [u8], ts: &mut TokenIter) -> Result<Expr<Name
             expect!(ts, TK::OpenParen, "Expected an opening parenthesis after the `if` keyword");
             let cond = parse_expr(src, ts)?;
             expect!(ts, TK::CloseParen, "Expected a closing parenthesis after the `if` condition");
-            expect!(ts, TK::KwThen, "Expected the keyword `then`.");
+            expect!(ts, TK::KwThen, "Expected the keyword `then`");
             let if_branch = parse_expr(src, ts)?;
-            expect!(ts, TK::KwElse, "Expected the keyword `else`.");
+            expect!(ts, TK::KwElse, "Expected the keyword `else`");
             let else_branch = parse_expr(src, ts)?;
             expect!(ts, TK::KwEnd, "An `if` statement must terminate with `end if`");
             let eif = expect!(ts, TK::KwIf, "An `if` statement must terminate with `end if`");
@@ -300,7 +294,7 @@ fn parse_with_match<'a> (src: &'a [u8], ts: &mut TokenIter) -> Result<Expr<Name>
         match ts.peek().kind {
             TK::KwMatch => {
                 ts.consume();
-                expect!(ts, TK::OpenCurly, "The `match` keyword must be followes by a curly bracket.");
+                expect!(ts, TK::OpenCurly, "The `match` keyword must be followes by a curly bracket");
                 let mut cases = VecDeque::new();
                 loop {
                     let tk = ts.pop();
@@ -338,7 +332,7 @@ fn parse_with_match<'a> (src: &'a [u8], ts: &mut TokenIter) -> Result<Expr<Name>
 // Examples: `C(_, _) => 9`, `_ => 4 + x`
 fn parse_match_case<'a> (src: &'a [u8], ts: &mut TokenIter) -> Result<(Pattern<Name>, Expr<Name>), Report> {
     let pat = parse_pattern(src, ts)?;
-    expect!(ts, TK::RightArrow, "A match pattern must be followed by a right arrow.");
+    expect!(ts, TK::RightArrow, "A match pattern must be followed by a right arrow");
     let expr = parse_expr(src, ts)?;
     Ok((pat, expr))
 }
@@ -495,7 +489,7 @@ fn parse_simple_expr<'a> (src: &'a [u8], ts: &mut TokenIter) -> Result<Expr<Name
         TK::KwError => {
             expect!(ts, TK::OpenParen, "The `error` keyword must be followed by an open parenthesis");
             let arg = parse_expr(src, ts)?;
-            let cp = expect!(ts, TK::CloseParen, "Expected a closed parenthesis here.");
+            let cp = expect!(ts, TK::CloseParen, "Expected a closed parenthesis");
             Ok(Expr::Error(Box::new(arg), join(tk.range, cp.range)))
         }
         TK::Identifier => {
@@ -523,7 +517,7 @@ fn parse_simple_expr<'a> (src: &'a [u8], ts: &mut TokenIter) -> Result<Expr<Name
                 }
                 _ => {
                     let expr = parse_expr(src, ts)?;
-                    expect!(ts, TK::CloseParen, "Expected a closing parenthesis here.");
+                    expect!(ts, TK::CloseParen, "Expected a closing parenthesis");
                     Ok(expr)
                 }
             }
@@ -586,7 +580,7 @@ fn get_name<'a> (src: &'a [u8], ts: &mut TokenIter, span: Span) -> Result<(Name,
     match ts.peek().kind {
         TK::Dot => {
             ts.consume();
-            let tk2 = expect!(ts, TK::Identifier, "Expected a valid identifier as part of a qualified name.");
+            let tk2 = expect!(ts, TK::Identifier, "Expected a valid identifier as part of a qualified name");
             let owner = get_string(src, span)?;
             let name = get_string(src, tk2.range)?;
             Ok((Name::new(Some(owner), name), join(span, tk2.range)))

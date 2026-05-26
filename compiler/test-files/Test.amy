@@ -5,7 +5,7 @@ object Hanoi
       error("can't solve Hanoi for less than 1 plate")
     else
       if (n == 1) then
-        // 1
+        1
       else
         2 * solve(n - 1) + 1
       end if
@@ -13,4 +13,4 @@ object Hanoi
   end solve
 
   Std.printString("Hanoi for 4 plates: " ++ Std.intToString(solve(4)))
-end Hanoi
+// end Hanoi
