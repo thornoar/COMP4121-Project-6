@@ -31,6 +31,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "rac-name-analyzer"
+version = "0.1.0"
+dependencies = [
+ "rac-ast",
+ "rac-diagnostics",
+]
+
+[[package]]
 name = "rac-parser"
 version = "0.1.0"
 dependencies = [

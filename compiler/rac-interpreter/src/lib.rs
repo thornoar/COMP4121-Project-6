@@ -79,35 +79,35 @@ pub fn interpret(expr: &Expr<Symbol>, env: &mut Environment, prog: &SymbolicProg
         }
 
         Expr::Call(name, args, _) => {
-            if let Some((arglist, _, body)) = prog.fun_defs.get(&name.id) {
+            if let Some(def) = prog.fun_defs.get(&name.id) {
                 let values = args
                     .iter()
                     .map(|e| interpret(e, env, prog))
                     .collect::<Vec<_>>();
-                if values.len() != arglist.len() {
+                if values.len() != def.args.len() {
                     panic!("mismatched arity of function call");
                 }
 
-                let map = arglist
+                let map = def.args
                     .iter()
                     .zip(values)
                     .map(|((sym, _), val)| (sym.clone(), val));
                 env.push_scope();
                 env.define_many(map);
-                let ret = interpret(body, env, prog);
+                let ret = interpret(&def.body, env, prog);
                 env.pop_scope();
 
                 ret
-            } else if let Some((arglist, id)) = prog.class_defs.get(&name.id) {
+            } else if let Some(def) = prog.class_defs.get(&name.id) {
                 let values = args
                     .iter()
                     .map(|e| Box::new(interpret(e, env, prog)))
                     .collect::<Vec<_>>();
-                if values.len() != arglist.len() {
+                if values.len() != def.args.len() {
                     panic!("mismatched arity of constructor call");
                 }
 
-                Value::CaseClassValue(id.clone(), values)
+                Value::CaseClassValue(def.name.clone(), values)
             } else {
                 panic!("unresolved call")
             }

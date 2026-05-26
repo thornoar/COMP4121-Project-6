@@ -179,7 +179,7 @@ fn parse_fun_def<'a>(src: &'a [u8], ts: &mut TokenIter) -> Result<NominalFunDef,
             "The names at the start and end of a function definition must match."
         );
     }
-    Ok((name, args, rt, body, id1.range))
+    Ok(NominalFunDef { name, args, rt, body, range: id1.range })
 }
 
 fn parse_abst_def<'a>(src: &'a [u8], ts: &mut TokenIter) -> Result<NominalAbstDef, Report> {
@@ -194,7 +194,7 @@ fn parse_abst_def<'a>(src: &'a [u8], ts: &mut TokenIter) -> Result<NominalAbstDe
         "An abstract class must have a valid name identifier"
     );
     let name = get_string(src, id.range)?;
-    Ok((name, id.range))
+    Ok(NominalAbstDef { name, range: id.range })
 }
 
 fn parse_class_def<'a>(src: &'a [u8], ts: &mut TokenIter) -> Result<NominalClassDef, Report> {
@@ -221,7 +221,7 @@ fn parse_class_def<'a>(src: &'a [u8], ts: &mut TokenIter) -> Result<NominalClass
         "Expected a valid name of an abstract class"
     );
     let pname = get_string(src, parent.range)?;
-    Ok((name, args, pname, id.range))
+    Ok(NominalClassDef { name, args, parent: pname, range: id.range })
 }
 
 // // Parses an abstract class, case class, or function definition.

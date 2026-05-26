@@ -1,7 +1,7 @@
 object Hanoi
 	
   def solve(n : Int(32)) : Int(32) :=
-    if (n < 1) then 
+    // if (n < 1) then 
       error("can't solve Hanoi for less than 1 plate")
     else
       if (n == 1) then
@@ -13,4 +13,4 @@ object Hanoi
   end solve
 
   Std.printString("Hanoi for 4 plates: " ++ Std.intToString(solve(4)))
-// end Hanoi
+end Hanoi
