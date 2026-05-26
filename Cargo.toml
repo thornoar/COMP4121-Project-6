@@ -2,6 +2,7 @@
 members = [
     "compiler/rac",
     "compiler/rac-ast",
+    "compiler/rac-name-analyzer",
     "compiler/rac-diagnostics",
     "compiler/rac-interpreter",
     "compiler/rac-parser",
