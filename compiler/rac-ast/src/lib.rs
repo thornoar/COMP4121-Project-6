@@ -36,9 +36,8 @@ pub type NominalClassDef = (String, ArgList<String, Name>, String, Span);
 pub type NominalFunDef = (String, ArgList<String, Name>, Type<Name>, Expr<Name>, Span);
 
 #[derive(Debug, Clone)]
-pub struct NominalModule<'a> {
+pub struct NominalModule {
     pub name: String,
-    pub src: Source<'a>,
     pub abstract_defs: VecDeque<NominalAbstDef>,
     pub class_defs: VecDeque<NominalClassDef>,
     pub fun_defs: VecDeque<NominalFunDef>,
@@ -46,7 +45,7 @@ pub struct NominalModule<'a> {
     pub expr: Option<Expr<Name>>
 }
 
-impl<'a> NominalModule<'a> {
+impl NominalModule {
     pub fn print(&self) {
         println!("object {}", self.name);
         for (name, _) in self.abstract_defs.iter() {

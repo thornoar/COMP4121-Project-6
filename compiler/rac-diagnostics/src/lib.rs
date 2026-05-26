@@ -1,19 +1,20 @@
-use std::{cmp::{max, min}, fmt::Display};
+use std::{cmp::{max, min}, collections::HashMap, fmt::Display};
 
 pub type Source<'a> = &'a [u8];
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct Span {
     pub start: usize,
-    pub end: usize
+    pub end: usize,
+    pub tag: u8,
 }
 
 impl Span {
-    pub fn new(start: usize, end: usize) -> Self { Span { start, end } }
+    pub fn new(start: usize, end: usize, tag: u8) -> Self { Span { start, end, tag } }
 }
 
 pub fn join (s1: Span, s2: Span) -> Span {
-    Span { start: s1.start, end: s2.end }
+    Span { start: s1.start, end: s2.end, tag: s1.tag }
 }
 
 // pub type Span = (usize, usize);
@@ -38,32 +39,41 @@ impl Display for Stage {
 }
 
 #[derive(Debug, Clone)]
-pub struct Report<'a> {
-    pub src: Source<'a>,
+pub struct Report {
     pub stage: Stage,
     pub range: Span,
     pub msg: String
 }
 
-impl<'a> Report<'a> {
-    pub fn print (&self) {
-        let stage_msg = format!("Compilation error during the *{}* stage:", self.stage);
-        let limit = self.src.len();
-        let mut line = 1;
-        let mut col = 1;
-        let mut curpos = 0;
-        while curpos < self.range.start {
-            if self.src[curpos] == b'\n' {
-                line += 1; col = 1;
-            } else {
-                col += 1;
-            }
-            curpos += 1;
+pub fn deliver(r: &Report, fname: &str, src: &[u8]) {
+    let stage_msg = format!("Error during the \x1b[34m{}\x1b[0m stage:", r.stage);
+
+    let limit = src.len();
+    let mut line = 1;
+    let mut col = 1;
+    let mut curpos = 0;
+    while curpos < r.range.start {
+        if src[curpos] == b'\n' {
+            line += 1; col = 1;
+        } else {
+            col += 1;
         }
-        let offset = 10;
-        let slice = str::from_utf8(&self.src[max(0, curpos - offset) .. min(limit, self.range.end + offset)]).unwrap_or("...decoding error...");
-        let src_msg = format!("{}:{}    {}", line, col, slice);
-        eprintln!("{}\n{}\n-- {}", stage_msg, src_msg, self.msg);
+        curpos += 1;
     }
+
+    let file_msg = format!("-> \x1b[34m{}\x1b[0m:{}:{}", fname, line, col);
+
+    let offset = 10;
+    let slice_before = str::from_utf8(&src[max(0, curpos - offset) .. curpos]).unwrap_or("...decoding error...");
+    let slice_err = str::from_utf8(&src[curpos .. r.range.end]).unwrap_or("...decoding error...");
+    let slice_after = str::from_utf8(&src[r.range.end .. min(limit, r.range.end + offset)]).unwrap_or("...decoding error...");
+    let src_msg = format!("    {}\x1b[33m{}\x1b[0m{}", slice_before, slice_err, slice_after);
+
+    eprintln!("{}\n{}\n\n{}\n\n-- {}", stage_msg, file_msg, src_msg, r.msg);
 }
 
+// impl<'a> Report<'a> {
+//     pub fn print (&self) {
+//     }
+// }
+//

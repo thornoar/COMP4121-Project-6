@@ -12,8 +12,9 @@
 // #[global_allocator]
 // static ALLOC: Jemalloc = Jemalloc;
 
-use std::{collections::VecDeque, env, fs};
+use std::{collections::{HashMap, VecDeque}, env, fs};
 
+use rac_diagnostics::deliver;
 use rac_parser::{tokeniter::TokenIter, parse};
 
 #[derive(Debug, Eq, PartialEq)]
@@ -35,6 +36,8 @@ macro_rules! init_error {
 
 pub fn main() {
     use Operation::*;
+
+    // Stage 1: Command-line argument parsing
 
     let mut moper = None;
     let mut fnames: VecDeque<String> = VecDeque::new();
@@ -75,31 +78,41 @@ pub fn main() {
         );
     }
 
+    // Stage 2: File I/O
+
     let mut sources = VecDeque::new();
-    // let mut tokenStreams = VecDeque::new();
     for fname in fnames.iter() {
         match fs::read(&fname) {
-            Ok(contents) => { sources.push_back(contents); },
-            Err(_) => init_error!(format!("could not read file `{}`", fname))
+            Ok(contents) => { sources.push_back((fname.as_str(), contents)); },
+            Err(_) => init_error!(format!("could not read file `\x1b[31m{}\x1b[0m`", fname))
         }
     }
 
+    // Stage 3: Parsing
+
     let mut nominal_trees = VecDeque::new();
-    for source in sources.iter() {
+    let mut curtag = 0;
+    let mut srcmap: HashMap<u8, (&str, &[u8])> = HashMap::new();
+
+    for (fname, source) in sources.iter() {
         let src = source.as_slice();
-        let mut ts = TokenIter::new(src, src.len());
+        let mut ts = TokenIter::new(src, src.len(), curtag);
         if oper == PrintTokens {
             ts.print();
         } else {
-            match parse(src) {
+            match parse(src, &mut ts) {
                 Ok(m) => { nominal_trees.push_back(m); },
                 Err(r) => {
-                    r.print();
+                    deliver(&r, fname, src);
                     return;
                 }
             }
+            srcmap.insert(curtag, (*fname, src));
+            curtag += 1;
         }
     }
+
+    // Stage 4: 
 
     if oper == PrintNominal {
         for module in nominal_trees.iter() {

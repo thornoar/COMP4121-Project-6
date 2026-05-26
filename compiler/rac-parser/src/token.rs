@@ -76,10 +76,10 @@ pub struct Token {
 }
 
 impl Token {
-    pub fn new(kind: TokenKind, range: Range<usize>) -> Self {
+    pub fn new(kind: TokenKind, range: Range<usize>, tag: u8) -> Self {
         Self {
             kind,
-            range: Span { start: range.start, end: range.end }
+            range: Span { start: range.start, end: range.end, tag: tag }
         }
     }
 }
