@@ -1,5 +1,5 @@
 use rac_ast::{
-    NominalModule, SID, Symbol, SymbolKind as SK, SymbolicClassDef, SymbolicFunDef, SymbolicProgram,
+    NominalModule, SID, Type, Name, Symbol, SymbolKind as SK, SymbolicClassDef, SymbolicFunDef, SymbolicProgram,
 };
 use rac_diagnostics::{Report, Stage};
 use std::collections::{HashMap, VecDeque};
@@ -15,9 +15,9 @@ macro_rules! error {
 }
 
 pub fn resolve(modules: &VecDeque<NominalModule>) -> Result<SymbolicProgram, Report> {
-    let mut user_types: VecDeque<Symbol> = VecDeque::new();
-    let mut class_defs: HashMap<SID, SymbolicClassDef> = HashMap::new();
-    let mut fun_defs: HashMap<SID, SymbolicFunDef> = HashMap::new();
+    let mut user_types: HashMap<&String, HashMap<&String, Symbol>> = HashMap::new();
+    let mut class_defs: HashMap<&String, HashMap<&String, SymbolicClassDef>> = HashMap::new();
+    let mut fun_defs: HashMap<&String, HashMap<&String, SymbolicFunDef>> = HashMap::new();
     let mut free_id = 0;
 
     macro_rules! fresh_sym {
@@ -37,30 +37,82 @@ pub fn resolve(modules: &VecDeque<NominalModule>) -> Result<SymbolicProgram, Rep
 
     // Discovering user types
     for md in modules.iter() {
+        let mut cur_types = HashMap::new();
         for def in md.abstract_defs.iter() {
-            if contains_with_name(&user_types, &def.name) {
+            if cur_types.contains_key(&def.name) {
                 return error!(
                     def.range,
                     format!("An abstract class named `{}` is already defined.", def.name)
                 );
             }
-            user_types.push_back(fresh_sym!(def.name, SK::Type));
+            cur_types.insert(&def.name, fresh_sym!(def.name, SK::Type));
         }
+        user_types.insert(&md.name, cur_types);
     }
 
     // Discovering class definitions
     for md in modules.iter() {
+        let mut cur_cls_defs = HashMap::new();
         for def in md.class_defs.iter() {
-            if !contains_with_name(&user_types, &def.parent) {
+            let sym_parent = match user_types[&md.name].get(&def.parent) {
+                Some(sym) => sym.clone(),
+                None => {
+                    return error!(
+                        def.range,
+                        format!("Could not find an abstract class named `{}`.", def.parent)
+                    );
+                }
+            };
+            
+            if cur_cls_defs.contains_key(&def.name) {
                 return error!(
                     def.range,
-                    format!("Could not find an abstract class named `{}`", def.parent)
+                    format!("A case class named `{}` is already defined.", def.name)
                 );
             }
+
+            let mut sym_args = VecDeque::new();
+
+            for (name, typ) in def.args.iter() {
+                let sym_typ = resolve_type(typ, &md.name, &user_types)?;
+                let sym_name = fresh_sym!(name, SK::Field);
+                sym_args.push_back((sym_name, sym_typ));
+            }
+
+            cur_cls_defs.insert(&def.name, SymbolicClassDef {
+                name: fresh_sym!(def.name, SK::Constructor),
+                args: sym_args,
+                parent: sym_parent
+            });
         }
+        class_defs.insert(&md.name, cur_cls_defs);
     }
 
     todo!()
+}
+
+fn resolve_type (arg: &Type<Name>, cur_mod: &String, types: &HashMap<&String, HashMap<&String, Symbol>>) -> Result<Type<Symbol>, Report> {
+    use rac_ast::Type::*;
+    match arg {
+        IntType(s) => Ok(IntType(*s)),
+        BoolType(s) => Ok(BoolType(*s)),
+        StringType(s) => Ok(StringType(*s)),
+        UnitType(s) => Ok(UnitType(*s)),
+        ClassType(qn, s) => match qn.owner.clone() {
+            None => match types[cur_mod].get(&qn.name) {
+                Some(sym) => Ok(ClassType(sym.clone(), *s)),
+                None => error!(*s, format!("Type `{}` could not be found in the current module.", qn.name))
+            },
+            Some(parent) => match types.get(&parent) {
+                Some(mp) => match mp.get(&qn.name) {
+                    Some(sym) => Ok(ClassType(sym.clone(), *s)),
+                    None => error!(*s, format!("Type `{}` could not be found in the module `{}`.", qn.name, parent))
+                },
+                None => error!(*s, format!("Module `{}` could not be found.", parent))
+            }
+        },
+        Variable(qn, s) => todo!()
+    }
 }
 
 fn contains_with_name(lst: &VecDeque<Symbol>, nme: &String) -> bool {

@@ -103,9 +103,10 @@ impl NominalModule {
 pub enum SymbolKind {
     Variable,
     Function,
-    Class,
+    Constructor,
     Type,
     TypeVariable,
+    Field,
 }
 
 pub type SID = u64;
