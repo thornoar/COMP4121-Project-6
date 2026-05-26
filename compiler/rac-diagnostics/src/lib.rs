@@ -67,7 +67,7 @@ pub fn deliver(r: &Report, fname: &str, src: &[u8]) {
     let slice_before = str::from_utf8(&src[max(0, curpos - offset) .. curpos]).unwrap_or("...decoding error...");
     let slice_err = str::from_utf8(&src[curpos .. r.range.end]).unwrap_or("...decoding error...");
     let slice_after = str::from_utf8(&src[r.range.end .. min(limit, r.range.end + offset)]).unwrap_or("...decoding error...");
-    let src_msg = format!("    {}\x1b[33m{}\x1b[0m{}", slice_before, slice_err, slice_after);
+    let src_msg = format!("\x1b[34m{}\x1b[0m    {}\x1b[31m{}\x1b[0m{}", line, slice_before, slice_err, slice_after);
 
     eprintln!("{}\n{}\n\n{}\n\n-- {}", stage_msg, file_msg, src_msg, r.msg);
 }

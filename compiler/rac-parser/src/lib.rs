@@ -528,7 +528,7 @@ fn parse_simple_expr<'a> (src: &'a [u8], ts: &mut TokenIter) -> Result<Expr<Name
                 }
             }
         }
-        _ => error!(tk.range, format!("Unexpected token kind for a simple expression: {:?}", tk.kind))
+        _ => error!(tk.range, "Expected an expression here.")
     }
 }
 
