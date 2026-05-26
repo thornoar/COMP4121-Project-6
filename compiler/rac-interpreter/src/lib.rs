@@ -16,7 +16,10 @@ pub fn interpret(expr: &Expr<Symbol>, env: &mut Environment) -> Value {
         Expr::StringLiteral(s, _) => Value::String(s.clone()),
         Expr::UnitLiteral(_) => Value::Unit,
 
-        Expr::Variable(name, _) if let Some(value) = env.lookup(name) => value,
+        Expr::Variable(name, _) => match env.lookup(name) {
+            Some(value) => value,
+            None => panic!()
+        },
 
         Expr::Plus(lhs, rhs) => interpret(lhs, env) + interpret(rhs, env),
         Expr::Minus(lhs, rhs) => interpret(lhs, env) - interpret(rhs, env),

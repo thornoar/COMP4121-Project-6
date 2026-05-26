@@ -197,12 +197,12 @@ fn lex_token(src: &[u8], limit: usize, start: usize) -> Token {
                 while end < limit && (src[end-1] != b'*' || src[end] != b'/') {
                     end += 1;
                 }
-                // if end == limit {
-                //     Token::new(UnclosedComment, start .. end)
-                // } else {
-                //     lex_token(src, limit, end + 1)
-                // }
-                lex_token(src, limit, end + 1)
+                if end == limit {
+                    Token::new(UnclosedComment, start .. end)
+                } else {
+                    lex_token(src, limit, end + 1)
+                }
+                // lex_token(src, limit, end + 1)
             } else {
                 Token::new(Slash, span(1))
             }

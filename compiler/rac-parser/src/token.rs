@@ -64,6 +64,7 @@ pub enum TokenKind {
 
     // Misc
     Unknown,
+    UnclosedComment,
     Eof,
     Underscore,
 }

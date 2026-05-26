@@ -55,11 +55,11 @@ pub fn parse<'a> (src: &'a [u8]) -> Result<NominalModule, Report<'a>> {
 
 // Parses a nominal module.
 // Example: `object Test error("asdf") end Test`
-fn parse_module<'a> (src: &'a [u8], ts: &mut TokenIter) -> Result<NominalModule, Report<'a>> {
+fn parse_module<'a> (src: &'a [u8], ts: &mut TokenIter) -> Result<NominalModule<'a>, Report<'a>> {
     expect!(src, ts, TK::KwObject, "A module must start with the keyword `object`.");
     let id1 = expect!(src, ts, TK::Identifier, "A module must be given a valid identifier name.");
     let name = get_string(src, id1.range)?;
-    let defs = parse_many_definitions(src, ts)?;
+    let (ad, cd, fd) = parse_many_definitions(src, ts)?;
     let mexpr = match ts.peek().kind {
         TK::KwEnd => Ok(None),
         _ => parse_expr(src, ts).map(|x| Some(x))
@@ -77,63 +77,85 @@ fn parse_module<'a> (src: &'a [u8], ts: &mut TokenIter) -> Result<NominalModule,
         _ => { return error!(src, next.range, "Unexpected token after the module definition.") }
     }
     
-    Ok(NominalModule { name: name, defs: defs, expr: mexpr })
+    Ok(NominalModule { name: name, src: src, abstract_defs: ad, class_defs: cd, fun_defs: fd, expr: mexpr })
 }
 
 // Parses a sequence of 0 or more definitions.
 // Examples: ``, `def f (): Unit := () end f`
-fn parse_many_definitions<'a> (src: &'a [u8], ts: &mut TokenIter) -> Result<VecDeque<NominalDefinition>, Report<'a>> {
-    match ts.peek().kind {
-        TK::KwDef | TK::KwAbstract | TK::KwCase => {
-            let def = parse_definition(src, ts)?;
-            let mut rest = parse_many_definitions(src, ts)?;
-            rest.push_back(def);
-            Ok(rest)
-        },
-        _ => Ok(VecDeque::new())
+fn parse_many_definitions<'a> (src: &'a [u8], ts: &mut TokenIter) -> Result<(VecDeque<NominalAbstDef>, VecDeque<NominalClassDef>, VecDeque<NominalFunDef>), Report<'a>> {
+    let (mut ad, mut cd, mut fd) = (VecDeque::new(), VecDeque::new(), VecDeque::new());
+    loop {
+        match ts.peek().kind {
+            TK::KwAbstract => {
+                ts.consume();
+                let def = parse_abst_def(src, ts)?;
+                ad.push_back(def);
+            },
+            TK::KwCase => {
+                ts.consume();
+                let def = parse_class_def(src, ts)?;
+                cd.push_back(def);
+            },
+            TK::KwDef => {
+                ts.consume();
+                let def = parse_fun_def(src, ts)?;
+                fd.push_back(def);
+            },
+            _ => { break; }
+        }
     }
+    Ok((ad, cd, fd))
 }
 
-// Parses an abstract class, case class, or function definition.
-// Examples: `abstract class T`, `case class C(x: Unit) extends T`, `def f(x: String): Int(32) := 5 end f`
-fn parse_definition<'a> (src: &'a [u8], ts: &mut TokenIter) -> Result<NominalDefinition, Report<'a>> {
-    let kw = ts.pop();
-    match kw.kind {
-        TK::KwDef => {
-            let id1 = expect!(src, ts, TK::Identifier, "A function must have a valid name identifier.");
-            let name = get_string(src, id1.range)?;
-            let args = parse_arglist(src, ts)?;
-            expect!(src, ts, TK::Colon, "Expected a colon after the function argument list.");
-            let rt = parse_type(src, ts)?;
-            expect!(src, ts, TK::ColonEqual, "Expected `:=` after the function return type.");
-            // parse the function body...
-            let body = parse_expr(src, ts)?;
-            expect!(src, ts, TK::KwEnd, "A function body must be followed by the `end` keyword.");
-            let id2 = expect!(src, ts, TK::Identifier, "A function definition must have its name after the `end` keyword.");
-            if select!(src, id2.range) != select!(src, id1.range) {
-                return error!(src, id2.range, "The names at the start and end of a function definition must match.");
-            }
-            Ok(NominalDefinition::FunDef(name, args, rt, body, id1.range))
-        },
-        TK::KwAbstract => {
-            expect!(src, ts, TK::KwClass, "Expected the keyword `class` after `abstract`.");
-            let id = expect!(src, ts, TK::Identifier, "An abstract class must have a valid name identifier.");
-            let name = get_string(src, id.range)?;
-            Ok(NominalDefinition::AbstractDef(name, id.range))
-        },
-        TK::KwCase => {
-            expect!(src, ts, TK::KwClass, "Expected the keyword `class` after `case` in a definition.");
-            let id = expect!(src, ts, TK::Identifier, "A function must have a valid name identifier.");
-            let name = get_string(src, id.range)?;
-            let args = parse_arglist(src, ts)?;
-            expect!(src, ts, TK::KwExtends, "A case class definition must end with an `extends` clause.");
-            let parent = expect!(src, ts, TK::Identifier, "Expected a valid name of an abstract class.");
-            let pname = get_string(src, parent.range)?;
-            Ok(NominalDefinition::CaseClassDef(name, args, pname, id.range))
-        },
-        _ => error!(src, kw.range, "A module definition must start with either `def`, `abstract`, or `case`."),
+fn parse_fun_def<'a> (src: &'a [u8], ts: &mut TokenIter) -> Result<NominalFunDef, Report<'a>> {
+    let id1 = expect!(src, ts, TK::Identifier, "A function must have a valid name identifier.");
+    let name = get_string(src, id1.range)?;
+    let args = parse_arglist(src, ts)?;
+    expect!(src, ts, TK::Colon, "Expected a colon after the function argument list.");
+    let rt = parse_type(src, ts)?;
+    expect!(src, ts, TK::ColonEqual, "Expected `:=` after the function return type.");
+    // parse the function body...
+    let body = parse_expr(src, ts)?;
+    expect!(src, ts, TK::KwEnd, "A function body must be followed by the `end` keyword.");
+    let id2 = expect!(src, ts, TK::Identifier, "A function definition must have its name after the `end` keyword.");
+    if select!(src, id2.range) != select!(src, id1.range) {
+        return error!(src, id2.range, "The names at the start and end of a function definition must match.");
     }
+    Ok((name, args, rt, body, id1.range))
 }
+
+fn parse_abst_def<'a> (src: &'a [u8], ts: &mut TokenIter) -> Result<NominalAbstDef, Report<'a>> {
+    expect!(src, ts, TK::KwClass, "Expected the keyword `class` after `abstract`.");
+    let id = expect!(src, ts, TK::Identifier, "An abstract class must have a valid name identifier.");
+    let name = get_string(src, id.range)?;
+    Ok((name, id.range))
+}
+
+fn parse_class_def<'a> (src: &'a [u8], ts: &mut TokenIter) -> Result<NominalClassDef, Report<'a>> {
+    expect!(src, ts, TK::KwClass, "Expected the keyword `class` after `case` in a definition.");
+    let id = expect!(src, ts, TK::Identifier, "A function must have a valid name identifier.");
+    let name = get_string(src, id.range)?;
+    let args = parse_arglist(src, ts)?;
+    expect!(src, ts, TK::KwExtends, "A case class definition must end with an `extends` clause.");
+    let parent = expect!(src, ts, TK::Identifier, "Expected a valid name of an abstract class.");
+    let pname = get_string(src, parent.range)?;
+    Ok((name, args, pname, id.range))
+}
+
+// // Parses an abstract class, case class, or function definition.
+// // Examples: `abstract class T`, `case class C(x: Unit) extends T`, `def f(x: String): Int(32) := 5 end f`
+// fn parse_definition<'a> (src: &'a [u8], ts: &mut TokenIter) -> Result<NominalDefinition, Report<'a>> {
+//     let kw = ts.pop();
+//     match kw.kind {
+//         TK::KwDef => {
+//         },
+//         TK::KwAbstract => {
+//         },
+//         TK::KwCase => {
+//         },
+//         _ => error!(src, kw.range, "A module definition must start with either `def`, `abstract`, or `case`."),
+//     }
+// }
 
 // Parses an argument list in a constructor or function definition.
 // Examples: `(x: String, y: Int(32), z: Unit)`, `()`

@@ -1,5 +1,5 @@
 use std::{collections::{HashMap, VecDeque}, fmt::Display};
-use rac_diagnostics::{Span, join};
+use rac_diagnostics::{Source, Span, join};
 
 // Nominal AST structure
 
@@ -31,34 +31,57 @@ pub enum NominalDefinition {
     FunDef(String, ArgList<String, Name>, Type<Name>, Expr<Name>, Span),
 }
 
+pub type NominalAbstDef = (String, Span);
+pub type NominalClassDef = (String, ArgList<String, Name>, String, Span);
+pub type NominalFunDef = (String, ArgList<String, Name>, Type<Name>, Expr<Name>, Span);
+
 #[derive(Debug, Clone)]
-pub struct NominalModule {
+pub struct NominalModule<'a> {
     pub name: String,
-    pub defs: VecDeque<NominalDefinition>,
+    pub src: Source<'a>,
+    pub abstract_defs: VecDeque<NominalAbstDef>,
+    pub class_defs: VecDeque<NominalClassDef>,
+    pub fun_defs: VecDeque<NominalFunDef>,
+    // pub defs: VecDeque<NominalDefinition>,
     pub expr: Option<Expr<Name>>
 }
 
-impl NominalModule {
+impl<'a> NominalModule<'a> {
     pub fn print(&self) {
         println!("object {}", self.name);
-        for def in self.defs.iter() {
-            use NominalDefinition::*;
-            match def {
-                AbstractDef(name, _) => println!("   abstract class {}\n", name),
-                CaseClassDef(name, args, parent, _) => {
-                    print!("   case class {} ", name);
-                    let args_str = args.iter().map(|(n, t)| format!("{}: {}", n, t)).collect::<Vec<String>>().join(", ");
-                    println!("({}) extends {}\n", args_str, parent);
-                },
-                FunDef(name, args, rt, body, _) => {
-                    print!("   def {} ", name);
-                    let args_str = args.iter().map(|(n, t)| format!("{}: {}", n, t)).collect::<Vec<String>>().join(", ");
-                    println!("({}): {} :=", args_str, rt);
-                    println!("      {}", body.show(2));
-                    println!("   end {}\n", name);
-                }
-            }
+        for (name, _) in self.abstract_defs.iter() {
+            println!("   abstract class {}\n", name);
         }
+        for (name, args, parent, _) in self.class_defs.iter() {
+            print!("   case class {} ", name);
+            let args_str = args.iter().map(|(n, t)| format!("{}: {}", n, t)).collect::<Vec<String>>().join(", ");
+            println!("({}) extends {}\n", args_str, parent);
+        }
+        for (name, args, rt, body, _) in self.fun_defs.iter() {
+            print!("   def {} ", name);
+            let args_str = args.iter().map(|(n, t)| format!("{}: {}", n, t)).collect::<Vec<String>>().join(", ");
+            println!("({}): {} :=", args_str, rt);
+            println!("      {}", body.show(2));
+            println!("   end {}\n", name);
+        }
+        // for def in self.defs.iter() {
+        //     use NominalDefinition::*;
+        //     match def {
+        //         AbstractDef(name, _) => println!("   abstract class {}\n", name),
+        //         CaseClassDef(name, args, parent, _) => {
+        //             print!("   case class {} ", name);
+        //             let args_str = args.iter().map(|(n, t)| format!("{}: {}", n, t)).collect::<Vec<String>>().join(", ");
+        //             println!("({}) extends {}\n", args_str, parent);
+        //         },
+        //         FunDef(name, args, rt, body, _) => {
+        //             print!("   def {} ", name);
+        //             let args_str = args.iter().map(|(n, t)| format!("{}: {}", n, t)).collect::<Vec<String>>().join(", ");
+        //             println!("({}): {} :=", args_str, rt);
+        //             println!("      {}", body.show(2));
+        //             println!("   end {}\n", name);
+        //         }
+        //     }
+        // }
         match &self.expr {
             Some(e) => println!("   {}", e.show(2)),
             None => {}
@@ -70,7 +93,7 @@ impl NominalModule {
 // Symbolic (resolved) AST structure
 
 #[derive(Debug, Clone, Hash, Eq, PartialEq)]
-enum SymbolKind { Variable, Function, Class, Type }
+enum SymbolKind { Variable, Function, Class, Type, TypeVariable }
 type SID = u64;
 
 #[derive(Debug, Clone, Hash, Eq, PartialEq)]
@@ -227,17 +250,6 @@ impl<N: Display> Expr<N> {
     }
 }
 
-
-
-// impl<N: Display> Display for Expr<N> {
-//     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-//         use Expr::*;
-//
-//
-//         write!(f, "{}", work(self, 0))
-//     }
-// }
-
 // Pattern structure
 
 #[derive(Debug, Clone)]
@@ -280,6 +292,8 @@ pub enum Type<N> {
     UnitType(Span),
     // User-defined types
     ClassType(N, Span),
+    // Type variables
+    Variable(N, Span),
 }
 
 impl<N: Display> Display for Type<N> {
@@ -290,7 +304,8 @@ impl<N: Display> Display for Type<N> {
             BoolType(_) => write!(f, "Boolean"),
             StringType(_) => write!(f, "String"),
             UnitType(_) => write!(f, "Unit"),
-            ClassType(name, _) => write!(f, "{}", name)
+            ClassType(name, _) => write!(f, "{}", name),
+            Variable(name, _) => write!(f, "'{}", name)
         }
     }
 }

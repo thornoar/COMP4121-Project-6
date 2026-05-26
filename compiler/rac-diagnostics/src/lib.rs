@@ -1,5 +1,7 @@
 use std::{cmp::{max, min}, fmt::Display};
 
+pub type Source<'a> = &'a [u8];
+
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct Span {
     pub start: usize,
@@ -37,7 +39,7 @@ impl Display for Stage {
 
 #[derive(Debug, Clone)]
 pub struct Report<'a> {
-    pub src: &'a [u8],
+    pub src: Source<'a>,
     pub stage: Stage,
     pub range: Span,
     pub msg: String
