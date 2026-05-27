@@ -2,15 +2,17 @@ use std::fmt::Display;
 
 pub type Source<'a> = &'a [u8];
 
+pub type MID = u8;
+
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct Span {
     pub start: usize,
     pub end: usize,
-    pub tag: u8,
+    pub tag: MID,
 }
 
 impl Span {
-    pub fn new(start: usize, end: usize, tag: u8) -> Self {
+    pub fn new(start: usize, end: usize, tag: MID) -> Self {
         Span { start, end, tag }
     }
 }

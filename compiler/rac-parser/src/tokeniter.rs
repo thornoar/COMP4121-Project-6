@@ -1,3 +1,5 @@
+use rac_diagnostics::MID;
+
 use crate::token::{Token, TokenKind};
 
 #[derive(Clone, Debug)]
@@ -6,7 +8,7 @@ pub struct TokenIter<'a> {
     limit: usize,
     position: usize,
     cache: Option<Token>,
-    tag: u8,
+    tag: MID,
 }
 
 impl<'a> TokenIter<'a> {
@@ -113,7 +115,7 @@ fn lex_token(src: &[u8], limit: usize, start: usize, tag: u8) -> Token {
     match src[start] {
         // Skip whitespace
         c if c.is_ascii_whitespace() => lex_token(src, limit, start + 1, tag),
-        c if is_id_start(c) => {
+        c if c.is_ascii_alphabetic() => {
             let mut end: usize = start + 1;
             while end < limit && is_id_continue(src[end]) {
                 end += 1;
@@ -235,10 +237,6 @@ fn lex_token(src: &[u8], limit: usize, start: usize, tag: u8) -> Token {
         }
         _ => token!(Unknown, span(1)),
     }
-}
-
-fn is_id_start(c: u8) -> bool {
-    c.is_ascii_alphabetic()
 }
 
 fn is_id_continue(c: u8) -> bool {

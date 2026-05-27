@@ -17,7 +17,7 @@ use std::{
     env, fs,
 };
 
-use rac_diagnostics::deliver;
+use rac_diagnostics::{MID, deliver};
 use rac_parser::{parse, tokeniter::TokenIter};
 
 #[derive(Debug, Eq, PartialEq)]
@@ -99,7 +99,7 @@ pub fn main() {
 
     let mut nominal_trees = VecDeque::new();
     let mut curtag = 0;
-    let mut srcmap: HashMap<u8, (&str, &[u8])> = HashMap::new();
+    let mut srcmap: HashMap<MID, (&str, &[u8])> = HashMap::new();
 
     for (fname, source) in sources.iter() {
         let src = source.as_slice();

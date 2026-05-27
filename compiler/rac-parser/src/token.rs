@@ -1,4 +1,4 @@
-use rac_diagnostics::Span;
+use rac_diagnostics::{MID, Span};
 use std::{fmt::Display, ops::Range};
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -117,7 +117,7 @@ pub struct Token {
 }
 
 impl Token {
-    pub fn new(kind: TokenKind, range: Range<usize>, tag: u8) -> Self {
+    pub fn new(kind: TokenKind, range: Range<usize>, tag: MID) -> Self {
         Self {
             kind,
             range: Span {

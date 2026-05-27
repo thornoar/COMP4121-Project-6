@@ -3,7 +3,7 @@ use std::{
     fmt::Display,
 };
 
-use rac_diagnostics::{Span, join};
+use rac_diagnostics::{MID, Span, join};
 
 // Nominal AST structure
 
@@ -56,6 +56,7 @@ pub struct NominalFunDef {
 #[derive(Debug)]
 pub struct NominalModule {
     pub name: String,
+    pub id: MID,
     pub abstract_defs: VecDeque<NominalAbstDef>,
     pub class_defs: VecDeque<NominalClassDef>,
     pub fun_defs: VecDeque<NominalFunDef>,
@@ -117,6 +118,12 @@ pub struct Symbol {
     pub name: String,
     pub id: SID,
     // pub kind: SymbolKind,
+}
+
+impl Symbol {
+    pub fn new(name: &String, id: SID) -> Self {
+        Self { name: name.clone(), id }
+    }
 }
 
 impl Display for Symbol {
