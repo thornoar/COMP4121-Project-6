@@ -1,4 +1,4 @@
-use rac_ast::{range, Expr, Pattern, Symbol, SymbolicProgram};
+use rac_ast::{range, Expr, Pattern, Symbol, SymbolicProgram, SymbolicType};
 use rac_diagnostics::{Report, Stage};
 
 use crate::{environ::Environment, value::Value};
@@ -6,14 +6,16 @@ use crate::{environ::Environment, value::Value};
 mod environ;
 mod value;
 
-pub fn interpret_program(program: SymbolicProgram) {
+pub fn interpret_program(program: SymbolicProgram) -> Result<(), Report> {
     let env = Environment::new();
-    program.exprs.iter().for_each(|expr| {
-        interpret(expr, &mut env.clone(), &program);
-    })
+    for expr in &program.exprs {
+        interpret(expr, &mut env.clone(), &program)?;
+    }
+
+    Ok(())
 }
 
-pub fn interpret(expr: &Expr<Symbol>, env: &mut Environment, prog: &SymbolicProgram) -> Result<Value, Report> {
+pub fn interpret(expr: &Expr<Symbol, SymbolicType>, env: &mut Environment, prog: &SymbolicProgram) -> Result<Value, Report> {
     match expr {
         Expr::BoolLiteral(b, _) => Ok(Value::Bool(*b)),
         Expr::IntLiteral(i, _) => Ok(Value::Int(*i)),
