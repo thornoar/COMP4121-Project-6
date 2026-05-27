@@ -41,19 +41,16 @@ pub fn resolve(
     modules: VecDeque<NominalModule>,
     sg: &mut SymbolGenerator,
 ) -> Result<SymbolicProgram, Report> {
-    // let mut types_by_mod: HashMap<&String, VecDeque<SID>> = HashMap::new();
-    // let mut classes_by_mod: HashMap<&String, VecDeque<SID>> = HashMap::new();
-    // let mut fun_by_mod: HashMap<&String, VecDeque<SID>> = HashMap::new();
-
     let mut type_defs: HashMap<String, HashMap<SID, SymbolicAbstDef>> = HashMap::new();
     let mut class_defs: HashMap<String, HashMap<SID, SymbolicClassDef>> = HashMap::new();
     let mut fun_defs: HashMap<String, HashMap<SID, SymbolicFunDef>> = HashMap::new();
 
     // Discovering user types
     for md in modules.iter() {
-        // mod_ids.insert(&md.name, md.id);
+        println!("{}", md.name);
+
         let mut cur_types: HashMap<SID, SymbolicAbstDef> = HashMap::new();
-        // let mut cur_types_by_mod: VecDeque<SID> = VecDeque::new();
+
         for def in md.abstract_defs.iter() {
             // Check if type is already defined
             check_unique!(
@@ -154,7 +151,6 @@ pub fn resolve(
     // Discovering function definitions
     for md in modules.into_iter() {
         let mut cur_fun_defs: HashMap<SID, SymbolicFunDef> = HashMap::new();
-        let mut cur_fun_defs_by_mod: VecDeque<SID> = VecDeque::new();
         for def in md.fun_defs.into_iter() {
             // Check if the function is already defined
             check_unique!(
@@ -200,14 +196,16 @@ pub fn resolve(
             )?;
 
             // Resolve the body
+            let mut binds = HashMap::new();
+            for (sym, _) in sym_args.iter() {
+                binds.insert(sym.name.clone(), sym.id);
+            }
             let sym_body = resolve_expr(
                 def.body,
-                &SymbolTable::new(&md.name, &sym_type_vars, &type_defs, &class_defs, &fun_defs),
-                HashMap::new(),
+                &SymbolTable::new(&md.name, &sym_type_vars, &type_defs, &class_defs, &fun_defs, Some((def.name, sym_name.id))),
+                binds,
                 sg,
             )?;
-
-            cur_fun_defs_by_mod.push_back(sym_name.id);
 
             cur_fun_defs.insert(
                 sym_name.id,
@@ -240,6 +238,7 @@ pub fn resolve(
                 &type_defs,
                 &class_defs,
                 &fun_defs,
+                None
             ),
             HashMap::new(),
             sg,
@@ -479,7 +478,10 @@ fn resolve_expr(
         Not(arg, s) => unop!(*arg, s, Not),
         Neg(arg, s) => unop!(*arg, s, Neg),
         Call(qn, args, s) => {
-            let sym_name = resolve_call(&qn, s, &CallTable::from(&*env))?;
+            let sym_name = match (&qn.owner, &env.fname) {
+                (None, Some((name, sid))) if qn.name == *name => Ok(Symbol::new(&name, *sid)),
+                _ => resolve_call(&qn, s, &CallTable::from(&*env))
+            }?;
             let mut sym_args = VecDeque::new();
             // let iter = args.iter().map(|arg| resolve_expr(arg, env, sg))
             for arg in args.into_iter() {

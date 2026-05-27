@@ -123,17 +123,17 @@ fn parse_many_definitions<'a>(
             TK::KwAbstract => {
                 ts.consume();
                 let def = parse_abst_def(src, ts)?;
-                ad.push_front(def);
+                ad.push_back(def);
             }
             TK::KwCase => {
                 ts.consume();
                 let def = parse_class_def(src, ts)?;
-                cd.push_front(def);
+                cd.push_back(def);
             }
             TK::KwDef => {
                 ts.consume();
                 let def = parse_fun_def(src, ts)?;
-                fd.push_front(def);
+                fd.push_back(def);
             }
             _ => {
                 break;

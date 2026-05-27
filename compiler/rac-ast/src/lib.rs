@@ -91,7 +91,7 @@ pub struct NominalModule {
 
 impl NominalModule {
     pub fn print(&self) {
-        println!("object {}", self.name);
+        println!("\nobject {}", self.name);
         for def in self.abstract_defs.iter() {
             println!("   abstract class {}\n", def.name);
         }
@@ -242,11 +242,19 @@ pub struct SymbolicProgram {
 
 impl SymbolicProgram {
     pub fn print(&self) {
+        println!("");
         for def in self.type_defs.values() {
-            println!("abstract class {}\n", def.name);
+            print!("abstract class {}", def.name);
+            if def.type_vars.len() > 0 {
+                print!(
+                    " [{}]",
+                    def.type_vars.iter().map(|v| format!("'{}", v)).collect::<Vec<String>>().join(", ")
+                );
+            }
+            println!("\n");
         }
         for def in self.class_defs.values() {
-            print!("   case class {} ", def.name);
+            print!("case class {} ", def.name);
             let args_str = def
                 .args
                 .iter()
@@ -256,7 +264,7 @@ impl SymbolicProgram {
             println!("({}) extends {}\n", args_str, def.parent);
         }
         for def in self.fun_defs.values() {
-            print!("   def {} ", def.name);
+            print!("def {} ", def.name);
             let args_str = def
                 .args
                 .iter()
@@ -264,8 +272,8 @@ impl SymbolicProgram {
                 .collect::<Vec<String>>()
                 .join(", ");
             println!("({}): {} :=", args_str, def.rt);
-            println!("      {}", def.body.show(2));
-            println!("   end {}\n", def.name);
+            println!("   {}", def.body.show(1));
+            println!("end {}\n", def.name);
         }
         for expr in self.exprs.iter() {
             println!("{}\n", expr.show(0));

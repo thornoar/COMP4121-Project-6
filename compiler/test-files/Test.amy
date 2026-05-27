@@ -1,6 +1,8 @@
 object Hanoi
-	abstract class T
+	abstract class T[A]
 	abstract class V
 
-  7
+  case class C(x: A) extends T
+
+  def f (x: Unit): Unit := x end f
 end Hanoi

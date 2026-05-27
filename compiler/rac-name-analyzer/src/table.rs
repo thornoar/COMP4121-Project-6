@@ -5,7 +5,6 @@ use rac_ast::{SID, Symbol, SymbolicAbstDef, SymbolicClassDef, SymbolicFunDef};
 pub struct TypeTable<'a> {
     pub cur_mod: &'a String,
     pub type_vars: &'a VecDeque<Symbol>,
-    // pub types_by_mod: &'a HashMap<&'a String, VecDeque<SID>>,
     pub type_defs: &'a HashMap<String, HashMap<SID, SymbolicAbstDef>>,
 }
 
@@ -13,7 +12,6 @@ impl<'a> TypeTable<'a> {
     pub fn new(
         cur_mod: &'a String,
         type_vars: &'a VecDeque<Symbol>,
-        // types_by_mod: &'a HashMap<&'a String, VecDeque<SID>>,
         type_defs: &'a HashMap<String, HashMap<SID, SymbolicAbstDef>>,
     ) -> Self {
         Self {
@@ -26,7 +24,6 @@ impl<'a> TypeTable<'a> {
 
 pub struct CallTable<'a> {
     pub cur_mod: &'a String,
-    // pub fun_by_mod: &'a HashMap<&'a String, VecDeque<SID>>,
     pub class_defs: &'a HashMap<String, HashMap<SID, SymbolicClassDef>>,
     pub fun_defs: &'a HashMap<String, HashMap<SID, SymbolicFunDef>>,
 }
@@ -34,7 +31,6 @@ pub struct CallTable<'a> {
 impl<'a> CallTable<'a> {
     pub fn new(
         cur_mod: &'a String,
-        // fun_by_mod: &'a HashMap<&'a String, VecDeque<SID>>,
         class_defs: &'a HashMap<String, HashMap<SID, SymbolicClassDef>>,
         fun_defs: &'a HashMap<String, HashMap<SID, SymbolicFunDef>>,
     ) -> Self {
@@ -46,41 +42,23 @@ impl<'a> CallTable<'a> {
     }
 }
 
-// pub struct ClassEnv<'a> {
-//     pub cur_mod: &'a String,
-//     // pub fun_by_mod: &'a HashMap<&'a String, VecDeque<SID>>,
-//     pub class_defs: &'a HashMap<String, HashMap<SID, SymbolicClassDef>>,
-// }
-//
-// impl<'a> ClassEnv<'a> {
-//     pub fn new(
-//         cur_mod: &'a String,
-//         // fun_by_mod: &'a HashMap<&'a String, VecDeque<SID>>,
-//         class_defs: &'a HashMap<String, HashMap<SID, SymbolicClassDef>>,
-//     ) -> Self {
-//         Self { cur_mod, class_defs }
-//     }
-// }
-
 pub struct SymbolTable<'a> {
     pub cur_mod: &'a String,
     pub type_vars: &'a VecDeque<Symbol>,
-    // pub types_by_mod: &'a HashMap<&'a String, VecDeque<SID>>,
     pub type_defs: &'a HashMap<String, HashMap<SID, SymbolicAbstDef>>,
-    // pub fun_by_mod: &'a HashMap<&'a String, VecDeque<SID>>,
     pub class_defs: &'a HashMap<String, HashMap<SID, SymbolicClassDef>>,
     pub fun_defs: &'a HashMap<String, HashMap<SID, SymbolicFunDef>>,
+    pub fname: Option<(String, SID)>,
 }
 
 impl<'a> SymbolTable<'a> {
     pub fn new(
         cur_mod: &'a String,
         type_vars: &'a VecDeque<Symbol>,
-        // types_by_mod: &'a HashMap<&'a String, VecDeque<SID>>,
         type_defs: &'a HashMap<String, HashMap<SID, SymbolicAbstDef>>,
         class_defs: &'a HashMap<String, HashMap<SID, SymbolicClassDef>>,
-        // fun_by_mod: &'a HashMap<&'a String, VecDeque<SID>>,
         fun_defs: &'a HashMap<String, HashMap<SID, SymbolicFunDef>>,
+        fname: Option<(String, SID)>,
     ) -> Self {
         Self {
             cur_mod,
@@ -88,6 +66,7 @@ impl<'a> SymbolTable<'a> {
             type_defs,
             class_defs,
             fun_defs,
+            fname
         }
     }
 }
@@ -102,8 +81,3 @@ impl<'a> From<&SymbolTable<'a>> for CallTable<'a> {
         Self::new(value.cur_mod, value.class_defs, value.fun_defs)
     }
 }
-// impl<'a> From<&SymbolTable<'a>> for ClassEnv<'a> {
-//     fn from(value: &SymbolTable<'a>) -> Self {
-//         Self::new(value.cur_mod, value.class_defs)
-//     }
-// }
