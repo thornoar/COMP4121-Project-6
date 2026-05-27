@@ -1,0 +1,13 @@
+object TO
+  abstract class Option[A]
+
+  case class None() extends Option
+  case class Some(x: A) extends Option
+
+  def extract[B] (x: Option[B]): B :=
+    x match {
+      case None() => error("found a None!")
+      case Some(v) => v
+    }
+  end extract
+end TO

@@ -1,8 +1,8 @@
-object Hanoi
+object Test
 	abstract class T[A]
 	abstract class V
 
   case class C(x: A) extends T
 
   def ff[X, Y] (x: Int(32), y: Y): Unit := x + y end ff
-end Hanoi
+end Test
