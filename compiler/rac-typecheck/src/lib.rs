@@ -89,11 +89,32 @@ fn collect_constraints(
         Call(sym, args, s) => match (table.fun_defs.get(&sym.id), table.class_defs.get(&sym.id)) {
             (None, None) => error!(*s, format!("Could not find function or constructor named `{}`.", sym.name)),
             (Some(def), _) => {
-                if (args.len() != def.args.len()) {
+                if args.len() != def.args.len() {
                     return error!(*s, format!("Function `{}` takes `{}` arguments, but was given `{}`.", sym.name, def.args.len(), args.len()))
                 }
-                todo!()
+                let mut res = VecDeque::new();
+                let mut rtc = collect_constraints(expr, def.rt.clone(), env, table, sg)?;
+                res.append(&mut rtc);
+                for (arg, (_, typ)) in args.iter().zip(def.args.iter()) {
+                    let mut argc = collect_constraints(arg, typ.clone(), env, table, sg)?;
+                    res.append(&mut argc);
+                }
+                Ok(res)
             }
+            // (_, Some(def)) => {
+            //     if args.len() != def.args.len() {
+            //         return error!(*s, format!("Constructor `{}` takes `{}` arguments, but was given `{}`.", sym.name, def.args.len(), args.len()))
+            //     }
+            //     let mut res = VecDeque::new();
+            //     let parent_def = table.type_defs
+            //     let mut rtc = collect_constraints(expr, ClassType(def.parent, ()), env, table, sg)?;
+            //     res.append(&mut rtc);
+            //     for (arg, (_, typ)) in args.iter().zip(def.args.iter()) {
+            //         let mut argc = collect_constraints(arg, typ.clone(), env, table, sg)?;
+            //         res.append(&mut argc);
+            //     }
+            //     Ok(res)
+            // }
             _ => todo!()
         }
         Sequence(lhs, rhs) => {
