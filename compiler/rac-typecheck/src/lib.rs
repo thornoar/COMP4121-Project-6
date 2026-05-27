@@ -1,6 +1,6 @@
 use std::collections::{HashMap, VecDeque};
 
-use rac_ast::{Expr, Symbol, SymbolGenerator, Type, range};
+use rac_ast::{Expr, Symbol, SymbolGenerator, SymbolicType, range};
 use rac_diagnostics::{Report, Stage};
 
 use crate::constraint::Constraint;
@@ -25,9 +25,9 @@ macro_rules! error {
     };
 }
 
-fn collect_constraints(e: &Expr<Symbol>, expected: Type<Symbol>, env: &mut HashMap<Symbol, Type<Symbol>>, sg: &mut SymbolGenerator) -> Result<VecDeque<Constraint>, Report> {
+fn collect_constraints(e: &Expr<Symbol,SymbolicType>, expected: SymbolicType, env: &mut HashMap<Symbol, SymbolicType>, sg: &mut SymbolGenerator) -> Result<VecDeque<Constraint>, Report> {
     use Expr::*;
-    use Type::*;
+    use SymbolicType::*;
 
     macro_rules! binop {
         ($lhs:expr, $rhs:expr, $rt:expr, $lhstyp:expr, $rhstyp:expr) => {{

@@ -1,12 +1,12 @@
 use std::fmt::Display;
 
-use rac_ast::{Symbol, Type};
+use rac_ast::{Symbol, SymbolicType};
 use rac_diagnostics::Span;
 
 
 pub struct Constraint {
-    pub lhs: Type<Symbol>,
-    pub rhs: Type<Symbol>,
+    pub lhs: SymbolicType,
+    pub rhs: SymbolicType,
     pub range: Span
 }
 
@@ -17,7 +17,7 @@ impl Display for Constraint {
 }
 
 impl Constraint {
-    pub fn new(lhs: Type<Symbol>, rhs: Type<Symbol>, range: Span) -> Self {
+    pub fn new(lhs: SymbolicType, rhs: SymbolicType, range: Span) -> Self {
         Self { lhs, rhs, range }
     }
 }

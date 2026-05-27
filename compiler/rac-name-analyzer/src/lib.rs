@@ -1,5 +1,5 @@
 use rac_ast::{
-    Expr, Name, NominalModule, SID, Symbol, SymbolGenerator, SymbolicAbstDef, SymbolicClassDef, SymbolicFunDef, SymbolicProgram, Type
+    Expr, NominalModule, SID, Symbol, SymbolGenerator, SymbolicAbstDef, SymbolicClassDef, SymbolicFunDef, SymbolicProgram, NominalType, SymbolicType
 };
 use rac_diagnostics::{MID, Report, Span, Stage};
 use std::{collections::{HashMap, VecDeque}};
@@ -158,7 +158,7 @@ pub fn resolve(modules: &VecDeque<NominalModule>, sg: &mut SymbolGenerator) -> R
         fun_defs.insert(md.id, cur_fun_defs);
     }
 
-    let mut exprs: VecDeque<Expr<Symbol>> = VecDeque::new();
+    let mut exprs: VecDeque<Expr<Symbol,SymbolicType>> = VecDeque::new();
     for md in modules.iter() {
         match &md.expr {
             None => {},
@@ -210,31 +210,31 @@ fn find_type_symbol(name: &String, range: Span, defs: &HashMap<SID, SymbolicAbst
     );
 }
 
-fn resolve_type (arg: &Type<Name>, range: Span, mod_ids: &HashMap<&String, MID>, types: &HashMap<MID, HashMap<SID, SymbolicAbstDef>>) -> Result<Type<Symbol>, Report> {
-    use rac_ast::Type::*;
+fn resolve_type (arg: &NominalType, range: Span, mod_ids: &HashMap<&String, MID>, types: &HashMap<MID, HashMap<SID, SymbolicAbstDef>>) -> Result<SymbolicType, Report> {
+    use rac_ast::NominalType::*;
+    use SymbolicType as ST;
     match arg {
-        IntType => Ok(IntType),
-        BoolType => Ok(BoolType),
-        StringType => Ok(StringType),
-        UnitType => Ok(UnitType),
-        ClassType(qn) => match qn.owner.clone() {
+        IntType => Ok(ST::IntType),
+        BoolType => Ok(ST::BoolType),
+        StringType => Ok(ST::StringType),
+        UnitType => Ok(ST::UnitType),
+        IdType(qn) => match qn.owner.clone() {
             None => {
                 let sid = find_type_symbol(&qn.name, range, &types[&range.tag])?;
-                Ok(ClassType(Symbol::new(&qn.name, sid)))
+                Ok(ST::ClassType(Symbol::new(&qn.name, sid)))
             }
             Some(parent) => match mod_ids.get(&parent) {
                 Some(mid) => 
                     match types.get(mid) {
                     Some(mp) => {
                         let sid = find_type_symbol(&qn.name, range, &mp)?;
-                        Ok(ClassType(Symbol::new(&qn.name, sid)))
+                        Ok(ST::ClassType(Symbol::new(&qn.name, sid)))
                     }
                     None => error!(range, format!("Type `{}` could not be found in the module `{}`.", qn.name, parent))
                 },
                 None => error!(range, format!("Module `{}` could not be found.", parent))
             }
         },
-        Var(qn) => todo!()
     }
 }
 

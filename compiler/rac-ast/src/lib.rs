@@ -5,6 +5,8 @@ use std::{
 
 use rac_diagnostics::{MID, Span, join};
 
+pub type ArgList<A, T> = VecDeque<(A, T, Span)>;
+
 // Nominal AST structure
 
 #[derive(Debug, Clone)]
@@ -29,6 +31,28 @@ impl Display for Name {
 }
 
 #[derive(Debug)]
+pub enum NominalType {
+    IntType,
+    BoolType,
+    StringType,
+    UnitType,
+    IdType(Name)
+}
+
+impl Display for NominalType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        use NominalType::*;
+        match self {
+            IntType => write!(f, "Int(32)"),
+            BoolType => write!(f, "Boolean"),
+            StringType => write!(f, "String"),
+            UnitType => write!(f, "Unit"),
+            IdType(name) => write!(f, "{}", name),
+        }
+    }
+}
+
+#[derive(Debug)]
 pub struct NominalAbstDef {
     pub name: String,
     pub type_vars: VecDeque<String>,
@@ -38,7 +62,7 @@ pub struct NominalAbstDef {
 #[derive(Debug)]
 pub struct NominalClassDef {
     pub name: String,
-    pub args: ArgList<String, Name>,
+    pub args: ArgList<String, NominalType>,
     pub parent: String,
     pub range: Span,
 }
@@ -47,9 +71,9 @@ pub struct NominalClassDef {
 pub struct NominalFunDef {
     pub name: String,
     pub type_vars: VecDeque<String>,
-    pub args: ArgList<String, Name>,
-    pub rt: (Type<Name>, Span),
-    pub body: Expr<Name>,
+    pub args: ArgList<String, NominalType>,
+    pub rt: (NominalType, Span),
+    pub body: Expr<Name, NominalType>,
     pub range: Span,
 }
 
@@ -60,7 +84,7 @@ pub struct NominalModule {
     pub abstract_defs: VecDeque<NominalAbstDef>,
     pub class_defs: VecDeque<NominalClassDef>,
     pub fun_defs: VecDeque<NominalFunDef>,
-    pub expr: Option<Expr<Name>>,
+    pub expr: Option<Expr<Name, NominalType>>,
 }
 
 impl NominalModule {
@@ -100,6 +124,33 @@ impl NominalModule {
 }
 
 // Symbolic (resolved) AST structure
+
+#[derive(Debug, Clone)]
+pub enum SymbolicType {
+    // Primitive types
+    IntType,
+    BoolType,
+    StringType,
+    UnitType,
+    // User-defined types
+    ClassType(Symbol),
+    // Type variables
+    Var(Symbol),
+}
+
+impl Display for SymbolicType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        use SymbolicType::*;
+        match self {
+            IntType => write!(f, "Int(32)"),
+            BoolType => write!(f, "Boolean"),
+            StringType => write!(f, "String"),
+            UnitType => write!(f, "Unit"),
+            ClassType(name) => write!(f, "{}", name),
+            Var(name) => write!(f, "'{}", name),
+        }
+    }
+}
 
 // #[derive(Debug, Clone, Hash, Eq, PartialEq)]
 // pub enum SymbolKind {
@@ -147,8 +198,8 @@ impl SymbolGenerator {
         sym
     }
 
-    pub fn fresh_type_var(&mut self) -> Type<Symbol> {
-        Type::Var(self.fresh(String::from(format!("'a:{}", self.next_id))))
+    pub fn fresh_type_var(&mut self) -> SymbolicType {
+        SymbolicType::Var(self.fresh(String::from(format!("'a:{}", self.next_id))))
     }
 }
 
@@ -162,7 +213,7 @@ pub struct SymbolicAbstDef {
 #[derive(Debug)]
 pub struct SymbolicClassDef {
     pub name: Symbol,
-    pub args: ArgList<Symbol, Symbol>,
+    pub args: ArgList<Symbol, SymbolicType>,
     pub parent: Symbol,
     pub range: Span,
 }
@@ -171,9 +222,9 @@ pub struct SymbolicClassDef {
 pub struct SymbolicFunDef {
     pub name: Symbol,
     pub type_vars: VecDeque<Symbol>,
-    pub args: ArgList<Symbol, Symbol>,
-    pub rt: Type<Symbol>,
-    pub body: Expr<Symbol>,
+    pub args: ArgList<Symbol, SymbolicType>,
+    pub rt: SymbolicType,
+    pub body: Expr<Symbol, SymbolicType>,
     pub range: Span,
 }
 
@@ -182,7 +233,7 @@ pub struct SymbolicProgram {
     pub user_types: HashMap<SID, SymbolicAbstDef>,
     pub class_defs: HashMap<SID, SymbolicClassDef>,
     pub fun_defs: HashMap<SID, SymbolicFunDef>,
-    pub exprs: VecDeque<Expr<Symbol>>,
+    pub exprs: VecDeque<Expr<Symbol, SymbolicType>>,
 }
 
 // Expression structures, shared between nominal and symbolic trees.
@@ -191,7 +242,7 @@ pub struct SymbolicProgram {
 // can sometimes be computed from its subexpressions.
 
 #[derive(Debug, Clone)]
-pub enum Expr<N> {
+pub enum Expr<N, T> {
     // Variables. The `Span` is the range of the variable
     Variable(N, Span),
 
@@ -202,41 +253,39 @@ pub enum Expr<N> {
     UnitLiteral(Span),
 
     // Binary operators. Range is computed as the `join` of the ranges of `lhs` and `rhs`
-    Plus(Box<Expr<N>>, Box<Expr<N>>),
-    Minus(Box<Expr<N>>, Box<Expr<N>>),
-    Times(Box<Expr<N>>, Box<Expr<N>>),
-    Div(Box<Expr<N>>, Box<Expr<N>>),
-    Mod(Box<Expr<N>>, Box<Expr<N>>),
-    LessThan(Box<Expr<N>>, Box<Expr<N>>),
-    LessEquals(Box<Expr<N>>, Box<Expr<N>>),
-    And(Box<Expr<N>>, Box<Expr<N>>),
-    Or(Box<Expr<N>>, Box<Expr<N>>),
-    Equals(Box<Expr<N>>, Box<Expr<N>>),
-    Concat(Box<Expr<N>>, Box<Expr<N>>),
+    Plus(Box<Expr<N,T>>, Box<Expr<N,T>>),
+    Minus(Box<Expr<N,T>>, Box<Expr<N,T>>),
+    Times(Box<Expr<N,T>>, Box<Expr<N,T>>),
+    Div(Box<Expr<N,T>>, Box<Expr<N,T>>),
+    Mod(Box<Expr<N,T>>, Box<Expr<N,T>>),
+    LessThan(Box<Expr<N,T>>, Box<Expr<N,T>>),
+    LessEquals(Box<Expr<N,T>>, Box<Expr<N,T>>),
+    And(Box<Expr<N,T>>, Box<Expr<N,T>>),
+    Or(Box<Expr<N,T>>, Box<Expr<N,T>>),
+    Equals(Box<Expr<N,T>>, Box<Expr<N,T>>),
+    Concat(Box<Expr<N,T>>, Box<Expr<N,T>>),
 
     // Unary operators. The `Span` contains the range of *the operator*, not the whole expression
-    Not(Box<Expr<N>>, Span),
-    Neg(Box<Expr<N>>, Span),
+    Not(Box<Expr<N,T>>, Span),
+    Neg(Box<Expr<N,T>>, Span),
 
     // Function/constructor call. The `Span` contains the range of the *entire expression*
-    Call(N, VecDeque<Expr<N>>, Span),
+    Call(N, VecDeque<Expr<N,T>>, Span),
 
     // Control flow
-    Sequence(Box<Expr<N>>, Box<Expr<N>>), // range is computed as the `join` of the ranges of `lhs` and `rhs`
-    Let(N, Type<N>, Box<Expr<N>>, Box<Expr<N>>, Span), // The `Span` contains the range of the *entire expression*
-    Ite(Box<Expr<N>>, Box<Expr<N>>, Box<Expr<N>>, Span), // The `Span` contains the range of the *entire expression*
+    Sequence(Box<Expr<N,T>>, Box<Expr<N,T>>), // range is computed as the `join` of the ranges of `lhs` and `rhs`
+    Let(N, T, Box<Expr<N,T>>, Box<Expr<N,T>>, Span), // The `Span` contains the range of the *entire expression*
+    Ite(Box<Expr<N,T>>, Box<Expr<N,T>>, Box<Expr<N,T>>, Span), // The `Span` contains the range of the *entire expression*
 
     // Pattern matching. The `Span` contains the range of the *closing curly bracket*
-    Match(Box<Expr<N>>, VecDeque<(Pattern<N>, Expr<N>)>, Span),
+    Match(Box<Expr<N,T>>, VecDeque<(Pattern<N>, Expr<N,T>)>, Span),
 
     // Errors. The `Span` contains the range of the *entire expression*
-    Error(Box<Expr<N>>, Span),
+    Error(Box<Expr<N,T>>, Span),
 }
 
-pub type ArgList<A, N> = VecDeque<(A, Type<N>, Span)>;
-
 // Computes the *true* range of a given expression.
-pub fn range<N>(e: &Expr<N>) -> Span {
+pub fn range<N,T>(e: &Expr<N,T>) -> Span {
     use Expr::*;
     match e {
         Variable(_, s) => *s,
@@ -266,7 +315,7 @@ pub fn range<N>(e: &Expr<N>) -> Span {
     }
 }
 
-impl<N: Display> Expr<N> {
+impl<N: Display, T: Display> Expr<N,T> {
     pub fn show(&self, indent: usize) -> String {
         use Expr::*;
         let prefix1 = "   ".repeat(indent);
@@ -379,30 +428,3 @@ impl<N: Display> Display for Pattern<N> {
 }
 
 // Type structure
-
-#[derive(Debug, Clone)]
-pub enum Type<N> {
-    // Primitive types
-    IntType,
-    BoolType,
-    StringType,
-    UnitType,
-    // User-defined types
-    ClassType(N),
-    // Type variables
-    Var(N),
-}
-
-impl<N: Display> Display for Type<N> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        use Type::*;
-        match self {
-            IntType => write!(f, "Int(32)"),
-            BoolType => write!(f, "Boolean"),
-            StringType => write!(f, "String"),
-            UnitType => write!(f, "Unit"),
-            ClassType(name) => write!(f, "{}", name),
-            Var(name) => write!(f, "'{}", name),
-        }
-    }
-}
