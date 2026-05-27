@@ -196,14 +196,14 @@ impl SymbolGenerator {
         SymbolGenerator { next_id: 0 }
     }
 
-    pub fn fresh(&mut self, name: String) -> Symbol {
-        let sym = Symbol { name, id: self.next_id };
+    pub fn fresh(&mut self, name: &String) -> Symbol {
+        let sym = Symbol::new(name, self.next_id);
         self.next_id += 1;
         sym
     }
 
     pub fn fresh_type_var(&mut self) -> SymbolicType {
-        SymbolicType::Var(self.fresh(String::from(format!("'a:{}", self.next_id))))
+        SymbolicType::Var(self.fresh(&format!("'a:{}", self.next_id)))
     }
 }
 
