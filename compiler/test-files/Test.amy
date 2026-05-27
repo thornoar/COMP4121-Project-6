@@ -4,5 +4,5 @@ object Test
 
   case class C(x: A) extends T
 
-  def ff[X, Y] (x: Int(32), y: Y): Unit := x + y end ff
+  def ff[X, Y] (x: Y, y: Y): Unit := x + ff(x) end ff
 end Test

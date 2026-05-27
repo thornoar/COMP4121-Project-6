@@ -281,17 +281,22 @@ pub struct SymbolicFunDef {
 }
 
 #[derive(Debug)]
-pub struct SymbolicProgram {
+pub struct DefinitionTable {
     pub type_defs: HashMap<SID, SymbolicTypeDef>,
     pub class_defs: HashMap<SID, SymbolicClassDef>,
     pub fun_defs: HashMap<SID, SymbolicFunDef>,
+}
+
+#[derive(Debug)]
+pub struct SymbolicProgram {
+    pub table: DefinitionTable,
     pub exprs: VecDeque<Expr<Symbol, SymbolicType>>,
 }
 
 impl SymbolicProgram {
     pub fn print(&self) {
         println!("");
-        for def in self.type_defs.values() {
+        for def in self.table.type_defs.values() {
             print!("abstract class {}", def.name);
             if def.type_vars.len() > 0 {
                 print!(
@@ -305,7 +310,7 @@ impl SymbolicProgram {
             }
             println!("\n");
         }
-        for def in self.class_defs.values() {
+        for def in self.table.class_defs.values() {
             print!("case class {} ", def.name);
             let args_str = def
                 .args
@@ -315,7 +320,7 @@ impl SymbolicProgram {
                 .join(", ");
             println!("({}) extends {}\n", args_str, def.parent);
         }
-        for def in self.fun_defs.values() {
+        for def in self.table.fun_defs.values() {
             print!("def {} ", def.name);
             if def.type_vars.len() > 0 {
                 print!(

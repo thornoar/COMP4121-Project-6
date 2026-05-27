@@ -103,7 +103,7 @@ pub fn interpret(
         }
 
         Expr::Call(name, args, span) => {
-            if let Some(def) = prog.fun_defs.get(&name.id) {
+            if let Some(def) = prog.table.fun_defs.get(&name.id) {
                 let values = args
                     .iter()
                     .map(|e| interpret(e, env, prog))
@@ -131,7 +131,7 @@ pub fn interpret(
                 env.pop_scope();
 
                 ret
-            } else if let Some(def) = prog.class_defs.get(&name.id) {
+            } else if let Some(def) = prog.table.class_defs.get(&name.id) {
                 let values = args
                     .iter()
                     .map(|e| interpret(e, env, prog))

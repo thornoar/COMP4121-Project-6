@@ -1,6 +1,5 @@
 use rac_ast::{
-    Expr, Name, NominalModule, NominalType, Pattern, SID, Symbol, SymbolGenerator,
-    SymbolicClassDef, SymbolicFunDef, SymbolicProgram, SymbolicType, SymbolicTypeDef,
+    DefinitionTable, Expr, Name, NominalModule, NominalType, Pattern, SID, Symbol, SymbolGenerator, SymbolicClassDef, SymbolicFunDef, SymbolicProgram, SymbolicType, SymbolicTypeDef
 };
 use rac_diagnostics::{Report, Span, Stage};
 use std::collections::{HashMap, VecDeque};
@@ -319,9 +318,11 @@ pub fn resolve(
     }
 
     Ok(SymbolicProgram {
-        type_defs: type_defs,
-        class_defs: class_defs,
-        fun_defs: fun_defs,
+        table: DefinitionTable {
+            type_defs: type_defs,
+            class_defs: class_defs,
+            fun_defs: fun_defs,
+        },
         exprs: sym_exprs,
     })
 }
