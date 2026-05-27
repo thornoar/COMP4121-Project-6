@@ -1,8 +1,9 @@
 use rac_ast::{
-    Expr, Name, NominalModule, NominalType, SID, Symbol, SymbolGenerator, SymbolicAbstDef, SymbolicClassDef, SymbolicFunDef, SymbolicProgram, SymbolicType
+    Expr, Name, NominalModule, NominalType, SID, Symbol, SymbolGenerator, SymbolicAbstDef,
+    SymbolicClassDef, SymbolicFunDef, SymbolicProgram, SymbolicType,
 };
 use rac_diagnostics::{Report, Span, Stage};
-use std::{collections::{HashMap, VecDeque}};
+use std::collections::{HashMap, VecDeque};
 
 use crate::environ::{FullEnv, FunEnv, TypeEnv};
 
@@ -22,10 +23,7 @@ macro_rules! check_unique {
     ($name:expr, $mp:expr, $msg:expr) => {
         for def in $mp.values() {
             if def.name.name == $name {
-                return error!(
-                    def.range,
-                    $msg
-                );
+                return error!(def.range, $msg);
             }
         }
     };
@@ -39,7 +37,10 @@ fn collect<V>(mp: HashMap<String, HashMap<SID, V>>) -> HashMap<SID, V> {
     res
 }
 
-pub fn resolve(modules: &VecDeque<NominalModule>, sg: &mut SymbolGenerator) -> Result<SymbolicProgram, Report> {
+pub fn resolve(
+    modules: &VecDeque<NominalModule>,
+    sg: &mut SymbolGenerator,
+) -> Result<SymbolicProgram, Report> {
     // let mut types_by_mod: HashMap<&String, VecDeque<SID>> = HashMap::new();
     // let mut classes_by_mod: HashMap<&String, VecDeque<SID>> = HashMap::new();
     // let mut fun_by_mod: HashMap<&String, VecDeque<SID>> = HashMap::new();
@@ -55,7 +56,11 @@ pub fn resolve(modules: &VecDeque<NominalModule>, sg: &mut SymbolGenerator) -> R
         // let mut cur_types_by_mod: VecDeque<SID> = VecDeque::new();
         for def in md.abstract_defs.iter() {
             // Check if type is already defined
-            check_unique!(def.name, cur_types, format!("An abstract class named `{}` is already defined.", def.name));
+            check_unique!(
+                def.name,
+                cur_types,
+                format!("An abstract class named `{}` is already defined.", def.name)
+            );
 
             // Generate the name
             let sym_name = sg.fresh(&def.name);
@@ -68,7 +73,10 @@ pub fn resolve(modules: &VecDeque<NominalModule>, sg: &mut SymbolGenerator) -> R
                     if sym_var.name == *type_var {
                         return error!(
                             def.range,
-                            format!("A type variable named {} is already used in this abstract class.", def.name)
+                            format!(
+                                "A type variable named {} is already used in this abstract class.",
+                                def.name
+                            )
                         );
                     }
                 }
@@ -78,12 +86,12 @@ pub fn resolve(modules: &VecDeque<NominalModule>, sg: &mut SymbolGenerator) -> R
             // cur_types_by_mod.push_back(sym_name.id);
 
             cur_types.insert(
-                sym_name.id, 
+                sym_name.id,
                 SymbolicAbstDef {
                     name: sym_name,
                     type_vars: sym_type_vars,
                     range: def.range,
-                }
+                },
             );
         }
         // types_by_mod.insert(&md.name, cur_types_by_mod);
@@ -96,8 +104,12 @@ pub fn resolve(modules: &VecDeque<NominalModule>, sg: &mut SymbolGenerator) -> R
         // let mut cur_cls_defs_by_mod: VecDeque<SID> = VecDeque::new();
         for def in md.class_defs.iter() {
             // Check if the class is already defined
-            check_unique!(def.name, cur_cls_defs, format!("A case class named `{}` is already defined.", def.name));
-            
+            check_unique!(
+                def.name,
+                cur_cls_defs,
+                format!("A case class named `{}` is already defined.", def.name)
+            );
+
             // Generate the name
             let sym_name = sg.fresh(&def.name);
 
@@ -108,7 +120,14 @@ pub fn resolve(modules: &VecDeque<NominalModule>, sg: &mut SymbolGenerator) -> R
             // Resolve the arguments
             let mut sym_args = VecDeque::new();
             for (name, typ) in def.args.iter() {
-                let sym_typ = resolve_type(typ, &TypeEnv::new(&md.name, &type_defs[&md.name][&parent_id].type_vars, &type_defs))?;
+                let sym_typ = resolve_type(
+                    typ,
+                    &TypeEnv::new(
+                        &md.name,
+                        &type_defs[&md.name][&parent_id].type_vars,
+                        &type_defs,
+                    ),
+                )?;
                 let sym_name = sg.fresh(&name);
                 sym_args.push_back((sym_name, sym_typ));
             }
@@ -119,7 +138,7 @@ pub fn resolve(modules: &VecDeque<NominalModule>, sg: &mut SymbolGenerator) -> R
                 name: sym_name,
                 args: sym_args,
                 parent: sym_parent,
-                range: def.range
+                range: def.range,
             };
 
             cur_cls_defs.insert(sym_def.name.id, sym_def);
@@ -136,7 +155,11 @@ pub fn resolve(modules: &VecDeque<NominalModule>, sg: &mut SymbolGenerator) -> R
         let mut cur_fun_defs_by_mod: VecDeque<SID> = VecDeque::new();
         for def in md.fun_defs.iter() {
             // Check if the function is already defined
-            check_unique!(def.name, cur_fun_defs, format!("A function `{}` is already defined.", def.name));
+            check_unique!(
+                def.name,
+                cur_fun_defs,
+                format!("A function `{}` is already defined.", def.name)
+            );
 
             // Generate the name
             let sym_name = sg.fresh(&def.name);
@@ -149,7 +172,10 @@ pub fn resolve(modules: &VecDeque<NominalModule>, sg: &mut SymbolGenerator) -> R
                     if sym_var.name == *type_var {
                         return error!(
                             def.range,
-                            format!("A type variable named {} is already used in this abstract class.", def.name)
+                            format!(
+                                "A type variable named {} is already used in this abstract class.",
+                                def.name
+                            )
                         );
                     }
                 }
@@ -159,13 +185,15 @@ pub fn resolve(modules: &VecDeque<NominalModule>, sg: &mut SymbolGenerator) -> R
             // Resolve the arguments
             let mut sym_args = VecDeque::new();
             for (name, typ) in def.args.iter() {
-                let sym_typ = resolve_type(typ, &TypeEnv::new(&md.name, &sym_type_vars, &type_defs))?;
+                let sym_typ =
+                    resolve_type(typ, &TypeEnv::new(&md.name, &sym_type_vars, &type_defs))?;
                 let sym_name = sg.fresh(&name);
                 sym_args.push_back((sym_name, sym_typ));
             }
-        
+
             // Resolve the return type
-            let sym_rt = resolve_type(&def.rt, &TypeEnv::new(&md.name, &sym_type_vars, &type_defs))?;
+            let sym_rt =
+                resolve_type(&def.rt, &TypeEnv::new(&md.name, &sym_type_vars, &type_defs))?;
 
             // Resolve the body
             let sym_body = todo!();
@@ -180,8 +208,8 @@ pub fn resolve(modules: &VecDeque<NominalModule>, sg: &mut SymbolGenerator) -> R
                     args: sym_args,
                     rt: sym_rt,
                     body: sym_body,
-                    range: def.range
-                }
+                    range: def.range,
+                },
             );
         }
         // fun_by_mod.insert(&md.name, cur_fun_defs_by_mod);
@@ -189,13 +217,11 @@ pub fn resolve(modules: &VecDeque<NominalModule>, sg: &mut SymbolGenerator) -> R
         fun_defs.insert(md.name.clone(), cur_fun_defs);
     }
 
-    let mut exprs: VecDeque<Expr<Symbol,SymbolicType>> = VecDeque::new();
+    let mut exprs: VecDeque<Expr<Symbol, SymbolicType>> = VecDeque::new();
     for md in modules.iter() {
         match &md.expr {
-            None => {},
-            Some(expr) => {
-
-            }
+            None => {}
+            Some(expr) => {}
         }
     }
 
@@ -203,12 +229,16 @@ pub fn resolve(modules: &VecDeque<NominalModule>, sg: &mut SymbolGenerator) -> R
         type_defs: collect(type_defs),
         class_defs: collect(class_defs),
         fun_defs: collect(fun_defs),
-        exprs
+        exprs,
     })
     // todo!()
 }
 
-fn find_type_symbol(name: &String, range: Span, defs: &HashMap<SID, SymbolicAbstDef>) -> Result<SID, Report> {
+fn find_type_symbol(
+    name: &String,
+    range: Span,
+    defs: &HashMap<SID, SymbolicAbstDef>,
+) -> Result<SID, Report> {
     for def in defs.values() {
         if def.name.name == *name {
             return Ok(def.name.id);
@@ -220,7 +250,11 @@ fn find_type_symbol(name: &String, range: Span, defs: &HashMap<SID, SymbolicAbst
     );
 }
 
-fn find_class_symbol(name: &String, range: Span, defs: &HashMap<SID, SymbolicClassDef>) -> Result<SID, Report> {
+fn find_class_symbol(
+    name: &String,
+    range: Span,
+    defs: &HashMap<SID, SymbolicClassDef>,
+) -> Result<SID, Report> {
     for def in defs.values() {
         if def.name.name == *name {
             return Ok(def.name.id);
@@ -232,7 +266,11 @@ fn find_class_symbol(name: &String, range: Span, defs: &HashMap<SID, SymbolicCla
     );
 }
 
-fn find_fun_symbol(name: &String, range: Span, defs: &HashMap<SID, SymbolicFunDef>) -> Result<SID, Report> {
+fn find_fun_symbol(
+    name: &String,
+    range: Span,
+    defs: &HashMap<SID, SymbolicFunDef>,
+) -> Result<SID, Report> {
     for def in defs.values() {
         if def.name.name == *name {
             return Ok(def.name.id);
@@ -244,12 +282,9 @@ fn find_fun_symbol(name: &String, range: Span, defs: &HashMap<SID, SymbolicFunDe
     );
 }
 
-fn resolve_type (
-    arg: &NominalType,
-    env: &TypeEnv
-) -> Result<SymbolicType, Report> {
-    use rac_ast::NominalType::*;
+fn resolve_type(arg: &NominalType, env: &TypeEnv) -> Result<SymbolicType, Report> {
     use SymbolicType as ST;
+    use rac_ast::NominalType::*;
     match arg {
         IntType(_) => Ok(ST::IntType),
         BoolType(_) => Ok(ST::BoolType),
@@ -259,7 +294,7 @@ fn resolve_type (
             None => {
                 for var in env.type_vars.iter() {
                     if var.name == qn.name {
-                        return Ok(ST::Var(Symbol::new(&qn.name, var.id)))
+                        return Ok(ST::Var(Symbol::new(&qn.name, var.id)));
                     }
                 }
                 let sid = find_type_symbol(&qn.name, *s, &env.type_defs[env.cur_mod])?;
@@ -270,17 +305,13 @@ fn resolve_type (
                     let sid = find_type_symbol(&qn.name, *s, mp)?;
                     Ok(ST::ClassType(Symbol::new(&qn.name, sid)))
                 }
-                None => error!(*s, format!("No module named `{}`.", owner))
-            }
+                None => error!(*s, format!("No module named `{}`.", owner)),
+            },
         },
     }
 }
 
-fn resolve_fun(
-    arg: &Name,
-    range: Span,
-    env: &FunEnv
-) -> Result<Symbol, Report> {
+fn resolve_fun(arg: &Name, range: Span, env: &FunEnv) -> Result<Symbol, Report> {
     match &arg.owner {
         None => {
             let sid = find_fun_symbol(&arg.name, range, &env.fun_defs[env.cur_mod])?;
@@ -291,15 +322,15 @@ fn resolve_fun(
                 let sid = find_fun_symbol(&arg.name, range, mp)?;
                 Ok(Symbol::new(&arg.name, sid))
             }
-            None => error!(range, format!("No module named `{}`.", owner))
-        }
+            None => error!(range, format!("No module named `{}`.", owner)),
+        },
     }
 }
 
 fn resolve_expr(
     e: Expr<Name, NominalType>,
     env: &mut FullEnv,
-    sg: &mut SymbolGenerator
+    sg: &mut SymbolGenerator,
 ) -> Result<Expr<Symbol, SymbolicType>, Report> {
     use Expr::*;
 
@@ -321,7 +352,10 @@ fn resolve_expr(
     match e {
         Variable(qn, s) => match env.binds.get(&qn.name) {
             Some(sid) => Ok(Variable(Symbol::new(&qn.name, *sid), s)),
-            None => error!(s, format!("Variable `{}` not found in current scope.", qn.name))
+            None => error!(
+                s,
+                format!("Variable `{}` not found in current scope.", qn.name)
+            ),
         },
         IntLiteral(val, s) => Ok(IntLiteral(val, s)),
         BoolLiteral(val, s) => Ok(BoolLiteral(val, s)),
@@ -350,16 +384,33 @@ fn resolve_expr(
                 sym_args.push_back(sym_arg);
             }
             Ok(Call(sym_name, sym_args, s))
-        },
+        }
         Let(qn, typ, val, body, s) => {
             let sym_name = sg.fresh(&qn.name);
             let sym_typ = resolve_type(&typ, &TypeEnv::from(&*env))?;
             let sym_val = resolve_expr(*val, env, sg)?;
             env.binds.insert(qn.name, sym_name.id);
             let sym_body = resolve_expr(*body, env, sg)?;
-            Ok(Let(sym_name, sym_typ, Box::new(sym_val), Box::new(sym_body), s))
+            Ok(Let(
+                sym_name,
+                sym_typ,
+                Box::new(sym_val),
+                Box::new(sym_body),
+                s,
+            ))
         }
-        _ => todo!()
+        Ite(cond, thenb, elseb, s) => {
+            let sym_cond = resolve_expr(*cond, env, sg)?;
+            let sym_then = resolve_expr(*thenb, env, sg)?;
+            let sym_else = resolve_expr(*elseb, env, sg)?;
+            Ok(Ite(
+                Box::new(sym_cond),
+                Box::new(sym_then),
+                Box::new(sym_else),
+                s,
+            ))
+        }
+        _ => todo!(),
     }
 }
 

@@ -16,7 +16,11 @@ impl<'a> TypeEnv<'a> {
         // types_by_mod: &'a HashMap<&'a String, VecDeque<SID>>,
         type_defs: &'a HashMap<String, HashMap<SID, SymbolicAbstDef>>,
     ) -> Self {
-        Self { cur_mod, type_vars, type_defs }
+        Self {
+            cur_mod,
+            type_vars,
+            type_defs,
+        }
     }
 }
 
@@ -56,7 +60,13 @@ impl<'a> FullEnv<'a> {
         // fun_by_mod: &'a HashMap<&'a String, VecDeque<SID>>,
         fun_defs: &'a HashMap<String, HashMap<SID, SymbolicFunDef>>,
     ) -> Self {
-        Self { cur_mod, type_vars, binds, type_defs, fun_defs }
+        Self {
+            cur_mod,
+            type_vars,
+            binds,
+            type_defs,
+            fun_defs,
+        }
     }
 }
 
