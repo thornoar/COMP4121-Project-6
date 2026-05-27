@@ -1,10 +1,11 @@
 use rac_ast::{
-    Expr, Name, NominalModule, NominalType, Pattern, SID, Symbol, SymbolGenerator, SymbolicAbstDef, SymbolicClassDef, SymbolicFunDef, SymbolicProgram, SymbolicType
+    Expr, Name, NominalModule, NominalType, Pattern, SID, Symbol, SymbolGenerator, SymbolicAbstDef,
+    SymbolicClassDef, SymbolicFunDef, SymbolicProgram, SymbolicType,
 };
 use rac_diagnostics::{Report, Span, Stage};
-use std::{collections::{HashMap, VecDeque}};
+use std::collections::{HashMap, VecDeque};
 
-use crate::table::{SymbolTable, CallTable, TypeTable};
+use crate::table::{CallTable, SymbolTable, TypeTable};
 
 pub mod table;
 
@@ -37,7 +38,7 @@ fn collect<V>(mp: HashMap<String, HashMap<SID, V>>) -> HashMap<SID, V> {
 }
 
 pub fn resolve(
-    modules: &VecDeque<NominalModule>,
+    modules: VecDeque<NominalModule>,
     sg: &mut SymbolGenerator,
 ) -> Result<SymbolicProgram, Report> {
     // let mut types_by_mod: HashMap<&String, VecDeque<SID>> = HashMap::new();
@@ -148,11 +149,13 @@ pub fn resolve(
         class_defs.insert(md.name.clone(), cur_cls_defs);
     }
 
+    let mut exprs: VecDeque<(String, Expr<Name, NominalType>)> = VecDeque::new();
+
     // Discovering function definitions
-    for md in modules.iter() {
+    for md in modules.into_iter() {
         let mut cur_fun_defs: HashMap<SID, SymbolicFunDef> = HashMap::new();
         let mut cur_fun_defs_by_mod: VecDeque<SID> = VecDeque::new();
-        for def in md.fun_defs.iter() {
+        for def in md.fun_defs.into_iter() {
             // Check if the function is already defined
             check_unique!(
                 def.name,
@@ -191,11 +194,18 @@ pub fn resolve(
             }
 
             // Resolve the return type
-            let sym_rt =
-                resolve_type(&def.rt, &TypeTable::new(&md.name, &sym_type_vars, &type_defs))?;
+            let sym_rt = resolve_type(
+                &def.rt,
+                &TypeTable::new(&md.name, &sym_type_vars, &type_defs),
+            )?;
 
             // Resolve the body
-            let sym_body = todo!();
+            let sym_body = resolve_expr(
+                def.body,
+                &SymbolTable::new(&md.name, &sym_type_vars, &type_defs, &class_defs, &fun_defs),
+                HashMap::new(),
+                sg,
+            )?;
 
             cur_fun_defs_by_mod.push_back(sym_name.id);
 
@@ -214,21 +224,41 @@ pub fn resolve(
         // fun_by_mod.insert(&md.name, cur_fun_defs_by_mod);
         // fun_defs.extend(cur_fun_defs);
         fun_defs.insert(md.name.clone(), cur_fun_defs);
-    }
 
-    let mut exprs: VecDeque<Expr<Symbol, SymbolicType>> = VecDeque::new();
-    for md in modules.iter() {
-        match &md.expr {
-            None => {}
-            Some(expr) => {}
+        if let Some(e) = md.expr {
+            exprs.push_back((md.name, e));
         }
     }
+
+    let mut sym_exprs = VecDeque::new();
+    for (modname, expr) in exprs.into_iter() {
+        let sym_expr = resolve_expr(
+            expr,
+            &SymbolTable::new(
+                &modname,
+                &VecDeque::new(),
+                &type_defs,
+                &class_defs,
+                &fun_defs,
+            ),
+            HashMap::new(),
+            sg,
+        )?;
+        sym_exprs.push_back(sym_expr);
+    }
+
+    // for md in modules.iter() {
+    //     match &md.expr {
+    //         None => {}
+    //         Some(expr) => {}
+    //     }
+    // }
 
     Ok(SymbolicProgram {
         type_defs: collect(type_defs),
         class_defs: collect(class_defs),
         fun_defs: collect(fun_defs),
-        exprs,
+        exprs: sym_exprs,
     })
     // todo!()
 }
@@ -265,21 +295,21 @@ fn find_class_symbol(
     );
 }
 
-fn find_fun_symbol(
-    name: &String,
-    range: Span,
-    defs: &HashMap<SID, SymbolicFunDef>,
-) -> Result<SID, Report> {
-    for def in defs.values() {
-        if def.name.name == *name {
-            return Ok(def.name.id);
-        }
-    }
-    return error!(
-        range,
-        format!("Could not find a function named `{}`.", name)
-    );
-}
+// fn find_fun_symbol(
+//     name: &String,
+//     range: Span,
+//     defs: &HashMap<SID, SymbolicFunDef>,
+// ) -> Result<SID, Report> {
+//     for def in defs.values() {
+//         if def.name.name == *name {
+//             return Ok(def.name.id);
+//         }
+//     }
+//     return error!(
+//         range,
+//         format!("Could not find a function named `{}`.", name)
+//     );
+// }
 
 fn find_call_symbol(
     name: &String,
@@ -335,7 +365,12 @@ fn resolve_type(arg: &NominalType, env: &TypeTable) -> Result<SymbolicType, Repo
 fn resolve_call(arg: &Name, range: Span, env: &CallTable) -> Result<Symbol, Report> {
     match &arg.owner {
         None => {
-            let sid = find_call_symbol(&arg.name, range, &env.class_defs[env.cur_mod], &env.fun_defs[env.cur_mod])?;
+            let sid = find_call_symbol(
+                &arg.name,
+                range,
+                &env.class_defs[env.cur_mod],
+                &env.fun_defs[env.cur_mod],
+            )?;
             Ok(Symbol::new(&arg.name, sid))
         }
         Some(owner) => match (env.fun_defs.get(owner), env.class_defs.get(owner)) {
@@ -348,17 +383,55 @@ fn resolve_call(arg: &Name, range: Span, env: &CallTable) -> Result<Symbol, Repo
     }
 }
 
+fn resolve_class(arg: &Name, range: Span, env: &SymbolTable) -> Result<Symbol, Report> {
+    match &arg.owner {
+        None => {
+            let sid = find_class_symbol(&arg.name, range, &env.class_defs[env.cur_mod])?;
+            Ok(Symbol::new(&arg.name, sid))
+        }
+        Some(owner) => match env.class_defs.get(owner) {
+            Some(mp2) => {
+                let sid = find_class_symbol(&arg.name, range, mp2)?;
+                Ok(Symbol::new(&arg.name, sid))
+            }
+            None => error!(range, format!("No module named `{}`.", owner)),
+        },
+    }
+}
+
 fn resolve_pattern(
-    pat: &Pattern<Name>,
+    pat: Pattern<Name>,
     env: &SymbolTable,
-    binds: &mut HashMap<String, SID>
+    binds: &mut HashMap<String, SID>,
+    sg: &mut SymbolGenerator,
 ) -> Result<Pattern<Symbol>, Report> {
-    todo!()
+    use Pattern::*;
+    match pat {
+        Wildcard(s) => Ok(Wildcard(s)),
+        IdPattern(qn, s) => {
+            let sym_name = sg.fresh(&qn.name);
+            binds.insert(qn.name, sym_name.id);
+            Ok(IdPattern(sym_name, s))
+        }
+        BoolPattern(val, s) => Ok(BoolPattern(val, s)),
+        StringPattern(val, s) => Ok(StringPattern(val, s)),
+        IntPattern(val, s) => Ok(IntPattern(val, s)),
+        UnitPattern(s) => Ok(UnitPattern(s)),
+        ClassPattern(qn, subpats, s) => {
+            let sym_name = resolve_class(&qn, s, env)?;
+            let mut sym_subpats = VecDeque::new();
+            for sp in subpats.into_iter() {
+                let sym_sp = resolve_pattern(sp, env, binds, sg)?;
+                sym_subpats.push_back(sym_sp);
+            }
+            Ok(ClassPattern(sym_name, sym_subpats, s))
+        }
+    }
 }
 
 fn resolve_expr(
     e: Expr<Name, NominalType>,
-    env: &mut SymbolTable,
+    env: &SymbolTable,
     mut binds: HashMap<String, SID>,
     sg: &mut SymbolGenerator,
 ) -> Result<Expr<Symbol, SymbolicType>, Report> {
@@ -440,19 +513,20 @@ fn resolve_expr(
                 s,
             ))
         }
-        Match(scrut, pats, s) => {
+        Match(scrut, cases, s) => {
             let sym_scrut = resolve_expr(*scrut, env, binds.clone(), sg)?;
-            todo!()
+            let mut sym_cases = VecDeque::new();
+            for (pat, expr) in cases.into_iter() {
+                let mut newbinds = binds.clone();
+                let sym_pat = resolve_pattern(pat, env, &mut newbinds, sg)?;
+                let sym_expr = resolve_expr(expr, env, newbinds, sg)?;
+                sym_cases.push_back((sym_pat, sym_expr));
+            }
+            Ok(Match(Box::new(sym_scrut), sym_cases, s))
         }
-        _ => todo!(),
+        Error(msg, s) => {
+            let sym_msg = resolve_expr(*msg, env, binds, sg)?;
+            Ok(Error(Box::new(sym_msg), s))
+        }
     }
 }
-
-// fn contains_with_name(lst: &VecDeque<Symbol>, nme: &String) -> bool {
-//     for item in lst.iter() {
-//         if item.name == *nme {
-//             return true;
-//         }
-//     }
-//     return false;
-// }

@@ -38,7 +38,11 @@ impl<'a> CallTable<'a> {
         class_defs: &'a HashMap<String, HashMap<SID, SymbolicClassDef>>,
         fun_defs: &'a HashMap<String, HashMap<SID, SymbolicFunDef>>,
     ) -> Self {
-        Self { cur_mod, class_defs, fun_defs }
+        Self {
+            cur_mod,
+            class_defs,
+            fun_defs,
+        }
     }
 }
 
