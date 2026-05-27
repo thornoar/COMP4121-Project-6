@@ -196,6 +196,12 @@ impl SymbolGenerator {
         SymbolGenerator { next_id: 0 }
     }
 
+    pub fn fresh_id(&mut self) -> SID {
+        let id = self.next_id;
+        self.next_id += 1;
+        id
+    }
+
     pub fn fresh(&mut self, name: &String) -> Symbol {
         let sym = Symbol::new(name, self.next_id);
         self.next_id += 1;

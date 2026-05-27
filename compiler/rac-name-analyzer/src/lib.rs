@@ -20,47 +20,91 @@ macro_rules! error {
 }
 
 macro_rules! check_unique {
-    ($name:expr, $mp:expr, $msg:expr) => {
-        for def in $mp.values() {
-            if def.name.name == $name {
-                return error!(def.range, $msg);
+    ($name:expr, $range:expr, $mp:expr, $msg:expr) => {
+        if $mp.contains_key($name) {
+            return error!($range, $msg);
+        }
+        // for def in $mp.values() {
+        //     if def.name.name == $name {
+        //         return error!(def.range, $msg);
+        //     }
+        // }
+    };
+}
+
+macro_rules! find_type_id {
+    ($name:expr, $range:expr, $type_syms:expr) => {
+        match $type_syms.get($name) {
+            Some(id) => Ok(*id),
+            None => error!($range, format!("Could not find an abstract class named `{}`.", $name))
+        }
+    };
+}
+
+macro_rules! find_class_id {
+    ($name:expr, $range:expr, $class_syms:expr) => {
+        match $class_syms.get($name) {
+            Some(id) => Ok(*id),
+            None => error!($range, format!("Could not find a constructor named `{}`.", $name))
+        }
+    };
+}
+
+macro_rules! find_call_id {
+    ($name:expr, $range:expr, $cls_syms:expr, $fun_syms:expr) => {
+        match $fun_syms.get($name) {
+            Some(id) => Ok(*id),
+            None => match $cls_syms.get($name) {
+                Some(id) => Ok(*id),
+                None => error!($range, format!("No function or constructor named `{}`.", $name))
             }
         }
     };
 }
 
-fn collect<V>(mp: HashMap<String, HashMap<SID, V>>) -> HashMap<SID, V> {
-    let mut res = HashMap::new();
-    for sm in mp.into_values() {
-        res.extend(sm);
-    }
-    res
-}
+// fn collect<V>(mp: HashMap<String, HashMap<SID, V>>) -> HashMap<SID, V> {
+//     let mut res = HashMap::new();
+//     for sm in mp.into_values() {
+//         res.extend(sm);
+//     }
+//     res
+// }
 
 pub fn resolve(
     modules: VecDeque<NominalModule>,
     sg: &mut SymbolGenerator,
 ) -> Result<SymbolicProgram, Report> {
-    let mut type_defs: HashMap<String, HashMap<SID, SymbolicAbstDef>> = HashMap::new();
-    let mut class_defs: HashMap<String, HashMap<SID, SymbolicClassDef>> = HashMap::new();
-    let mut fun_defs: HashMap<String, HashMap<SID, SymbolicFunDef>> = HashMap::new();
+    // let mut type_defs: HashMap<String, HashMap<SID, SymbolicAbstDef>> = HashMap::new();
+    // let mut class_defs: HashMap<String, HashMap<SID, SymbolicClassDef>> = HashMap::new();
+    // let mut fun_defs: HashMap<String, HashMap<SID, SymbolicFunDef>> = HashMap::new();
+    let mut type_defs: HashMap<SID, SymbolicAbstDef> = HashMap::new();
+    let mut class_defs: HashMap<SID, SymbolicClassDef> = HashMap::new();
+    let mut fun_defs: HashMap<SID, SymbolicFunDef> = HashMap::new();
+
+    let mut type_syms: HashMap<String, HashMap<String, SID>> = HashMap::new();
+    let mut class_syms: HashMap<String, HashMap<String, SID>> = HashMap::new();
+    let mut fun_syms: HashMap<String, HashMap<String, SID>> = HashMap::new();
 
     // Discovering user types
     for md in modules.iter() {
-        println!("{}", md.name);
-
         let mut cur_types: HashMap<SID, SymbolicAbstDef> = HashMap::new();
+        let mut cur_type_syms: HashMap<String, SID> = HashMap::new();
 
         for def in md.abstract_defs.iter() {
             // Check if type is already defined
             check_unique!(
-                def.name,
-                cur_types,
-                format!("An abstract class named `{}` is already defined.", def.name)
+                &def.name,
+                def.range,
+                cur_type_syms,
+                format!("An abstract class named `{}` is already defined in the module `{}`", def.name, md.name)
             );
 
+            let sid = sg.fresh_id();
+
+            cur_type_syms.insert(def.name.clone(), sid);
+
             // Generate the name
-            let sym_name = sg.fresh(&def.name);
+            let sym_name = Symbol::new(&def.name, sid);
 
             // Generate type variable names
             let mut sym_type_vars: VecDeque<Symbol> = VecDeque::new();
@@ -80,8 +124,7 @@ pub fn resolve(
                 sym_type_vars.push_back(sg.fresh(&type_var));
             }
 
-            // cur_types_by_mod.push_back(sym_name.id);
-
+            // Insert the type definition
             cur_types.insert(
                 sym_name.id,
                 SymbolicAbstDef {
@@ -92,26 +135,43 @@ pub fn resolve(
             );
         }
         // types_by_mod.insert(&md.name, cur_types_by_mod);
-        type_defs.insert(md.name.clone(), cur_types);
+        // type_defs.insert(md.name.clone(), cur_types);
+        type_syms.insert(md.name.clone(), cur_type_syms);
+        type_defs.extend(cur_types);
     }
 
     // Discovering class definitions
     for md in modules.iter() {
         let mut cur_cls_defs: HashMap<SID, SymbolicClassDef> = HashMap::new();
+        let mut cur_cls_syms: HashMap<String, SID> = HashMap::new();
         // let mut cur_cls_defs_by_mod: VecDeque<SID> = VecDeque::new();
         for def in md.class_defs.iter() {
             // Check if the class is already defined
             check_unique!(
-                def.name,
-                cur_cls_defs,
-                format!("A case class named `{}` is already defined.", def.name)
+                &def.name,
+                def.range,
+                cur_cls_syms,
+                format!("A case class named `{}` is already defined in the module `{}`", def.name, md.name)
             );
 
+            // Generate the id
+            let sid = sg.fresh_id();
+
+            cur_cls_syms.insert(def.name.clone(), sid);
+
             // Generate the name
-            let sym_name = sg.fresh(&def.name);
+            let sym_name = Symbol::new(&def.name, sid);
 
             // Resolve the parent
-            let parent_id = find_type_symbol(&def.parent, def.range, &type_defs[&md.name])?;
+            // let parent_id = find_type_symbol(&def.parent, def.range, &type_syms[&md.name])?;
+
+            let parent_id = find_type_id!(&def.parent, def.range, type_syms[&md.name])?;
+
+            //     match type_syms[&md.name].get(def.parent) {
+            //     Some(parent_id) => Symbol::new(&def.parent, parent_id),
+            //     None => error!()
+            // }
+
             let sym_parent = Symbol::new(&def.parent, parent_id);
 
             // Resolve the arguments
@@ -121,8 +181,8 @@ pub fn resolve(
                     typ,
                     &TypeTable::new(
                         &md.name,
-                        &type_defs[&md.name][&parent_id].type_vars,
-                        &type_defs,
+                        &type_defs[&parent_id].type_vars,
+                        &type_syms,
                     ),
                 )?;
                 let sym_name = sg.fresh(&name);
@@ -142,25 +202,39 @@ pub fn resolve(
         }
         // classes_by_mod.insert(md.id, cur_cls_defs);
         // classes_by_mod.insert(&md.name, cur_cls_defs_by_mod);
-        // class_defs.extend(cur_cls_defs);
-        class_defs.insert(md.name.clone(), cur_cls_defs);
+        class_defs.extend(cur_cls_defs);
+        class_syms.insert(md.name.clone(), cur_cls_syms);
     }
 
     let mut exprs: VecDeque<(String, Expr<Name, NominalType>)> = VecDeque::new();
+
+    // Discovering function symbols
+
+    for md in modules.iter() {
+        let mut cur_fun_syms: HashMap<String, SID> = HashMap::new();
+        for def in md.fun_defs.iter() {
+            check_unique!(
+                &def.name,
+                def.range,
+                cur_fun_syms,
+                format!("A function `{}` is already defined in the module `{}`.", def.name, md.name)
+            );
+
+            cur_fun_syms.insert(def.name.clone(), sg.fresh_id());
+        }
+
+        fun_syms.insert(md.name.clone(), cur_fun_syms);
+    }
 
     // Discovering function definitions
     for md in modules.into_iter() {
         let mut cur_fun_defs: HashMap<SID, SymbolicFunDef> = HashMap::new();
         for def in md.fun_defs.into_iter() {
-            // Check if the function is already defined
-            check_unique!(
-                def.name,
-                cur_fun_defs,
-                format!("A function `{}` is already defined.", def.name)
-            );
+            // Retrieve the SID
+            let sid = fun_syms[&md.name][&def.name];
 
             // Generate the name
-            let sym_name = sg.fresh(&def.name);
+            let sym_name = Symbol::new(&def.name, sid);
 
             // Generate the type variables
             let mut sym_type_vars: VecDeque<Symbol> = VecDeque::new();
@@ -184,7 +258,7 @@ pub fn resolve(
             let mut sym_args = VecDeque::new();
             for (name, typ) in def.args.iter() {
                 let sym_typ =
-                    resolve_type(typ, &TypeTable::new(&md.name, &sym_type_vars, &type_defs))?;
+                    resolve_type(typ, &TypeTable::new(&md.name, &sym_type_vars, &type_syms))?;
                 let sym_name = sg.fresh(&name);
                 sym_args.push_back((sym_name, sym_typ));
             }
@@ -192,7 +266,7 @@ pub fn resolve(
             // Resolve the return type
             let sym_rt = resolve_type(
                 &def.rt,
-                &TypeTable::new(&md.name, &sym_type_vars, &type_defs),
+                &TypeTable::new(&md.name, &sym_type_vars, &type_syms),
             )?;
 
             // Resolve the body
@@ -202,7 +276,7 @@ pub fn resolve(
             }
             let sym_body = resolve_expr(
                 def.body,
-                &SymbolTable::new(&md.name, &sym_type_vars, &type_defs, &class_defs, &fun_defs, Some((def.name, sym_name.id))),
+                &SymbolTable::new(&md.name, &sym_type_vars, &type_syms, &class_syms, &fun_syms, Some((def.name, sym_name.id))),
                 binds,
                 sg,
             )?;
@@ -221,7 +295,7 @@ pub fn resolve(
         }
         // fun_by_mod.insert(&md.name, cur_fun_defs_by_mod);
         // fun_defs.extend(cur_fun_defs);
-        fun_defs.insert(md.name.clone(), cur_fun_defs);
+        fun_defs.extend(cur_fun_defs);
 
         if let Some(e) = md.expr {
             exprs.push_back((md.name, e));
@@ -235,9 +309,9 @@ pub fn resolve(
             &SymbolTable::new(
                 &modname,
                 &VecDeque::new(),
-                &type_defs,
-                &class_defs,
-                &fun_defs,
+                &type_syms,
+                &class_syms,
+                &fun_syms,
                 None
             ),
             HashMap::new(),
@@ -254,45 +328,49 @@ pub fn resolve(
     // }
 
     Ok(SymbolicProgram {
-        type_defs: collect(type_defs),
-        class_defs: collect(class_defs),
-        fun_defs: collect(fun_defs),
+        type_defs: type_defs,
+        class_defs: class_defs,
+        fun_defs: fun_defs,
         exprs: sym_exprs,
     })
     // todo!()
 }
 
-fn find_type_symbol(
-    name: &String,
-    range: Span,
-    defs: &HashMap<SID, SymbolicAbstDef>,
-) -> Result<SID, Report> {
-    for def in defs.values() {
-        if def.name.name == *name {
-            return Ok(def.name.id);
-        }
-    }
-    return error!(
-        range,
-        format!("Could not find an abstract class named `{}`.", name)
-    );
-}
+// fn find_type_symbol(
+//     name: &String,
+//     range: Span,
+//     syms: &HashMap<String, SID>,
+// ) -> Result<SID, Report> {
+//     // match syms.get(name) {
+//     //     Some(id) => Ok(id),
+//     //     None => 
+//     // }
+//     for def in defs.values() {
+//         if def.name.name == *name {
+//             return Ok(def.name.id);
+//         }
+//     }
+//     return error!(
+//         range,
+//         format!("Could not find an abstract class named `{}`.", name)
+//     );
+// }
 
-fn find_class_symbol(
-    name: &String,
-    range: Span,
-    defs: &HashMap<SID, SymbolicClassDef>,
-) -> Result<SID, Report> {
-    for def in defs.values() {
-        if def.name.name == *name {
-            return Ok(def.name.id);
-        }
-    }
-    return error!(
-        range,
-        format!("Could not find a case class named `{}`.", name)
-    );
-}
+// fn find_class_symbol(
+//     name: &String,
+//     range: Span,
+//     defs: &HashMap<SID, SymbolicClassDef>,
+// ) -> Result<SID, Report> {
+//     for def in defs.values() {
+//         if def.name.name == *name {
+//             return Ok(def.name.id);
+//         }
+//     }
+//     return error!(
+//         range,
+//         format!("Could not find a case class named `{}`.", name)
+//     );
+// }
 
 // fn find_fun_symbol(
 //     name: &String,
@@ -310,27 +388,27 @@ fn find_class_symbol(
 //     );
 // }
 
-fn find_call_symbol(
-    name: &String,
-    range: Span,
-    class_defs: &HashMap<SID, SymbolicClassDef>,
-    fun_defs: &HashMap<SID, SymbolicFunDef>,
-) -> Result<SID, Report> {
-    for def in fun_defs.values() {
-        if def.name.name == *name {
-            return Ok(def.name.id);
-        }
-    }
-    for def in class_defs.values() {
-        if def.name.name == *name {
-            return Ok(def.name.id);
-        }
-    }
-    return error!(
-        range,
-        format!("Could not find a function named `{}`.", name)
-    );
-}
+// fn find_call_symbol(
+//     name: &String,
+//     range: Span,
+//     class_syms: &HashMap<SID, SymbolicClassDef>,
+//     fun_defs: &HashMap<SID, SymbolicFunDef>,
+// ) -> Result<SID, Report> {
+//     for def in fun_defs.values() {
+//         if def.name.name == *name {
+//             return Ok(def.name.id);
+//         }
+//     }
+//     for def in class_defs.values() {
+//         if def.name.name == *name {
+//             return Ok(def.name.id);
+//         }
+//     }
+//     return error!(
+//         range,
+//         format!("Could not find a function named `{}`.", name)
+//     );
+// }
 
 fn resolve_type(arg: &NominalType, env: &TypeTable) -> Result<SymbolicType, Report> {
     use SymbolicType as ST;
@@ -347,12 +425,13 @@ fn resolve_type(arg: &NominalType, env: &TypeTable) -> Result<SymbolicType, Repo
                         return Ok(ST::Var(Symbol::new(&qn.name, var.id)));
                     }
                 }
-                let sid = find_type_symbol(&qn.name, *s, &env.type_defs[env.cur_mod])?;
+                let sid = find_type_id!(&qn.name, *s, &env.type_defs[env.cur_mod])?;
+                    // find_type_symbol(&qn.name, *s, &env.type_defs[env.cur_mod])?;
                 Ok(ST::ClassType(Symbol::new(&qn.name, sid)))
             }
             Some(owner) => match env.type_defs.get(&owner) {
                 Some(mp) => {
-                    let sid = find_type_symbol(&qn.name, *s, mp)?;
+                    let sid = find_type_id!(&qn.name, *s, mp)?;
                     Ok(ST::ClassType(Symbol::new(&qn.name, sid)))
                 }
                 None => error!(*s, format!("No module named `{}`.", owner)),
@@ -364,17 +443,17 @@ fn resolve_type(arg: &NominalType, env: &TypeTable) -> Result<SymbolicType, Repo
 fn resolve_call(arg: &Name, range: Span, env: &CallTable) -> Result<Symbol, Report> {
     match &arg.owner {
         None => {
-            let sid = find_call_symbol(
+            let sid = find_call_id!(
                 &arg.name,
                 range,
                 &env.class_defs[env.cur_mod],
-                &env.fun_defs[env.cur_mod],
+                &env.fun_defs[env.cur_mod]
             )?;
             Ok(Symbol::new(&arg.name, sid))
         }
         Some(owner) => match (env.fun_defs.get(owner), env.class_defs.get(owner)) {
             (Some(mp1), Some(mp2)) => {
-                let sid = find_call_symbol(&arg.name, range, mp2, mp1)?;
+                let sid = find_call_id!(&arg.name, range, mp2, mp1)?;
                 Ok(Symbol::new(&arg.name, sid))
             }
             _ => error!(range, format!("No module named `{}`.", owner)),
@@ -385,12 +464,12 @@ fn resolve_call(arg: &Name, range: Span, env: &CallTable) -> Result<Symbol, Repo
 fn resolve_class(arg: &Name, range: Span, env: &SymbolTable) -> Result<Symbol, Report> {
     match &arg.owner {
         None => {
-            let sid = find_class_symbol(&arg.name, range, &env.class_defs[env.cur_mod])?;
+            let sid = find_class_id!(&arg.name, range, &env.class_defs[env.cur_mod])?;
             Ok(Symbol::new(&arg.name, sid))
         }
         Some(owner) => match env.class_defs.get(owner) {
             Some(mp2) => {
-                let sid = find_class_symbol(&arg.name, range, mp2)?;
+                let sid = find_class_id!(&arg.name, range, mp2)?;
                 Ok(Symbol::new(&arg.name, sid))
             }
             None => error!(range, format!("No module named `{}`.", owner)),

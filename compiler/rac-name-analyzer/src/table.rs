@@ -5,14 +5,14 @@ use rac_ast::{SID, Symbol, SymbolicAbstDef, SymbolicClassDef, SymbolicFunDef};
 pub struct TypeTable<'a> {
     pub cur_mod: &'a String,
     pub type_vars: &'a VecDeque<Symbol>,
-    pub type_defs: &'a HashMap<String, HashMap<SID, SymbolicAbstDef>>,
+    pub type_defs: &'a HashMap<String, HashMap<String, SID>>,
 }
 
 impl<'a> TypeTable<'a> {
     pub fn new(
         cur_mod: &'a String,
         type_vars: &'a VecDeque<Symbol>,
-        type_defs: &'a HashMap<String, HashMap<SID, SymbolicAbstDef>>,
+        type_defs: &'a HashMap<String, HashMap<String, SID>>,
     ) -> Self {
         Self {
             cur_mod,
@@ -24,15 +24,15 @@ impl<'a> TypeTable<'a> {
 
 pub struct CallTable<'a> {
     pub cur_mod: &'a String,
-    pub class_defs: &'a HashMap<String, HashMap<SID, SymbolicClassDef>>,
-    pub fun_defs: &'a HashMap<String, HashMap<SID, SymbolicFunDef>>,
+    pub class_defs: &'a HashMap<String, HashMap<String, SID>>,
+    pub fun_defs: &'a HashMap<String, HashMap<String, SID>>,
 }
 
 impl<'a> CallTable<'a> {
     pub fn new(
         cur_mod: &'a String,
-        class_defs: &'a HashMap<String, HashMap<SID, SymbolicClassDef>>,
-        fun_defs: &'a HashMap<String, HashMap<SID, SymbolicFunDef>>,
+        class_defs: &'a HashMap<String, HashMap<String, SID>>,
+        fun_defs: &'a HashMap<String, HashMap<String, SID>>,
     ) -> Self {
         Self {
             cur_mod,
@@ -45,9 +45,9 @@ impl<'a> CallTable<'a> {
 pub struct SymbolTable<'a> {
     pub cur_mod: &'a String,
     pub type_vars: &'a VecDeque<Symbol>,
-    pub type_defs: &'a HashMap<String, HashMap<SID, SymbolicAbstDef>>,
-    pub class_defs: &'a HashMap<String, HashMap<SID, SymbolicClassDef>>,
-    pub fun_defs: &'a HashMap<String, HashMap<SID, SymbolicFunDef>>,
+    pub type_defs: &'a HashMap<String, HashMap<String, SID>>,
+    pub class_defs: &'a HashMap<String, HashMap<String, SID>>,
+    pub fun_defs: &'a HashMap<String, HashMap<String, SID>>,
     pub fname: Option<(String, SID)>,
 }
 
@@ -55,9 +55,9 @@ impl<'a> SymbolTable<'a> {
     pub fn new(
         cur_mod: &'a String,
         type_vars: &'a VecDeque<Symbol>,
-        type_defs: &'a HashMap<String, HashMap<SID, SymbolicAbstDef>>,
-        class_defs: &'a HashMap<String, HashMap<SID, SymbolicClassDef>>,
-        fun_defs: &'a HashMap<String, HashMap<SID, SymbolicFunDef>>,
+        type_defs: &'a HashMap<String, HashMap<String, SID>>,
+        class_defs: &'a HashMap<String, HashMap<String, SID>>,
+        fun_defs: &'a HashMap<String, HashMap<String, SID>>,
         fname: Option<(String, SID)>,
     ) -> Self {
         Self {
