@@ -28,6 +28,7 @@ name = "rac-interpreter"
 version = "0.1.0"
 dependencies = [
  "rac-ast",
+ "rac-diagnostics",
 ]
 
 [[package]]

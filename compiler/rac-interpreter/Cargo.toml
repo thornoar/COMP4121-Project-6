@@ -7,3 +7,4 @@ rust-version = { workspace = true }
 
 [dependencies]
 rac-ast = { path = "../rac-ast" }
+rac-diagnostics = { path = "../rac-diagnostics" }

@@ -1,4 +1,5 @@
-use rac_ast::{Expr, Pattern, Symbol, SymbolicProgram};
+use rac_ast::{range, Expr, Pattern, Symbol, SymbolicProgram};
+use rac_diagnostics::{Report, Stage};
 
 use crate::{environ::Environment, value::Value};
 
@@ -12,70 +13,87 @@ pub fn interpret_program(program: SymbolicProgram) {
     })
 }
 
-pub fn interpret(expr: &Expr<Symbol>, env: &mut Environment, prog: &SymbolicProgram) -> Value {
+pub fn interpret(expr: &Expr<Symbol>, env: &mut Environment, prog: &SymbolicProgram) -> Result<Value, Report> {
     match expr {
-        Expr::BoolLiteral(b, _) => Value::Bool(*b),
-        Expr::IntLiteral(i, _) => Value::Int(*i),
-        Expr::StringLiteral(s, _) => Value::String(s.clone()),
-        Expr::UnitLiteral(_) => Value::Unit,
+        Expr::BoolLiteral(b, _) => Ok(Value::Bool(*b)),
+        Expr::IntLiteral(i, _) => Ok(Value::Int(*i)),
+        Expr::StringLiteral(s, _) => Ok(Value::String(s.clone())),
+        Expr::UnitLiteral(_) => Ok(Value::Unit),
 
-        Expr::Variable(name, _) => match env.lookup(name) {
-            Some(value) => value,
-            None => panic!(),
-        },
+        Expr::Variable(name, span) => env.lookup(name).ok_or(Report {
+            stage: Stage::Interpreting,
+            range: *span,
+            msg: format!("undefined variable {name}"),
+        }),
 
-        Expr::Plus(lhs, rhs) => interpret(lhs, env, prog) + interpret(rhs, env, prog),
-        Expr::Minus(lhs, rhs) => interpret(lhs, env, prog) - interpret(rhs, env, prog),
-        Expr::Times(lhs, rhs) => interpret(lhs, env, prog) * interpret(rhs, env, prog),
-        Expr::Div(lhs, rhs) => interpret(lhs, env, prog) / interpret(rhs, env, prog),
-        Expr::Mod(lhs, rhs) => interpret(lhs, env, prog) % interpret(rhs, env, prog),
+        Expr::Plus(lhs, rhs) => Ok(interpret(lhs, env, prog)? + interpret(rhs, env, prog)?),
+        Expr::Minus(lhs, rhs) => Ok(interpret(lhs, env, prog)? - interpret(rhs, env, prog)?),
+        Expr::Times(lhs, rhs) => Ok(interpret(lhs, env, prog)? * interpret(rhs, env, prog)?),
+        Expr::Div(lhs, rhs) => Ok(interpret(lhs, env, prog)? / interpret(rhs, env, prog)?),
+        Expr::Mod(lhs, rhs) => Ok(interpret(lhs, env, prog)? % interpret(rhs, env, prog)?),
         Expr::LessEquals(lhs, rhs) => {
-            Value::Bool(interpret(lhs, env, prog) <= interpret(rhs, env, prog))
+            Ok(Value::Bool(interpret(lhs, env, prog)? <= interpret(rhs, env, prog)?))
         }
         Expr::LessThan(lhs, rhs) => {
-            Value::Bool(interpret(lhs, env, prog) < interpret(rhs, env, prog))
+            Ok(Value::Bool(interpret(lhs, env, prog)? < interpret(rhs, env, prog)?))
         }
         Expr::And(lhs, rhs) => {
-            if let Value::Bool(false) = interpret(lhs, env, prog) {
-                Value::Bool(false)
+            if let Value::Bool(false) = interpret(lhs, env, prog)? {
+                Ok(Value::Bool(false))
             } else {
                 interpret(rhs, env, prog)
             }
         }
         Expr::Or(lhs, rhs) => {
-            if let Value::Bool(true) = interpret(lhs, env, prog) {
-                Value::Bool(true)
+            if let Value::Bool(true) = interpret(lhs, env, prog)? {
+                Ok(Value::Bool(true))
             } else {
                 interpret(rhs, env, prog)
             }
         }
         Expr::Equals(lhs, rhs) => {
-            Value::Bool(interpret(lhs, env, prog) == interpret(rhs, env, prog))
+            Ok(Value::Bool(interpret(lhs, env, prog)? == interpret(rhs, env, prog)?))
         }
         Expr::Concat(lhs, rhs) => {
-            let Value::String(s1) = interpret(lhs, env, prog) else {
-                panic!()
+            let Value::String(s1) = interpret(lhs, env, prog)? else {
+                return Err(Report {
+                    stage: Stage::Interpreting,
+                    range: range(lhs),
+                    msg: format!("expected string, found `{}`", lhs.show(0))
+                });
             };
-            let Value::String(s2) = interpret(rhs, env, prog) else {
-                panic!()
+            let Value::String(s2) = interpret(rhs, env, prog)? else {
+                return Err(Report {
+                    stage: Stage::Interpreting,
+                    range: range(rhs),
+                    msg: format!("expected string, found `{}`", lhs.show(0))
+                });
             };
 
-            Value::String(s1 + s2.as_str())
+            Ok(Value::String(s1 + s2.as_str()))
         }
 
         Expr::Not(e, _) => {
-            let Value::Bool(b) = interpret(e, env, prog) else {
-                panic!()
+            let Value::Bool(b) = interpret(e, env, prog)? else {
+                return Err(Report {
+                    stage: Stage::Interpreting,
+                    range: range(e),
+                    msg: format!("expected boolean, found `{}`", e.show(0))
+                });
             };
 
-            Value::Bool(!b)
+            Ok(Value::Bool(!b))
         }
         Expr::Neg(e, _) => {
-            let Value::Int(b) = interpret(e, env, prog) else {
-                panic!()
+            let Value::Int(i) = interpret(e, env, prog)? else {
+                return Err(Report {
+                    stage: Stage::Interpreting,
+                    range: range(e),
+                    msg: format!("expected integer, found `{}`", e.show(0))
+                });
             };
 
-            Value::Int(-b)
+            Ok(Value::Int(-i))
         }
 
         Expr::Call(name, args, _) => {
@@ -83,9 +101,15 @@ pub fn interpret(expr: &Expr<Symbol>, env: &mut Environment, prog: &SymbolicProg
                 let values = args
                     .iter()
                     .map(|e| interpret(e, env, prog))
-                    .collect::<Vec<_>>();
+                    .collect::<Result<Vec<_>, _>>()?;
                 if values.len() != def.args.len() {
-                    panic!("mismatched arity of function call");
+                    return Err(
+                        Report {
+                            stage: Stage::Interpreting,
+                            range: todo!(),
+                            msg: format!("expected {} arguments, found {}", def.args.len(), values.len())
+                        }
+                    );
                 }
 
                 let map = def
@@ -115,17 +139,17 @@ pub fn interpret(expr: &Expr<Symbol>, env: &mut Environment, prog: &SymbolicProg
         }
 
         Expr::Sequence(discard, ret) => {
-            interpret(discard, env, prog);
+            interpret(discard, env, prog)?;
             interpret(ret, env, prog)
         }
         Expr::Let(name, _, value, body, _) => {
-            let value = interpret(value, env, prog);
+            let value = interpret(value, env, prog)?;
             env.define(name.clone(), value);
 
             interpret(body, env, prog)
         }
         Expr::Ite(cond, then, elze, _) => {
-            let Value::Bool(condval) = interpret(cond, env, prog) else {
+            let Value::Bool(condval) = interpret(cond, env, prog)? else {
                 panic!()
             };
 
@@ -137,7 +161,7 @@ pub fn interpret(expr: &Expr<Symbol>, env: &mut Environment, prog: &SymbolicProg
         }
 
         Expr::Match(e, cases, _) => {
-            let scrutinee = interpret(e, env, prog);
+            let scrutinee = interpret(e, env, prog)?;
 
             cases
                 .iter()
@@ -158,7 +182,7 @@ pub fn interpret(expr: &Expr<Symbol>, env: &mut Environment, prog: &SymbolicProg
         }
 
         Expr::Error(msg, _) => {
-            let Value::String(str) = interpret(msg, env, prog) else {
+            let Value::String(str) = interpret(msg, env, prog)? else {
                 panic!()
             };
 
