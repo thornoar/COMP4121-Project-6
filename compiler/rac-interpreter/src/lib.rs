@@ -96,7 +96,7 @@ pub fn interpret(expr: &Expr<Symbol>, env: &mut Environment, prog: &SymbolicProg
             Ok(Value::Int(-i))
         }
 
-        Expr::Call(name, args, _) => {
+        Expr::Call(name, args, span) => {
             if let Some(def) = prog.fun_defs.get(&name.id) {
                 let values = args
                     .iter()
@@ -106,7 +106,7 @@ pub fn interpret(expr: &Expr<Symbol>, env: &mut Environment, prog: &SymbolicProg
                     return Err(
                         Report {
                             stage: Stage::Interpreting,
-                            range: todo!(),
+                            range: *span,
                             msg: format!("expected {} arguments, found {}", def.args.len(), values.len())
                         }
                     );
@@ -126,15 +126,21 @@ pub fn interpret(expr: &Expr<Symbol>, env: &mut Environment, prog: &SymbolicProg
             } else if let Some(def) = prog.class_defs.get(&name.id) {
                 let values = args
                     .iter()
-                    .map(|e| Box::new(interpret(e, env, prog)))
-                    .collect::<Vec<_>>();
+                    .map(|e| interpret(e, env, prog))
+                    .collect::<Result<Vec<_>, _>>()?;
                 if values.len() != def.args.len() {
-                    panic!("mismatched arity of constructor call");
+                    return Err(
+                        Report {
+                            stage: Stage::Interpreting,
+                            range: *span,
+                            msg: format!("expected {} arguments, found {}", def.args.len(), values.len())
+                        }
+                    );
                 }
 
-                Value::CaseClassValue(def.name.clone(), values)
+                Ok(Value::CaseClassValue(def.name.clone(), values.into_iter().map(Box::new).collect()))
             } else {
-                panic!("unresolved call")
+                todo!("unresolved call")
             }
         }
 
@@ -150,7 +156,13 @@ pub fn interpret(expr: &Expr<Symbol>, env: &mut Environment, prog: &SymbolicProg
         }
         Expr::Ite(cond, then, elze, _) => {
             let Value::Bool(condval) = interpret(cond, env, prog)? else {
-                panic!()
+                return Err(
+                    Report {
+                        stage: Stage::Interpreting,
+                        range: range(cond),
+                        msg: format!("expected boolean, found `{}`", cond.show(0))
+                    }
+                );
             };
 
             if condval {
@@ -181,12 +193,24 @@ pub fn interpret(expr: &Expr<Symbol>, env: &mut Environment, prog: &SymbolicProg
                 .unwrap()
         }
 
-        Expr::Error(msg, _) => {
+        Expr::Error(msg, span) => {
             let Value::String(str) = interpret(msg, env, prog)? else {
-                panic!()
+                return Err(
+                    Report {
+                        stage: Stage::Interpreting,
+                        range: range(msg),
+                        msg: format!("expected boolean, found `{}`", msg.show(0))
+                    }
+                );
             };
 
-            panic!("Error: {str}")
+            Err(
+                Report {
+                    stage: Stage::Interpreting,
+                    range: *span,
+                    msg: format!("error: {str}")
+                }
+            )
         }
     }
 }
