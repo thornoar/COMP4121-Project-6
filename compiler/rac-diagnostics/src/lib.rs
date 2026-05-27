@@ -1,4 +1,4 @@
-use std::{fmt::Display};
+use std::fmt::Display;
 
 pub type Source<'a> = &'a [u8];
 
@@ -108,8 +108,7 @@ pub fn deliver(r: &Report, fname: &str, src: &[u8]) {
         eprint!(
             "{}{}",
             prefix!(line - 1),
-            str::from_utf8(&src[newlines[beg_nl_idx - 1]..newlines[beg_nl_idx]])
-                .unwrap_or("")
+            str::from_utf8(&src[newlines[beg_nl_idx - 1]..newlines[beg_nl_idx]]).unwrap_or("")
         );
     }
     eprint!(
@@ -165,8 +164,7 @@ pub fn deliver(r: &Report, fname: &str, src: &[u8]) {
             eprint!(
                 "{}{}",
                 prefix!(line),
-                str::from_utf8(&src[newlines[beg_nl_idx + 1]..limit])
-                    .unwrap_or("")
+                str::from_utf8(&src[newlines[beg_nl_idx + 1]..limit]).unwrap_or("")
             );
         }
     } else {

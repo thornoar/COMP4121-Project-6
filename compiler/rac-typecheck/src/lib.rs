@@ -25,7 +25,12 @@ macro_rules! error {
     };
 }
 
-fn collect_constraints(e: &Expr<Symbol,SymbolicType>, expected: SymbolicType, env: &mut HashMap<Symbol, SymbolicType>, sg: &mut SymbolGenerator) -> Result<VecDeque<Constraint>, Report> {
+fn collect_constraints(
+    e: &Expr<Symbol, SymbolicType>,
+    expected: SymbolicType,
+    env: &mut HashMap<Symbol, SymbolicType>,
+    sg: &mut SymbolGenerator,
+) -> Result<VecDeque<Constraint>, Report> {
     use Expr::*;
     use SymbolicType::*;
 
@@ -50,8 +55,8 @@ fn collect_constraints(e: &Expr<Symbol,SymbolicType>, expected: SymbolicType, en
     match e {
         Variable(name, s) => match env.get(&name) {
             Some(typ) => Ok(single!(Constraint::new(expected, typ.clone(), *s))),
-            None => error!(*s, "Variable not present in the environment.")
-        }
+            None => error!(*s, "Variable not present in the environment."),
+        },
         IntLiteral(_, s) => Ok(single!(Constraint::new(expected, IntType, *s))),
         BoolLiteral(_, s) => Ok(single!(Constraint::new(expected, BoolType, *s))),
         StringLiteral(_, s) => Ok(single!(Constraint::new(expected, StringType, *s))),
@@ -83,7 +88,7 @@ fn collect_constraints(e: &Expr<Symbol,SymbolicType>, expected: SymbolicType, en
             res.append(&mut then_constr);
             res.append(&mut else_constr);
             Ok(res)
-        },
+        }
         Match(_, _, _) => todo!(),
         Error(msg, _) => collect_constraints(msg, StringType, env, sg),
     }

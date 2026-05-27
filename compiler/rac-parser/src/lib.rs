@@ -149,7 +149,7 @@ fn parse_type_vars<'a>(src: &'a [u8], ts: &mut TokenIter) -> Result<VecDeque<Str
             ts.consume();
             parse_many_type_vars(src, ts)
         }
-        _ => Ok(VecDeque::new())
+        _ => Ok(VecDeque::new()),
     }
 }
 
@@ -162,13 +162,16 @@ fn parse_many_type_vars<'a>(src: &'a [u8], ts: &mut TokenIter) -> Result<VecDequ
             let mut res = parse_many_type_vars(src, ts)?;
             res.push_front(var_name);
             Ok(res)
-        },
+        }
         TK::CloseBracket => {
             let mut res = VecDeque::new();
             res.push_front(var_name);
             Ok(res)
-        },
-        _ => error!(next.range, format!("Expected a comma or closing bracket, found {}.", next.kind))
+        }
+        _ => error!(
+            next.range,
+            format!("Expected a comma or closing bracket, found {}.", next.kind)
+        ),
     }
 }
 
@@ -306,10 +309,7 @@ fn parse_arglist<'a>(src: &'a [u8], ts: &mut TokenIter) -> Result<NomArgList, Re
 
 // Parses a *non-empty* argument list *with* the closing parenthesis
 // Examples: `x: String, y: Int(32), z: Unit \)`
-fn parse_many_arguments<'a>(
-    src: &'a [u8],
-    ts: &mut TokenIter,
-) -> Result<NomArgList, Report> {
+fn parse_many_arguments<'a>(src: &'a [u8], ts: &mut TokenIter) -> Result<NomArgList, Report> {
     let arg = parse_argument(src, ts)?;
     let delim = ts.pop();
     match delim.kind {
@@ -380,20 +380,24 @@ fn parse_type<'a>(src: &'a [u8], ts: &mut TokenIter) -> Result<NominalType, Repo
                 TK::OpenBracket => {
                     ts.consume();
                     let params = parse_many_types(src, ts)?;
-                    let cp = expect!(ts, TK::CloseBracket, "Expected a closing bracket to finish the type parameter list.");
+                    let cp = expect!(
+                        ts,
+                        TK::CloseBracket,
+                        "Expected a closing bracket to finish the type parameter list."
+                    );
                     Ok(NominalType::IdType(qual, params, join(s, cp.range)))
                 }
-                _ => Ok(NominalType::IdType(qual, VecDeque::new(), s))
+                _ => Ok(NominalType::IdType(qual, VecDeque::new(), s)),
             }
         }
-        _ => error!(
-            typ1.range,
-            "Expected either a primitive type (`Int`, `Boolean`, `String`, or `Unit`), or an identifier."
-        ),
+        _ => error!(typ1.range, format!("Expected a type, found {}.", typ1.kind)),
     }
 }
 
-fn parse_many_types<'a> (src: &'a [u8], ts: &mut TokenIter) -> Result<VecDeque<NominalType>, Report> {
+fn parse_many_types<'a>(
+    src: &'a [u8],
+    ts: &mut TokenIter,
+) -> Result<VecDeque<NominalType>, Report> {
     let typ = parse_type(src, ts)?;
     let next = ts.peek();
     match next.kind {
@@ -402,19 +406,19 @@ fn parse_many_types<'a> (src: &'a [u8], ts: &mut TokenIter) -> Result<VecDeque<N
             let mut res = parse_many_types(src, ts)?;
             res.push_front(typ);
             Ok(res)
-        },
+        }
         _ => {
             let mut res = VecDeque::new();
             res.push_front(typ);
             Ok(res)
-        },
+        }
         // _ => error!(next.range, format!("Expected a comma or closing bracket, found {}.", next.kind))
     }
 }
 
 // Parses an expression, which is a sequence of one or more atomic expressions.
 // Examples: `5; x + f(45); "hahaha"`
-fn parse_expr<'a>(src: &'a [u8], ts: &mut TokenIter) -> Result<Expr<Name,NominalType>, Report> {
+fn parse_expr<'a>(src: &'a [u8], ts: &mut TokenIter) -> Result<Expr<Name, NominalType>, Report> {
     let cur = parse_atomic_expr(src, ts)?;
     match ts.peek().kind {
         TK::Semicolon => {
@@ -428,7 +432,10 @@ fn parse_expr<'a>(src: &'a [u8], ts: &mut TokenIter) -> Result<Expr<Name,Nominal
 
 // Parses an atomic expression (i.e. not a sequence of expressions).
 // Examples: `5 match { _ => 4 }`, `5 + 6`
-fn parse_atomic_expr<'a>(src: &'a [u8], ts: &mut TokenIter) -> Result<Expr<Name,NominalType>, Report> {
+fn parse_atomic_expr<'a>(
+    src: &'a [u8],
+    ts: &mut TokenIter,
+) -> Result<Expr<Name, NominalType>, Report> {
     let t1 = ts.peek();
     match t1.kind {
         TK::KwVal => {
@@ -501,7 +508,10 @@ fn parse_atomic_expr<'a>(src: &'a [u8], ts: &mut TokenIter) -> Result<Expr<Name,
 
 // Parses an expression which may contain the (dreaded) `match` keyword.
 // Examples: `a * b / c match { 5 => 0, _ => 1 } - x % 2`
-fn parse_with_match<'a>(src: &'a [u8], ts: &mut TokenIter) -> Result<Expr<Name,NominalType>, Report> {
+fn parse_with_match<'a>(
+    src: &'a [u8],
+    ts: &mut TokenIter,
+) -> Result<Expr<Name, NominalType>, Report> {
     let mut res = parse_infix_expr(src, ts, 6)?;
     macro_rules! update {
         ($level:expr, $constr:ident) => {{
@@ -564,7 +574,7 @@ fn parse_with_match<'a>(src: &'a [u8], ts: &mut TokenIter) -> Result<Expr<Name,N
 fn parse_match_case<'a>(
     src: &'a [u8],
     ts: &mut TokenIter,
-) -> Result<(Pattern<Name>, Expr<Name,NominalType>), Report> {
+) -> Result<(Pattern<Name>, Expr<Name, NominalType>), Report> {
     let pat = parse_pattern(src, ts)?;
     expect!(
         ts,
@@ -692,7 +702,7 @@ fn parse_infix_expr<'a>(
     src: &'a [u8],
     ts: &mut TokenIter,
     level: u8,
-) -> Result<Expr<Name,NominalType>, Report> {
+) -> Result<Expr<Name, NominalType>, Report> {
     if level <= 0 {
         return parse_unary_expr(src, ts);
     }
@@ -727,7 +737,10 @@ fn parse_infix_expr<'a>(
 
 // Parses an expression which may contain unary operators.
 // Examples: `-x`, `!(1 < 2 && x + y >= 7)`
-fn parse_unary_expr<'a>(src: &'a [u8], ts: &mut TokenIter) -> Result<Expr<Name,NominalType>, Report> {
+fn parse_unary_expr<'a>(
+    src: &'a [u8],
+    ts: &mut TokenIter,
+) -> Result<Expr<Name, NominalType>, Report> {
     let op = ts.peek();
     match op.kind {
         TK::Minus => {
@@ -746,7 +759,10 @@ fn parse_unary_expr<'a>(src: &'a [u8], ts: &mut TokenIter) -> Result<Expr<Name,N
 
 // Parses a simple expression.
 // Examples: `f(x, y, z)`, `45`, `"haha"`, `error("bad")`
-fn parse_simple_expr<'a>(src: &'a [u8], ts: &mut TokenIter) -> Result<Expr<Name,NominalType>, Report> {
+fn parse_simple_expr<'a>(
+    src: &'a [u8],
+    ts: &mut TokenIter,
+) -> Result<Expr<Name, NominalType>, Report> {
     let tk = ts.pop();
     match tk.kind {
         TK::LitInt => get_int(src, tk.range).map(|v| Expr::IntLiteral(v, tk.range)),
@@ -807,7 +823,10 @@ fn parse_simple_expr<'a>(src: &'a [u8], ts: &mut TokenIter) -> Result<Expr<Name,
 
 // Parses a comma-separated list of expressions.
 // Examples: `45, x, Cons(234, Nil())`
-fn parse_expr_list<'a>(src: &'a [u8], ts: &mut TokenIter) -> Result<VecDeque<Expr<Name,NominalType>>, Report> {
+fn parse_expr_list<'a>(
+    src: &'a [u8],
+    ts: &mut TokenIter,
+) -> Result<VecDeque<Expr<Name, NominalType>>, Report> {
     match ts.peek().kind {
         TK::CloseParen => Ok(VecDeque::new()),
         _ => parse_many_exprs(src, ts),
@@ -816,7 +835,10 @@ fn parse_expr_list<'a>(src: &'a [u8], ts: &mut TokenIter) -> Result<VecDeque<Exp
 
 // Parses a *non-empty* comma-separated list of expressions.
 // Examples: `45, x, Cons(234, Nil())`
-fn parse_many_exprs<'a>(src: &'a [u8], ts: &mut TokenIter) -> Result<VecDeque<Expr<Name,NominalType>>, Report> {
+fn parse_many_exprs<'a>(
+    src: &'a [u8],
+    ts: &mut TokenIter,
+) -> Result<VecDeque<Expr<Name, NominalType>>, Report> {
     let cur = parse_expr(src, ts)?;
     let delim = ts.peek();
     match delim.kind {

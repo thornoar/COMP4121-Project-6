@@ -1,4 +1,4 @@
-use rac_ast::{range, Expr, Pattern, Symbol, SymbolicProgram, SymbolicType};
+use rac_ast::{Expr, Pattern, Symbol, SymbolicProgram, SymbolicType, range};
 use rac_diagnostics::{Report, Stage};
 
 use crate::{environ::Environment, value::Value};
@@ -15,7 +15,11 @@ pub fn interpret_program(program: SymbolicProgram) -> Result<(), Report> {
     Ok(())
 }
 
-pub fn interpret(expr: &Expr<Symbol, SymbolicType>, env: &mut Environment, prog: &SymbolicProgram) -> Result<Value, Report> {
+pub fn interpret(
+    expr: &Expr<Symbol, SymbolicType>,
+    env: &mut Environment,
+    prog: &SymbolicProgram,
+) -> Result<Value, Report> {
     match expr {
         Expr::BoolLiteral(b, _) => Ok(Value::Bool(*b)),
         Expr::IntLiteral(i, _) => Ok(Value::Int(*i)),
@@ -33,12 +37,12 @@ pub fn interpret(expr: &Expr<Symbol, SymbolicType>, env: &mut Environment, prog:
         Expr::Times(lhs, rhs) => Ok(interpret(lhs, env, prog)? * interpret(rhs, env, prog)?),
         Expr::Div(lhs, rhs) => Ok(interpret(lhs, env, prog)? / interpret(rhs, env, prog)?),
         Expr::Mod(lhs, rhs) => Ok(interpret(lhs, env, prog)? % interpret(rhs, env, prog)?),
-        Expr::LessEquals(lhs, rhs) => {
-            Ok(Value::Bool(interpret(lhs, env, prog)? <= interpret(rhs, env, prog)?))
-        }
-        Expr::LessThan(lhs, rhs) => {
-            Ok(Value::Bool(interpret(lhs, env, prog)? < interpret(rhs, env, prog)?))
-        }
+        Expr::LessEquals(lhs, rhs) => Ok(Value::Bool(
+            interpret(lhs, env, prog)? <= interpret(rhs, env, prog)?,
+        )),
+        Expr::LessThan(lhs, rhs) => Ok(Value::Bool(
+            interpret(lhs, env, prog)? < interpret(rhs, env, prog)?,
+        )),
         Expr::And(lhs, rhs) => {
             if let Value::Bool(false) = interpret(lhs, env, prog)? {
                 Ok(Value::Bool(false))
@@ -53,22 +57,22 @@ pub fn interpret(expr: &Expr<Symbol, SymbolicType>, env: &mut Environment, prog:
                 interpret(rhs, env, prog)
             }
         }
-        Expr::Equals(lhs, rhs) => {
-            Ok(Value::Bool(interpret(lhs, env, prog)? == interpret(rhs, env, prog)?))
-        }
+        Expr::Equals(lhs, rhs) => Ok(Value::Bool(
+            interpret(lhs, env, prog)? == interpret(rhs, env, prog)?,
+        )),
         Expr::Concat(lhs, rhs) => {
             let Value::String(s1) = interpret(lhs, env, prog)? else {
                 return Err(Report {
                     stage: Stage::Interpreting,
                     range: range(lhs),
-                    msg: format!("expected string, found `{}`", lhs.show(0))
+                    msg: format!("expected string, found `{}`", lhs.show(0)),
                 });
             };
             let Value::String(s2) = interpret(rhs, env, prog)? else {
                 return Err(Report {
                     stage: Stage::Interpreting,
                     range: range(rhs),
-                    msg: format!("expected string, found `{}`", lhs.show(0))
+                    msg: format!("expected string, found `{}`", lhs.show(0)),
                 });
             };
 
@@ -80,7 +84,7 @@ pub fn interpret(expr: &Expr<Symbol, SymbolicType>, env: &mut Environment, prog:
                 return Err(Report {
                     stage: Stage::Interpreting,
                     range: range(e),
-                    msg: format!("expected boolean, found `{}`", e.show(0))
+                    msg: format!("expected boolean, found `{}`", e.show(0)),
                 });
             };
 
@@ -91,7 +95,7 @@ pub fn interpret(expr: &Expr<Symbol, SymbolicType>, env: &mut Environment, prog:
                 return Err(Report {
                     stage: Stage::Interpreting,
                     range: range(e),
-                    msg: format!("expected integer, found `{}`", e.show(0))
+                    msg: format!("expected integer, found `{}`", e.show(0)),
                 });
             };
 
@@ -105,13 +109,15 @@ pub fn interpret(expr: &Expr<Symbol, SymbolicType>, env: &mut Environment, prog:
                     .map(|e| interpret(e, env, prog))
                     .collect::<Result<Vec<_>, _>>()?;
                 if values.len() != def.args.len() {
-                    return Err(
-                        Report {
-                            stage: Stage::Interpreting,
-                            range: *span,
-                            msg: format!("expected {} arguments, found {}", def.args.len(), values.len())
-                        }
-                    );
+                    return Err(Report {
+                        stage: Stage::Interpreting,
+                        range: *span,
+                        msg: format!(
+                            "expected {} arguments, found {}",
+                            def.args.len(),
+                            values.len()
+                        ),
+                    });
                 }
 
                 let map = def
@@ -131,16 +137,21 @@ pub fn interpret(expr: &Expr<Symbol, SymbolicType>, env: &mut Environment, prog:
                     .map(|e| interpret(e, env, prog))
                     .collect::<Result<Vec<_>, _>>()?;
                 if values.len() != def.args.len() {
-                    return Err(
-                        Report {
-                            stage: Stage::Interpreting,
-                            range: *span,
-                            msg: format!("expected {} arguments, found {}", def.args.len(), values.len())
-                        }
-                    );
+                    return Err(Report {
+                        stage: Stage::Interpreting,
+                        range: *span,
+                        msg: format!(
+                            "expected {} arguments, found {}",
+                            def.args.len(),
+                            values.len()
+                        ),
+                    });
                 }
 
-                Ok(Value::CaseClassValue(def.name.clone(), values.into_iter().map(Box::new).collect()))
+                Ok(Value::CaseClassValue(
+                    def.name.clone(),
+                    values.into_iter().map(Box::new).collect(),
+                ))
             } else {
                 todo!("unresolved call")
             }
@@ -158,13 +169,11 @@ pub fn interpret(expr: &Expr<Symbol, SymbolicType>, env: &mut Environment, prog:
         }
         Expr::Ite(cond, then, elze, _) => {
             let Value::Bool(condval) = interpret(cond, env, prog)? else {
-                return Err(
-                    Report {
-                        stage: Stage::Interpreting,
-                        range: range(cond),
-                        msg: format!("expected boolean, found `{}`", cond.show(0))
-                    }
-                );
+                return Err(Report {
+                    stage: Stage::Interpreting,
+                    range: range(cond),
+                    msg: format!("expected boolean, found `{}`", cond.show(0)),
+                });
             };
 
             if condval {
@@ -191,28 +200,27 @@ pub fn interpret(expr: &Expr<Symbol, SymbolicType>, env: &mut Environment, prog:
             Err(Report {
                 stage: Stage::Interpreting,
                 range: range(e),
-                msg: format!("match error: no case pattern matches expression {}", e.show(0))
+                msg: format!(
+                    "match error: no case pattern matches expression {}",
+                    e.show(0)
+                ),
             })
         }
 
         Expr::Error(msg, span) => {
             let Value::String(str) = interpret(msg, env, prog)? else {
-                return Err(
-                    Report {
-                        stage: Stage::Interpreting,
-                        range: range(msg),
-                        msg: format!("expected boolean, found `{}`", msg.show(0))
-                    }
-                );
+                return Err(Report {
+                    stage: Stage::Interpreting,
+                    range: range(msg),
+                    msg: format!("expected boolean, found `{}`", msg.show(0)),
+                });
             };
 
-            Err(
-                Report {
-                    stage: Stage::Interpreting,
-                    range: *span,
-                    msg: format!("error: {str}")
-                }
-            )
+            Err(Report {
+                stage: Stage::Interpreting,
+                range: *span,
+                msg: format!("error: {str}"),
+            })
         }
     }
 }

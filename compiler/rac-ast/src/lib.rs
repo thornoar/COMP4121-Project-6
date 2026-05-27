@@ -36,7 +36,7 @@ pub enum NominalType {
     BoolType(Span),
     StringType(Span),
     UnitType(Span),
-    IdType(Name, VecDeque<NominalType>, Span)
+    IdType(Name, VecDeque<NominalType>, Span),
 }
 
 pub type NomArgList = VecDeque<(String, NominalType)>;
@@ -50,8 +50,14 @@ impl Display for NominalType {
             StringType(_) => write!(f, "String"),
             UnitType(_) => write!(f, "Unit"),
             IdType(name, params, _) => write!(
-                f, "{}[{}]", name,
-                params.iter().map(|p| format!("{}", p)).collect::<Vec<String>>().join(", ")
+                f,
+                "{}[{}]",
+                name,
+                params
+                    .iter()
+                    .map(|p| format!("{}", p))
+                    .collect::<Vec<String>>()
+                    .join(", ")
             ),
         }
     }
@@ -100,7 +106,11 @@ impl NominalModule {
             if def.type_vars.len() > 0 {
                 print!(
                     " [{}]",
-                    def.type_vars.iter().map(|v| format!("'{}", v)).collect::<Vec<String>>().join(", ")
+                    def.type_vars
+                        .iter()
+                        .map(|v| format!("'{}", v))
+                        .collect::<Vec<String>>()
+                        .join(", ")
                 );
             }
             println!("\n");
@@ -120,7 +130,11 @@ impl NominalModule {
             if def.type_vars.len() > 0 {
                 print!(
                     "[{}] ",
-                    def.type_vars.iter().map(|v| format!("'{}", v)).collect::<Vec<String>>().join(", ")
+                    def.type_vars
+                        .iter()
+                        .map(|v| format!("'{}", v))
+                        .collect::<Vec<String>>()
+                        .join(", ")
                 );
             }
             let args_str = def
@@ -167,8 +181,14 @@ impl Display for SymbolicType {
             StringType => write!(f, "String"),
             UnitType => write!(f, "Unit"),
             ClassType(name, params) => write!(
-                f, "{}[{}]", name,
-                params.iter().map(|p| format!("{}", p)).collect::<Vec<String>>().join(", ")
+                f,
+                "{}[{}]",
+                name,
+                params
+                    .iter()
+                    .map(|p| format!("{}", p))
+                    .collect::<Vec<String>>()
+                    .join(", ")
             ),
             Var(name) => write!(f, "'{}", name),
         }
@@ -196,7 +216,10 @@ pub struct Symbol {
 
 impl Symbol {
     pub fn new(name: &String, id: SID) -> Self {
-        Self { name: name.clone(), id }
+        Self {
+            name: name.clone(),
+            id,
+        }
     }
 }
 
@@ -207,7 +230,7 @@ impl Display for Symbol {
 }
 
 pub struct SymbolGenerator {
-    next_id: SID
+    next_id: SID,
 }
 
 impl SymbolGenerator {
@@ -273,7 +296,11 @@ impl SymbolicProgram {
             if def.type_vars.len() > 0 {
                 print!(
                     " [{}]",
-                    def.type_vars.iter().map(|v| format!("'{}", v)).collect::<Vec<String>>().join(", ")
+                    def.type_vars
+                        .iter()
+                        .map(|v| format!("'{}", v))
+                        .collect::<Vec<String>>()
+                        .join(", ")
                 );
             }
             println!("\n");
@@ -293,7 +320,11 @@ impl SymbolicProgram {
             if def.type_vars.len() > 0 {
                 print!(
                     "[{}] ",
-                    def.type_vars.iter().map(|v| format!("'{}", v)).collect::<Vec<String>>().join(", ")
+                    def.type_vars
+                        .iter()
+                        .map(|v| format!("'{}", v))
+                        .collect::<Vec<String>>()
+                        .join(", ")
                 );
             }
             let args_str = def
@@ -329,39 +360,39 @@ pub enum Expr<N, T> {
     UnitLiteral(Span),
 
     // Binary operators. Range is computed as the `join` of the ranges of `lhs` and `rhs`
-    Plus(Box<Expr<N,T>>, Box<Expr<N,T>>),
-    Minus(Box<Expr<N,T>>, Box<Expr<N,T>>),
-    Times(Box<Expr<N,T>>, Box<Expr<N,T>>),
-    Div(Box<Expr<N,T>>, Box<Expr<N,T>>),
-    Mod(Box<Expr<N,T>>, Box<Expr<N,T>>),
-    LessThan(Box<Expr<N,T>>, Box<Expr<N,T>>),
-    LessEquals(Box<Expr<N,T>>, Box<Expr<N,T>>),
-    And(Box<Expr<N,T>>, Box<Expr<N,T>>),
-    Or(Box<Expr<N,T>>, Box<Expr<N,T>>),
-    Equals(Box<Expr<N,T>>, Box<Expr<N,T>>),
-    Concat(Box<Expr<N,T>>, Box<Expr<N,T>>),
+    Plus(Box<Expr<N, T>>, Box<Expr<N, T>>),
+    Minus(Box<Expr<N, T>>, Box<Expr<N, T>>),
+    Times(Box<Expr<N, T>>, Box<Expr<N, T>>),
+    Div(Box<Expr<N, T>>, Box<Expr<N, T>>),
+    Mod(Box<Expr<N, T>>, Box<Expr<N, T>>),
+    LessThan(Box<Expr<N, T>>, Box<Expr<N, T>>),
+    LessEquals(Box<Expr<N, T>>, Box<Expr<N, T>>),
+    And(Box<Expr<N, T>>, Box<Expr<N, T>>),
+    Or(Box<Expr<N, T>>, Box<Expr<N, T>>),
+    Equals(Box<Expr<N, T>>, Box<Expr<N, T>>),
+    Concat(Box<Expr<N, T>>, Box<Expr<N, T>>),
 
     // Unary operators. The `Span` contains the range of *the operator*, not the whole expression
-    Not(Box<Expr<N,T>>, Span),
-    Neg(Box<Expr<N,T>>, Span),
+    Not(Box<Expr<N, T>>, Span),
+    Neg(Box<Expr<N, T>>, Span),
 
     // Function/constructor call. The `Span` contains the range of the *entire expression*
-    Call(N, VecDeque<Expr<N,T>>, Span),
+    Call(N, VecDeque<Expr<N, T>>, Span),
 
     // Control flow
-    Sequence(Box<Expr<N,T>>, Box<Expr<N,T>>), // range is computed as the `join` of the ranges of `lhs` and `rhs`
-    Let(N, T, Box<Expr<N,T>>, Box<Expr<N,T>>, Span), // The `Span` contains the range of the *entire expression*
-    Ite(Box<Expr<N,T>>, Box<Expr<N,T>>, Box<Expr<N,T>>, Span), // The `Span` contains the range of the *entire expression*
+    Sequence(Box<Expr<N, T>>, Box<Expr<N, T>>), // range is computed as the `join` of the ranges of `lhs` and `rhs`
+    Let(N, T, Box<Expr<N, T>>, Box<Expr<N, T>>, Span), // The `Span` contains the range of the *entire expression*
+    Ite(Box<Expr<N, T>>, Box<Expr<N, T>>, Box<Expr<N, T>>, Span), // The `Span` contains the range of the *entire expression*
 
     // Pattern matching. The `Span` contains the range of the *closing curly bracket*
-    Match(Box<Expr<N,T>>, VecDeque<(Pattern<N>, Expr<N,T>)>, Span),
+    Match(Box<Expr<N, T>>, VecDeque<(Pattern<N>, Expr<N, T>)>, Span),
 
     // Errors. The `Span` contains the range of the *entire expression*
-    Error(Box<Expr<N,T>>, Span),
+    Error(Box<Expr<N, T>>, Span),
 }
 
 // Computes the *true* range of a given expression.
-pub fn range<N,T>(e: &Expr<N,T>) -> Span {
+pub fn range<N, T>(e: &Expr<N, T>) -> Span {
     use Expr::*;
     match e {
         Variable(_, s) => *s,
@@ -391,7 +422,7 @@ pub fn range<N,T>(e: &Expr<N,T>) -> Span {
     }
 }
 
-impl<N: Display, T: Display> Expr<N,T> {
+impl<N: Display, T: Display> Expr<N, T> {
     pub fn show(&self, indent: usize) -> String {
         use Expr::*;
         let prefix1 = "   ".repeat(indent);

@@ -3,11 +3,10 @@ use std::fmt::Display;
 use rac_ast::SymbolicType;
 use rac_diagnostics::Span;
 
-
 pub struct Constraint {
     pub lhs: SymbolicType,
     pub rhs: SymbolicType,
-    pub range: Span
+    pub range: Span,
 }
 
 impl Display for Constraint {

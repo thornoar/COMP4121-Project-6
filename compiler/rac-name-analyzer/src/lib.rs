@@ -1,6 +1,6 @@
 use rac_ast::{
-    Expr, Name, NominalModule, NominalType, Pattern, SID, Symbol, SymbolGenerator, SymbolicTypeDef,
-    SymbolicClassDef, SymbolicFunDef, SymbolicProgram, SymbolicType,
+    Expr, Name, NominalModule, NominalType, Pattern, SID, Symbol, SymbolGenerator,
+    SymbolicClassDef, SymbolicFunDef, SymbolicProgram, SymbolicType, SymbolicTypeDef,
 };
 use rac_diagnostics::{Report, Span, Stage};
 use std::collections::{HashMap, VecDeque};
@@ -339,7 +339,13 @@ fn resolve_type(arg: &NominalType, env: &TypeTable) -> Result<SymbolicType, Repo
                 for var in env.type_vars.iter() {
                     if var.name == qn.name {
                         if params.len() > 0 {
-                            return error!(*s, format!("The type variable `{}` cannot take any type parameters.", qn.name))
+                            return error!(
+                                *s,
+                                format!(
+                                    "The type variable `{}` cannot take any type parameters.",
+                                    qn.name
+                                )
+                            );
                         }
                         return Ok(ST::Var(Symbol::new(&qn.name, var.id)));
                     }
