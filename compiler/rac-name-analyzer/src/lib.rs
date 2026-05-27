@@ -1,5 +1,5 @@
 use rac_ast::{
-    Expr, Name, NominalModule, SID, Symbol, SymbolGenerator, SymbolKind as SK, SymbolicAbstDef, SymbolicClassDef, SymbolicFunDef, SymbolicProgram, Type
+    Expr, Name, NominalModule, SID, Symbol, SymbolGenerator, SymbolicAbstDef, SymbolicClassDef, SymbolicFunDef, SymbolicProgram, Type
 };
 use rac_diagnostics::{Report, Span, Stage};
 use std::collections::{HashMap, VecDeque};
@@ -32,7 +32,7 @@ pub fn resolve(modules: &VecDeque<NominalModule>, sg: &mut SymbolGenerator) -> R
                 );
             }
             cur_types.insert(&def.name, SymbolicAbstDef {
-                name: sg.fresh(def.name.clone(), SK::Type),
+                name: sg.fresh(def.name.clone()),
                 range: def.range,
             });
         }
@@ -66,12 +66,12 @@ pub fn resolve(modules: &VecDeque<NominalModule>, sg: &mut SymbolGenerator) -> R
             let mut sym_args = VecDeque::new();
             for (name, typ, s) in def.args.iter() {
                 let sym_typ = resolve_type(typ, *s, &md.name, &user_types)?;
-                let sym_name = sg.fresh(name.clone(), SK::Field);
+                let sym_name = sg.fresh(name.clone());
                 sym_args.push_back((sym_name, sym_typ, *s));
             }
 
             cur_cls_defs.insert(&def.name, SymbolicClassDef {
-                name: sg.fresh(def.name.clone(), SK::Constructor),
+                name: sg.fresh(def.name.clone()),
                 args: sym_args,
                 parent: sym_parent,
                 range: def.range
@@ -96,7 +96,7 @@ pub fn resolve(modules: &VecDeque<NominalModule>, sg: &mut SymbolGenerator) -> R
             let mut sym_args = VecDeque::new();
             for (name, typ, s) in def.args.iter() {
                 let sym_typ = resolve_type(typ, *s, &md.name, &user_types)?;
-                let sym_name = sg.fresh(name.clone(), SK::Field);
+                let sym_name = sg.fresh(name.clone());
                 sym_args.push_back((sym_name, sym_typ, *s));
             }
         
@@ -107,7 +107,7 @@ pub fn resolve(modules: &VecDeque<NominalModule>, sg: &mut SymbolGenerator) -> R
             let sym_body = todo!();
 
             cur_fun_defs.insert(&def.name, SymbolicFunDef {
-                name: sg.fresh(def.name.clone(), SK::Function),
+                name: sg.fresh(def.name.clone()),
                 args: sym_args,
                 rt: sym_rt,
                 body: sym_body,

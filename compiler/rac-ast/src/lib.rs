@@ -59,7 +59,6 @@ pub struct NominalModule {
     pub abstract_defs: VecDeque<NominalAbstDef>,
     pub class_defs: VecDeque<NominalClassDef>,
     pub fun_defs: VecDeque<NominalFunDef>,
-    // pub defs: VecDeque<NominalDefinition>,
     pub expr: Option<Expr<Name>>,
 }
 
@@ -101,15 +100,15 @@ impl NominalModule {
 
 // Symbolic (resolved) AST structure
 
-#[derive(Debug, Clone, Hash, Eq, PartialEq)]
-pub enum SymbolKind {
-    Variable,
-    Function,
-    Constructor,
-    Type,
-    TypeVariable,
-    Field,
-}
+// #[derive(Debug, Clone, Hash, Eq, PartialEq)]
+// pub enum SymbolKind {
+//     Variable,
+//     Function,
+//     Constructor,
+//     Type,
+//     TypeVariable,
+//     Field,
+// }
 
 pub type SID = u64;
 
@@ -117,7 +116,7 @@ pub type SID = u64;
 pub struct Symbol {
     pub name: String,
     pub id: SID,
-    pub kind: SymbolKind,
+    // pub kind: SymbolKind,
 }
 
 impl Display for Symbol {
@@ -135,14 +134,14 @@ impl SymbolGenerator {
         SymbolGenerator { next_id: 0 }
     }
 
-    pub fn fresh(&mut self, name: String, kind: SymbolKind) -> Symbol {
-        let sym = Symbol { name, id: self.next_id, kind: kind };
+    pub fn fresh(&mut self, name: String) -> Symbol {
+        let sym = Symbol { name, id: self.next_id };
         self.next_id += 1;
         sym
     }
 
     pub fn fresh_type_var(&mut self) -> Type<Symbol> {
-        Type::Var(self.fresh(String::from(format!("'a:{}", self.next_id)), SymbolKind::TypeVariable))
+        Type::Var(self.fresh(String::from(format!("'a:{}", self.next_id))))
     }
 }
 
