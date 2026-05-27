@@ -4,7 +4,7 @@ object TO
   case class None() extends Option
   case class Some(x: A) extends Option
 
-  def extract[B] (x: Option[B]): B :=
+  def extract[B, C] (x: Option[B, C], y: C[B]): B :=
     x match {
       case None() => error("found a None!")
       case Some(v) => v

@@ -338,6 +338,9 @@ fn resolve_type(arg: &NominalType, env: &TypeTable) -> Result<SymbolicType, Repo
             None => {
                 for var in env.type_vars.iter() {
                     if var.name == qn.name {
+                        if params.len() > 0 {
+                            return error!(*s, format!("The type variable `{}` cannot take any type parameters.", qn.name))
+                        }
                         return Ok(ST::Var(Symbol::new(&qn.name, var.id)));
                     }
                 }
