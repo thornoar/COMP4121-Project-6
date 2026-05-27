@@ -123,17 +123,17 @@ fn parse_many_definitions<'a>(
             TK::KwAbstract => {
                 ts.consume();
                 let def = parse_abst_def(src, ts)?;
-                ad.push_back(def);
+                ad.push_front(def);
             }
             TK::KwCase => {
                 ts.consume();
                 let def = parse_class_def(src, ts)?;
-                cd.push_back(def);
+                cd.push_front(def);
             }
             TK::KwDef => {
                 ts.consume();
                 let def = parse_fun_def(src, ts)?;
-                fd.push_back(def);
+                fd.push_front(def);
             }
             _ => {
                 break;
@@ -315,12 +315,12 @@ fn parse_many_arguments<'a>(
     match delim.kind {
         TK::Comma => {
             let mut lst = parse_many_arguments(src, ts)?;
-            lst.push_back(arg);
+            lst.push_front(arg);
             Ok(lst)
         }
         TK::CloseParen => {
             let mut lst = VecDeque::new();
-            lst.push_back(arg);
+            lst.push_front(arg);
             Ok(lst)
         }
         _ => error!(
@@ -641,14 +641,14 @@ fn parse_many_patterns<'a>(
     match delim.kind {
         TK::Comma => {
             ts.consume();
-            let mut rest = parse_many_patterns(src, ts)?;
-            rest.push_back(pat);
-            Ok(rest)
+            let mut res = parse_many_patterns(src, ts)?;
+            res.push_front(pat);
+            Ok(res)
         }
         TK::CloseParen => {
-            let mut rest = VecDeque::new();
-            rest.push_back(pat);
-            Ok(rest)
+            let mut res = VecDeque::new();
+            res.push_front(pat);
+            Ok(res)
         }
         _ => error!(
             delim.range,
@@ -808,14 +808,14 @@ fn parse_many_exprs<'a>(src: &'a [u8], ts: &mut TokenIter) -> Result<VecDeque<Ex
     match delim.kind {
         TK::Comma => {
             ts.consume();
-            let mut rest = parse_many_exprs(src, ts)?;
-            rest.push_back(cur);
-            Ok(rest)
+            let mut res = parse_many_exprs(src, ts)?;
+            res.push_front(cur);
+            Ok(res)
         }
         TK::CloseParen => {
-            let mut rest = VecDeque::new();
-            rest.push_back(cur);
-            Ok(rest)
+            let mut res = VecDeque::new();
+            res.push_front(cur);
+            Ok(res)
         }
         _ => error!(
             delim.range,

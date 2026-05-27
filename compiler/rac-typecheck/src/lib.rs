@@ -10,7 +10,7 @@ pub mod constraint;
 macro_rules! single {
     ($elt:expr) => {{
         let mut res = VecDeque::new();
-        res.push_back($elt);
+        res.push_front($elt);
         res
     }};
 }
