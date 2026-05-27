@@ -97,7 +97,7 @@ pub fn parse<'a>(src: &'a [u8], ts: &mut TokenIter) -> Result<NominalModule, Rep
     Ok(NominalModule {
         name: name,
         range: id1.range,
-        abstract_defs: ad,
+        type_defs: ad,
         class_defs: cd,
         fun_defs: fd,
         expr: mexpr,
@@ -111,7 +111,7 @@ fn parse_many_definitions<'a>(
     ts: &mut TokenIter,
 ) -> Result<
     (
-        VecDeque<NominalAbstDef>,
+        VecDeque<NominalTypeDef>,
         VecDeque<NominalClassDef>,
         VecDeque<NominalFunDef>,
     ),
@@ -220,7 +220,7 @@ fn parse_fun_def<'a>(src: &'a [u8], ts: &mut TokenIter) -> Result<NominalFunDef,
     })
 }
 
-fn parse_abst_def<'a>(src: &'a [u8], ts: &mut TokenIter) -> Result<NominalAbstDef, Report> {
+fn parse_abst_def<'a>(src: &'a [u8], ts: &mut TokenIter) -> Result<NominalTypeDef, Report> {
     expect!(
         ts,
         TK::KwClass,
@@ -233,7 +233,7 @@ fn parse_abst_def<'a>(src: &'a [u8], ts: &mut TokenIter) -> Result<NominalAbstDe
     );
     let name = get_string(src, id.range)?;
     let type_vars = parse_type_vars(src, ts)?;
-    Ok(NominalAbstDef {
+    Ok(NominalTypeDef {
         name,
         type_vars,
         range: id.range,
@@ -345,7 +345,7 @@ fn parse_argument<'a>(src: &'a [u8], ts: &mut TokenIter) -> Result<(String, Nomi
 }
 
 // Parses a type.
-// Examples: `String`, `Unit`, `Int(32)`, `UserType`
+// Examples: `String`, `Unit`, `Int(32)`, `UserType`, `T[A, B, C]`
 fn parse_type<'a>(src: &'a [u8], ts: &mut TokenIter) -> Result<NominalType, Report> {
     let typ1 = ts.pop();
     match typ1.kind {
@@ -374,27 +374,41 @@ fn parse_type<'a>(src: &'a [u8], ts: &mut TokenIter) -> Result<NominalType, Repo
         TK::TypBoolean => Ok(NominalType::BoolType(typ1.range)),
         TK::TypString => Ok(NominalType::StringType(typ1.range)),
         TK::TypUnit => Ok(NominalType::UnitType(typ1.range)),
-        TK::Identifier => match ts.peek().kind {
-            TK::Dot => {
-                let owner = get_string(src, typ1.range)?;
-                ts.consume();
-                let typ2 = expect!(
-                    ts,
-                    TK::Identifier,
-                    "Expected a valid identifier as part of a qualified name"
-                );
-                let name = get_string(src, typ2.range)?;
-                Ok(NominalType::IdType(Name::new(Some(owner), name), join(typ1.range, typ2.range)))
+        TK::Identifier => {
+            let (qual, s) = get_name(src, ts, typ1.range)?;
+            match ts.peek().kind {
+                TK::OpenBracket => {
+                    ts.consume();
+                    let params = parse_many_types(src, ts)?;
+                    let cp = expect!(ts, TK::CloseBracket, "Expected a closing bracket to finish the type parameter list.");
+                    Ok(NominalType::IdType(qual, params, join(s, cp.range)))
+                }
+                _ => Ok(NominalType::IdType(qual, VecDeque::new(), s))
             }
-            _ => {
-                get_string(src, typ1.range).map(|s| NominalType::IdType(Name::new(None, s), typ1.range))
-            }
-        },
-
+        }
         _ => error!(
             typ1.range,
             "Expected either a primitive type (`Int`, `Boolean`, `String`, or `Unit`), or an identifier."
         ),
+    }
+}
+
+fn parse_many_types<'a> (src: &'a [u8], ts: &mut TokenIter) -> Result<VecDeque<NominalType>, Report> {
+    let typ = parse_type(src, ts)?;
+    let next = ts.peek();
+    match next.kind {
+        TK::Comma => {
+            ts.consume();
+            let mut res = parse_many_types(src, ts)?;
+            res.push_front(typ);
+            Ok(res)
+        },
+        _ => {
+            let mut res = VecDeque::new();
+            res.push_front(typ);
+            Ok(res)
+        },
+        // _ => error!(next.range, format!("Expected a comma or closing bracket, found {}.", next.kind))
     }
 }
 

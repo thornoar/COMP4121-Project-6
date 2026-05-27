@@ -25,8 +25,6 @@ pub fn join(s1: Span, s2: Span) -> Span {
     }
 }
 
-// pub type Span = (usize, usize);
-
 #[derive(Debug, Clone, Copy, Eq, PartialEq)]
 pub enum Stage {
     Parsing,
@@ -177,9 +175,3 @@ pub fn deliver(r: &Report, fname: &str, src: &[u8]) {
 
     eprintln!("\n{}", r.msg);
 }
-
-// impl<'a> Report<'a> {
-//     pub fn print (&self) {
-//     }
-// }
-//

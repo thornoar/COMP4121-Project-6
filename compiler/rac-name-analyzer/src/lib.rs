@@ -1,5 +1,5 @@
 use rac_ast::{
-    Expr, Name, NominalModule, NominalType, Pattern, SID, Symbol, SymbolGenerator, SymbolicAbstDef,
+    Expr, Name, NominalModule, NominalType, Pattern, SID, Symbol, SymbolGenerator, SymbolicTypeDef,
     SymbolicClassDef, SymbolicFunDef, SymbolicProgram, SymbolicType,
 };
 use rac_diagnostics::{Report, Span, Stage};
@@ -71,7 +71,7 @@ pub fn resolve(
     sg: &mut SymbolGenerator,
 ) -> Result<SymbolicProgram, Report> {
     // Definition maps
-    let mut type_defs: HashMap<SID, SymbolicAbstDef> = HashMap::new();
+    let mut type_defs: HashMap<SID, SymbolicTypeDef> = HashMap::new();
     let mut class_defs: HashMap<SID, SymbolicClassDef> = HashMap::new();
     let mut fun_defs: HashMap<SID, SymbolicFunDef> = HashMap::new();
 
@@ -86,10 +86,10 @@ pub fn resolve(
             return error!(md.range, format!("Module `{}` already defined.", md.name));
         }
 
-        let mut cur_type_defs: HashMap<SID, SymbolicAbstDef> = HashMap::new();
+        let mut cur_type_defs: HashMap<SID, SymbolicTypeDef> = HashMap::new();
         let mut cur_type_syms: HashMap<String, SID> = HashMap::new();
 
-        for def in md.abstract_defs.iter() {
+        for def in md.type_defs.iter() {
             // Check if type is already defined
             check_unique!(
                 &def.name,
@@ -129,7 +129,7 @@ pub fn resolve(
             // Insert the type definition
             cur_type_defs.insert(
                 sid,
-                SymbolicAbstDef {
+                SymbolicTypeDef {
                     name: sym_name,
                     type_vars: sym_type_vars,
                     range: def.range,
@@ -334,21 +334,30 @@ fn resolve_type(arg: &NominalType, env: &TypeTable) -> Result<SymbolicType, Repo
         BoolType(_) => Ok(ST::BoolType),
         StringType(_) => Ok(ST::StringType),
         UnitType(_) => Ok(ST::UnitType),
-        IdType(qn, s) => match qn.owner.clone() {
+        IdType(qn, params, s) => match qn.owner.clone() {
             None => {
                 for var in env.type_vars.iter() {
                     if var.name == qn.name {
                         return Ok(ST::Var(Symbol::new(&qn.name, var.id)));
                     }
                 }
-                let sid = find_type_id!(&qn.name, *s, &env.type_defs[env.cur_mod])?;
-                // find_type_symbol(&qn.name, *s, &env.type_defs[env.cur_mod])?;
-                Ok(ST::ClassType(Symbol::new(&qn.name, sid)))
+                let sid = find_type_id!(&qn.name, *s, &env.type_syms[env.cur_mod])?;
+                let mut sym_params = VecDeque::new();
+                for param in params.iter() {
+                    let sym_param = resolve_type(param, env)?;
+                    sym_params.push_back(sym_param);
+                }
+                Ok(ST::ClassType(Symbol::new(&qn.name, sid), sym_params))
             }
-            Some(owner) => match env.type_defs.get(&owner) {
+            Some(owner) => match env.type_syms.get(&owner) {
                 Some(mp) => {
                     let sid = find_type_id!(&qn.name, *s, mp)?;
-                    Ok(ST::ClassType(Symbol::new(&qn.name, sid)))
+                    let mut sym_params = VecDeque::new();
+                    for param in params.iter() {
+                        let sym_param = resolve_type(param, env)?;
+                        sym_params.push_back(sym_param);
+                    }
+                    Ok(ST::ClassType(Symbol::new(&qn.name, sid), sym_params))
                 }
                 None => error!(*s, format!("No module named `{}`.", owner)),
             },
@@ -362,12 +371,12 @@ fn resolve_call(arg: &Name, range: Span, env: &CallTable) -> Result<Symbol, Repo
             let sid = find_call_id!(
                 &arg.name,
                 range,
-                &env.class_defs[env.cur_mod],
-                &env.fun_defs[env.cur_mod]
+                &env.class_syms[env.cur_mod],
+                &env.fun_syms[env.cur_mod]
             )?;
             Ok(Symbol::new(&arg.name, sid))
         }
-        Some(owner) => match (env.fun_defs.get(owner), env.class_defs.get(owner)) {
+        Some(owner) => match (env.fun_syms.get(owner), env.class_syms.get(owner)) {
             (Some(mp1), Some(mp2)) => {
                 let sid = find_call_id!(&arg.name, range, mp2, mp1)?;
                 Ok(Symbol::new(&arg.name, sid))
@@ -380,10 +389,10 @@ fn resolve_call(arg: &Name, range: Span, env: &CallTable) -> Result<Symbol, Repo
 fn resolve_class(arg: &Name, range: Span, env: &SymbolTable) -> Result<Symbol, Report> {
     match &arg.owner {
         None => {
-            let sid = find_class_id!(&arg.name, range, &env.class_defs[env.cur_mod])?;
+            let sid = find_class_id!(&arg.name, range, &env.class_syms[env.cur_mod])?;
             Ok(Symbol::new(&arg.name, sid))
         }
-        Some(owner) => match env.class_defs.get(owner) {
+        Some(owner) => match env.class_syms.get(owner) {
             Some(mp2) => {
                 let sid = find_class_id!(&arg.name, range, mp2)?;
                 Ok(Symbol::new(&arg.name, sid))

@@ -36,7 +36,7 @@ pub enum NominalType {
     BoolType(Span),
     StringType(Span),
     UnitType(Span),
-    IdType(Name, Span)
+    IdType(Name, VecDeque<NominalType>, Span)
 }
 
 pub type NomArgList = VecDeque<(String, NominalType)>;
@@ -49,13 +49,16 @@ impl Display for NominalType {
             BoolType(_) => write!(f, "Boolean"),
             StringType(_) => write!(f, "String"),
             UnitType(_) => write!(f, "Unit"),
-            IdType(name, _) => write!(f, "{}", name),
+            IdType(name, params, _) => write!(
+                f, "{}[{}]", name,
+                params.iter().map(|p| format!("{}", p)).collect::<Vec<String>>().join(", ")
+            ),
         }
     }
 }
 
 #[derive(Debug)]
-pub struct NominalAbstDef {
+pub struct NominalTypeDef {
     pub name: String,
     pub type_vars: VecDeque<String>,
     pub range: Span,
@@ -83,7 +86,7 @@ pub struct NominalFunDef {
 pub struct NominalModule {
     pub name: String,
     pub range: Span,
-    pub abstract_defs: VecDeque<NominalAbstDef>,
+    pub type_defs: VecDeque<NominalTypeDef>,
     pub class_defs: VecDeque<NominalClassDef>,
     pub fun_defs: VecDeque<NominalFunDef>,
     pub expr: Option<Expr<Name, NominalType>>,
@@ -92,7 +95,7 @@ pub struct NominalModule {
 impl NominalModule {
     pub fn print(&self) {
         println!("\nobject {}", self.name);
-        for def in self.abstract_defs.iter() {
+        for def in self.type_defs.iter() {
             print!("   abstract class {}", def.name);
             if def.type_vars.len() > 0 {
                 print!(
@@ -148,7 +151,7 @@ pub enum SymbolicType {
     StringType,
     UnitType,
     // User-defined types
-    ClassType(Symbol),
+    ClassType(Symbol, VecDeque<SymbolicType>),
     // Type variables
     Var(Symbol),
 }
@@ -163,7 +166,10 @@ impl Display for SymbolicType {
             BoolType => write!(f, "Boolean"),
             StringType => write!(f, "String"),
             UnitType => write!(f, "Unit"),
-            ClassType(name) => write!(f, "{}", name),
+            ClassType(name, params) => write!(
+                f, "{}[{}]", name,
+                params.iter().map(|p| format!("{}", p)).collect::<Vec<String>>().join(", ")
+            ),
             Var(name) => write!(f, "'{}", name),
         }
     }
@@ -227,7 +233,7 @@ impl SymbolGenerator {
 }
 
 #[derive(Debug)]
-pub struct SymbolicAbstDef {
+pub struct SymbolicTypeDef {
     pub name: Symbol,
     pub type_vars: VecDeque<Symbol>,
     pub range: Span,
@@ -253,7 +259,7 @@ pub struct SymbolicFunDef {
 
 #[derive(Debug)]
 pub struct SymbolicProgram {
-    pub type_defs: HashMap<SID, SymbolicAbstDef>,
+    pub type_defs: HashMap<SID, SymbolicTypeDef>,
     pub class_defs: HashMap<SID, SymbolicClassDef>,
     pub fun_defs: HashMap<SID, SymbolicFunDef>,
     pub exprs: VecDeque<Expr<Symbol, SymbolicType>>,
