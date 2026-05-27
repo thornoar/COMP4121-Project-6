@@ -37,7 +37,7 @@ macro_rules! expect {
             return Err(Report {
                 stage: Stage::Parsing,
                 range: token.range,
-                msg: String::from(format!("{}, found {}", $msg, token.kind)),
+                msg: String::from(format!("{}, found {}.", $msg, token.kind)),
             });
         }
         token
@@ -142,6 +142,35 @@ fn parse_many_definitions<'a>(
     Ok((ad, cd, fd))
 }
 
+fn parse_type_vars<'a>(src: &'a [u8], ts: &mut TokenIter) -> Result<VecDeque<String>, Report> {
+    match ts.peek().kind {
+        TK::OpenBracket => {
+            ts.consume();
+            parse_many_type_vars(src, ts)
+        }
+        _ => Ok(VecDeque::new())
+    }
+}
+
+fn parse_many_type_vars<'a>(src: &'a [u8], ts: &mut TokenIter) -> Result<VecDeque<String>, Report> {
+    let var = expect!(ts, TK::Identifier, "Expected a type variable");
+    let var_name = get_string(src, var.range)?;
+    let next = ts.pop();
+    match next.kind {
+        TK::Comma => {
+            let mut res = parse_many_type_vars(src, ts)?;
+            res.push_front(var_name);
+            Ok(res)
+        },
+        TK::CloseBracket => {
+            let mut res = VecDeque::new();
+            res.push_front(var_name);
+            Ok(res)
+        },
+        _ => error!(next.range, format!("Expected a comma or closing bracket, found {}.", next.kind))
+    }
+}
+
 fn parse_fun_def<'a>(src: &'a [u8], ts: &mut TokenIter) -> Result<NominalFunDef, Report> {
     let id1 = expect!(
         ts,
@@ -149,6 +178,7 @@ fn parse_fun_def<'a>(src: &'a [u8], ts: &mut TokenIter) -> Result<NominalFunDef,
         "A function must have a valid name identifier"
     );
     let name = get_string(src, id1.range)?;
+    let type_vars = parse_type_vars(src, ts)?;
     let args = parse_arglist(src, ts)?;
     expect!(
         ts,
@@ -181,6 +211,7 @@ fn parse_fun_def<'a>(src: &'a [u8], ts: &mut TokenIter) -> Result<NominalFunDef,
     }
     Ok(NominalFunDef {
         name,
+        type_vars,
         args,
         rt,
         body,
@@ -200,8 +231,10 @@ fn parse_abst_def<'a>(src: &'a [u8], ts: &mut TokenIter) -> Result<NominalAbstDe
         "An abstract class must have a valid name identifier"
     );
     let name = get_string(src, id.range)?;
+    let type_vars = parse_type_vars(src, ts)?;
     Ok(NominalAbstDef {
         name,
+        type_vars,
         range: id.range,
     })
 }
@@ -896,7 +929,7 @@ mod tests {
         match parse_expr(src, &mut ts) {
             Ok(e) => {
                 println!("\n{}", e.show(0));
-                println!("\nrange: {:?}", range(e));
+                println!("\nrange: {:?}", range(&e));
             }
             Err(r) => deliver(&r, "_.amy", src),
         }

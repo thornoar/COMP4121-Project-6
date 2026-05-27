@@ -31,6 +31,7 @@ impl Display for Name {
 #[derive(Debug)]
 pub struct NominalAbstDef {
     pub name: String,
+    pub type_vars: VecDeque<String>,
     pub range: Span,
 }
 
@@ -45,6 +46,7 @@ pub struct NominalClassDef {
 #[derive(Debug)]
 pub struct NominalFunDef {
     pub name: String,
+    pub type_vars: VecDeque<String>,
     pub args: ArgList<String, Name>,
     pub rt: (Type<Name>, Span),
     pub body: Expr<Name>,
