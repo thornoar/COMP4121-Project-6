@@ -1,5 +1,5 @@
 use rac_ast::{
-    Expr, NominalModule, SID, Symbol, SymbolGenerator, SymbolicAbstDef, SymbolicClassDef, SymbolicFunDef, SymbolicProgram, NominalType, SymbolicType
+    Expr, Name, NominalModule, NominalType, SID, Symbol, SymbolGenerator, SymbolicAbstDef, SymbolicClassDef, SymbolicFunDef, SymbolicProgram, SymbolicType
 };
 use rac_diagnostics::{MID, Report, Span, Stage};
 use std::{collections::{HashMap, VecDeque}};
@@ -91,12 +91,12 @@ pub fn resolve(modules: &VecDeque<NominalModule>, sg: &mut SymbolGenerator) -> R
 
             // Resolve the parent
             let parent_id = find_type_symbol(&def.parent, def.range, &types_by_mod[&md.name], &user_types)?;
-            let sym_parent = Symbol { name: def.parent.clone(), id: parent_id };
+            let sym_parent = Symbol::new(&def.parent, parent_id);
 
             // Resolve the arguments
             let mut sym_args = VecDeque::new();
             for (name, typ, s) in def.args.iter() {
-                let sym_typ = resolve_type(typ, &md.name, *s, &types_by_mod, &user_types)?;
+                let sym_typ = resolve_type(typ, &md.name, *s, &user_types[&parent_id].type_vars, &types_by_mod, &user_types)?;
                 let sym_name = sg.fresh(name.clone());
                 sym_args.push_back((sym_name, sym_typ, *s));
             }
@@ -146,13 +146,13 @@ pub fn resolve(modules: &VecDeque<NominalModule>, sg: &mut SymbolGenerator) -> R
             // Resolve the arguments
             let mut sym_args = VecDeque::new();
             for (name, typ, s) in def.args.iter() {
-                let sym_typ = resolve_type(typ, &md.name, *s, &types_by_mod, &user_types)?;
+                let sym_typ = resolve_type(typ, &md.name, *s, &sym_type_vars, &types_by_mod, &user_types)?;
                 let sym_name = sg.fresh(name.clone());
                 sym_args.push_back((sym_name, sym_typ, *s));
             }
         
             // Resolve the return type
-            let sym_rt = resolve_type(&def.rt.0, &md.name, def.rt.1, &types_by_mod, &user_types)?;
+            let sym_rt = resolve_type(&def.rt.0, &md.name, def.rt.1, &sym_type_vars, &types_by_mod, &user_types)?;
 
             // Resolve the body
             let sym_body = todo!();
@@ -206,10 +206,37 @@ fn find_type_symbol(name: &String, range: Span, ids: &VecDeque<SID>, defs: &Hash
     );
 }
 
+fn find_class_symbol(name: &String, range: Span, ids: &VecDeque<SID>, defs: &HashMap<SID, SymbolicClassDef>) -> Result<SID, Report> {
+    for sid in ids.iter() {
+        let sym = &defs[sid].name;
+        if sym.name == *name {
+            return Ok(sym.id);
+        }
+    }
+    return error!(
+        range,
+        format!("Could not find a case class named `{}`.", name)
+    );
+}
+
+fn find_fun_symbol(name: &String, range: Span, ids: &VecDeque<SID>, defs: &HashMap<SID, SymbolicFunDef>) -> Result<SID, Report> {
+    for sid in ids.iter() {
+        let sym = &defs[sid].name;
+        if sym.name == *name {
+            return Ok(sym.id);
+        }
+    }
+    return error!(
+        range,
+        format!("Could not find a function named `{}`.", name)
+    );
+}
+
 fn resolve_type (
     arg: &NominalType,
     cur_mod: &String,
     range: Span,
+    type_vars: &VecDeque<Symbol>,
     ids_by_mod: &HashMap<&String, VecDeque<SID>>,
     class_defs: &HashMap<SID, SymbolicAbstDef>
 ) -> Result<SymbolicType, Report> {
@@ -222,6 +249,11 @@ fn resolve_type (
         UnitType => Ok(ST::UnitType),
         IdType(qn) => match qn.owner.clone() {
             None => {
+                for var in type_vars.iter() {
+                    if var.name == qn.name {
+                        return Ok(ST::Var(Symbol::new(&qn.name, var.id)))
+                    }
+                }
                 let sid = find_type_symbol(&qn.name, range, &ids_by_mod[cur_mod], class_defs)?;
                 Ok(ST::ClassType(Symbol::new(&qn.name, sid)))
             }
@@ -236,11 +268,39 @@ fn resolve_type (
     }
 }
 
-fn contains_with_name(lst: &VecDeque<Symbol>, nme: &String) -> bool {
-    for item in lst.iter() {
-        if item.name == *nme {
-            return true;
-        }
+fn resolve_expr(
+    e: Expr<Name, NominalType>,
+    env: &mut HashMap<&String, SID>,
+    user_types: &HashMap<SID, SymbolicAbstDef>
+) -> Result<Expr<Symbol, SymbolicType>, Report> {
+    use Expr::*;
+
+    macro_rules! binop {
+        ($lhs:expr, $rhs:expr, $constr:ident) => {{
+            let sym_lhs = resolve_expr($lhs, env, user_types)?;
+            let sym_rhs = resolve_expr($rhs, env, user_types)?;
+            Ok($constr($lhs, $rhs))
+        }};
     }
-    return false;
+
+    match e {
+        Variable(qn, s) => match env.get(&qn.name) {
+            Some(sid) => Ok(Variable(Symbol::new(&qn.name, *sid), s)),
+            None => error!(s, format!("Variable `{}` not found in current scope.", qn.name))
+        },
+        IntLiteral(val, s) => Ok(IntLiteral(val, s)),
+        BoolLiteral(val, s) => Ok(BoolLiteral(val, s)),
+        StringLiteral(val, s) => Ok(StringLiteral(val, s)),
+        UnitLiteral(s) => Ok(UnitLiteral(s)),
+        _ => todo!()
+    }
 }
+
+// fn contains_with_name(lst: &VecDeque<Symbol>, nme: &String) -> bool {
+//     for item in lst.iter() {
+//         if item.name == *nme {
+//             return true;
+//         }
+//     }
+//     return false;
+// }
