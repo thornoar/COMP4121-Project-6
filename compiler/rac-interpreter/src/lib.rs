@@ -177,22 +177,22 @@ pub fn interpret(expr: &Expr<Symbol, SymbolicType>, env: &mut Environment, prog:
         Expr::Match(e, cases, _) => {
             let scrutinee = interpret(e, env, prog)?;
 
-            cases
-                .iter()
-                .fold(None, |acc, (pattern, body)| {
-                    acc.or_else(|| {
-                        let Some(bindings) = match_and_bind(&scrutinee, pattern) else {
-                            panic!("Match error");
-                        };
-                        env.push_scope();
-                        env.define_many(bindings);
-                        let ret = interpret(body, env, prog);
-                        env.pop_scope();
+            for (pattern, body) in cases {
+                if let Some(bindings) = match_and_bind(&scrutinee, pattern) {
+                    env.push_scope();
+                    env.define_many(bindings);
+                    let ret = interpret(body, env, prog);
+                    env.pop_scope();
 
-                        Some(ret)
-                    })
-                })
-                .unwrap()
+                    return ret;
+                }
+            }
+
+            Err(Report {
+                stage: Stage::Interpreting,
+                range: range(e),
+                msg: format!("match error: no case pattern matches expression {}", e.show(0))
+            })
         }
 
         Expr::Error(msg, span) => {
