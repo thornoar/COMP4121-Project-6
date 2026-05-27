@@ -82,7 +82,6 @@ pub fn resolve(
 
     // Discover type symbols and definitions
     for md in modules.iter() {
-        println!("{}-{}", md.range.start, md.range.end);
         if type_syms.contains_key(&md.name) {
             return error!(md.range, format!("Module `{}` already defined.", md.name));
         }

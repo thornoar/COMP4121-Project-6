@@ -1,8 +1,8 @@
-object Hanoi
+object Test
 	abstract class T[A]
 	abstract class V
 
   case class C(x: A) extends T
 
-  def f[X, Y] (x: Unit, y: Y): Unit := x + y end f
-end Hanoi
+  def f[X, Y] (x: Unittttt, y: Y): Unit := x + y end f
+end Test
