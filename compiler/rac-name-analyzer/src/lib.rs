@@ -31,8 +31,23 @@ pub fn resolve(modules: &VecDeque<NominalModule>, sg: &mut SymbolGenerator) -> R
                     format!("An abstract class named `{}` is already defined.", def.name)
                 );
             }
+            let sym_name = sg.fresh(def.name.clone());
+            let mut sym_type_vars: VecDeque<Symbol> = VecDeque::new();
+            for type_var in def.type_vars.iter() {
+                // Checking if this type variable is already used
+                for sym_var in sym_type_vars.iter() {
+                    if sym_var.name == *type_var {
+                        return error!(
+                            def.range,
+                            format!("A type variable named {} is already used in this abstract class.", def.name)
+                        );
+                    }
+                }
+                sym_type_vars.push_back(sg.fresh(type_var.clone()));
+            }
             cur_types.insert(&def.name, SymbolicAbstDef {
-                name: sg.fresh(def.name.clone()),
+                name: sym_name,
+                type_vars: sym_type_vars,
                 range: def.range,
             });
         }
@@ -92,6 +107,21 @@ pub fn resolve(modules: &VecDeque<NominalModule>, sg: &mut SymbolGenerator) -> R
                 );
             }
 
+            let sym_name = sg.fresh(def.name.clone());
+            let mut sym_type_vars: VecDeque<Symbol> = VecDeque::new();
+            for type_var in def.type_vars.iter() {
+                // Checking if this type variable is already used
+                for sym_var in sym_type_vars.iter() {
+                    if sym_var.name == *type_var {
+                        return error!(
+                            def.range,
+                            format!("A type variable named {} is already used in this abstract class.", def.name)
+                        );
+                    }
+                }
+                sym_type_vars.push_back(sg.fresh(type_var.clone()));
+            }
+
             // Resolve the arguments
             let mut sym_args = VecDeque::new();
             for (name, typ, s) in def.args.iter() {
@@ -107,7 +137,8 @@ pub fn resolve(modules: &VecDeque<NominalModule>, sg: &mut SymbolGenerator) -> R
             let sym_body = todo!();
 
             cur_fun_defs.insert(&def.name, SymbolicFunDef {
-                name: sg.fresh(def.name.clone()),
+                name: sym_name,
+                type_vars: sym_type_vars,
                 args: sym_args,
                 rt: sym_rt,
                 body: sym_body,

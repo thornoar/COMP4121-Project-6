@@ -148,6 +148,7 @@ impl SymbolGenerator {
 #[derive(Debug)]
 pub struct SymbolicAbstDef {
     pub name: Symbol,
+    pub type_vars: VecDeque<Symbol>,
     pub range: Span,
 }
 
@@ -162,6 +163,7 @@ pub struct SymbolicClassDef {
 #[derive(Debug)]
 pub struct SymbolicFunDef {
     pub name: Symbol,
+    pub type_vars: VecDeque<Symbol>,
     pub args: ArgList<Symbol, Symbol>,
     pub rt: Type<Symbol>,
     pub body: Expr<Symbol>,
