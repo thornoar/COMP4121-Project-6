@@ -289,7 +289,7 @@ fn parse_class_def<'a>(src: &'a [u8], ts: &mut TokenIter) -> Result<NominalClass
 
 // Parses an argument list in a constructor or function definition.
 // Examples: `(x: String, y: Int(32), z: Unit)`, `()`
-fn parse_arglist<'a>(src: &'a [u8], ts: &mut TokenIter) -> Result<ArgList<String, NominalType>, Report> {
+fn parse_arglist<'a>(src: &'a [u8], ts: &mut TokenIter) -> Result<NomArgList, Report> {
     expect!(
         ts,
         TK::OpenParen,
@@ -309,7 +309,7 @@ fn parse_arglist<'a>(src: &'a [u8], ts: &mut TokenIter) -> Result<ArgList<String
 fn parse_many_arguments<'a>(
     src: &'a [u8],
     ts: &mut TokenIter,
-) -> Result<ArgList<String, NominalType>, Report> {
+) -> Result<NomArgList, Report> {
     let arg = parse_argument(src, ts)?;
     let delim = ts.pop();
     match delim.kind {
@@ -332,7 +332,7 @@ fn parse_many_arguments<'a>(
 
 // Parses an argument in a definition.
 // Examples: `x: String`, `y: Int(32)`
-fn parse_argument<'a>(src: &'a [u8], ts: &mut TokenIter) -> Result<(String, NominalType, Span), Report> {
+fn parse_argument<'a>(src: &'a [u8], ts: &mut TokenIter) -> Result<(String, NominalType), Report> {
     let id = expect!(
         ts,
         TK::Identifier,
@@ -341,12 +341,12 @@ fn parse_argument<'a>(src: &'a [u8], ts: &mut TokenIter) -> Result<(String, Nomi
     let name = get_string(src, id.range)?;
     expect!(ts, TK::Colon, "Expected a colon after the argument name");
     let typ = parse_type(src, ts)?;
-    Ok((name, typ.0, typ.1))
+    Ok((name, typ))
 }
 
 // Parses a type.
 // Examples: `String`, `Unit`, `Int(32)`, `UserType`
-fn parse_type<'a>(src: &'a [u8], ts: &mut TokenIter) -> Result<(NominalType, Span), Report> {
+fn parse_type<'a>(src: &'a [u8], ts: &mut TokenIter) -> Result<NominalType, Report> {
     let typ1 = ts.pop();
     match typ1.kind {
         TK::TypInt => {
@@ -363,7 +363,7 @@ fn parse_type<'a>(src: &'a [u8], ts: &mut TokenIter) -> Result<(NominalType, Spa
             match str::from_utf8(&select!(src, size.range)) {
                 Ok("32") => {
                     let cp = expect!(ts, TK::CloseParen, "Expected a closing parenthesis");
-                    Ok((NominalType::IntType, join(typ1.range, cp.range)))
+                    Ok(NominalType::IntType(join(typ1.range, cp.range)))
                 }
                 _ => error!(
                     size.range,
@@ -371,9 +371,9 @@ fn parse_type<'a>(src: &'a [u8], ts: &mut TokenIter) -> Result<(NominalType, Spa
                 ),
             }
         }
-        TK::TypBoolean => Ok((NominalType::BoolType, typ1.range)),
-        TK::TypString => Ok((NominalType::StringType, typ1.range)),
-        TK::TypUnit => Ok((NominalType::UnitType, typ1.range)),
+        TK::TypBoolean => Ok(NominalType::BoolType(typ1.range)),
+        TK::TypString => Ok(NominalType::StringType(typ1.range)),
+        TK::TypUnit => Ok(NominalType::UnitType(typ1.range)),
         TK::Identifier => match ts.peek().kind {
             TK::Dot => {
                 let owner = get_string(src, typ1.range)?;
@@ -384,13 +384,10 @@ fn parse_type<'a>(src: &'a [u8], ts: &mut TokenIter) -> Result<(NominalType, Spa
                     "Expected a valid identifier as part of a qualified name"
                 );
                 let name = get_string(src, typ2.range)?;
-                Ok((NominalType::IdType(
-                    Name::new(Some(owner), name)),
-                    join(typ1.range, typ2.range),
-                ))
+                Ok(NominalType::IdType(Name::new(Some(owner), name), join(typ1.range, typ2.range)))
             }
             _ => {
-                get_string(src, typ1.range).map(|s| (NominalType::IdType(Name::new(None, s)), typ1.range))
+                get_string(src, typ1.range).map(|s| NominalType::IdType(Name::new(None, s), typ1.range))
             }
         },
 
@@ -444,7 +441,7 @@ fn parse_atomic_expr<'a>(src: &'a [u8], ts: &mut TokenIter) -> Result<Expr<Name,
             let body = parse_expr(src, ts)?;
             Ok(Expr::Let(
                 Name::new(None, var_name),
-                var_type.0,
+                var_type,
                 Box::new(var_expr),
                 Box::new(body),
                 join(t1.range, sc.range),

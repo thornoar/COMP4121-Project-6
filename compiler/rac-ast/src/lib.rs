@@ -5,7 +5,7 @@ use std::{
 
 use rac_diagnostics::{MID, Span, join};
 
-pub type ArgList<A, T> = VecDeque<(A, T, Span)>;
+// pub type ArgList<A, T> = VecDeque<(A, T, Span)>;
 
 // Nominal AST structure
 
@@ -32,22 +32,24 @@ impl Display for Name {
 
 #[derive(Debug)]
 pub enum NominalType {
-    IntType,
-    BoolType,
-    StringType,
-    UnitType,
-    IdType(Name)
+    IntType(Span),
+    BoolType(Span),
+    StringType(Span),
+    UnitType(Span),
+    IdType(Name, Span)
 }
+
+pub type NomArgList = VecDeque<(String, NominalType)>;
 
 impl Display for NominalType {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         use NominalType::*;
         match self {
-            IntType => write!(f, "Int(32)"),
-            BoolType => write!(f, "Boolean"),
-            StringType => write!(f, "String"),
-            UnitType => write!(f, "Unit"),
-            IdType(name) => write!(f, "{}", name),
+            IntType(_) => write!(f, "Int(32)"),
+            BoolType(_) => write!(f, "Boolean"),
+            StringType(_) => write!(f, "String"),
+            UnitType(_) => write!(f, "Unit"),
+            IdType(name, _) => write!(f, "{}", name),
         }
     }
 }
@@ -62,7 +64,7 @@ pub struct NominalAbstDef {
 #[derive(Debug)]
 pub struct NominalClassDef {
     pub name: String,
-    pub args: ArgList<String, NominalType>,
+    pub args: NomArgList,
     pub parent: String,
     pub range: Span,
 }
@@ -71,8 +73,8 @@ pub struct NominalClassDef {
 pub struct NominalFunDef {
     pub name: String,
     pub type_vars: VecDeque<String>,
-    pub args: ArgList<String, NominalType>,
-    pub rt: (NominalType, Span),
+    pub args: NomArgList,
+    pub rt: NominalType,
     pub body: Expr<Name, NominalType>,
     pub range: Span,
 }
@@ -98,7 +100,7 @@ impl NominalModule {
             let args_str = def
                 .args
                 .iter()
-                .map(|(n, t, _)| format!("{}: {}", n, t))
+                .map(|(n, t)| format!("{}: {}", n, t))
                 .collect::<Vec<String>>()
                 .join(", ");
             println!("({}) extends {}\n", args_str, def.parent);
@@ -108,10 +110,10 @@ impl NominalModule {
             let args_str = def
                 .args
                 .iter()
-                .map(|(n, t, _)| format!("{}: {}", n, t))
+                .map(|(n, t)| format!("{}: {}", n, t))
                 .collect::<Vec<String>>()
                 .join(", ");
-            println!("({}): {} :=", args_str, def.rt.0);
+            println!("({}): {} :=", args_str, def.rt);
             println!("      {}", def.body.show(2));
             println!("   end {}\n", def.name);
         }
@@ -137,6 +139,8 @@ pub enum SymbolicType {
     // Type variables
     Var(Symbol),
 }
+
+pub type SymArgList = VecDeque<(Symbol, SymbolicType)>;
 
 impl Display for SymbolicType {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -213,7 +217,7 @@ pub struct SymbolicAbstDef {
 #[derive(Debug)]
 pub struct SymbolicClassDef {
     pub name: Symbol,
-    pub args: ArgList<Symbol, SymbolicType>,
+    pub args: SymArgList,
     pub parent: Symbol,
     pub range: Span,
 }
@@ -222,7 +226,7 @@ pub struct SymbolicClassDef {
 pub struct SymbolicFunDef {
     pub name: Symbol,
     pub type_vars: VecDeque<Symbol>,
-    pub args: ArgList<Symbol, SymbolicType>,
+    pub args: SymArgList,
     pub rt: SymbolicType,
     pub body: Expr<Symbol, SymbolicType>,
     pub range: Span,
@@ -230,7 +234,7 @@ pub struct SymbolicFunDef {
 
 #[derive(Debug)]
 pub struct SymbolicProgram {
-    pub user_types: HashMap<SID, SymbolicAbstDef>,
+    pub type_defs: HashMap<SID, SymbolicAbstDef>,
     pub class_defs: HashMap<SID, SymbolicClassDef>,
     pub fun_defs: HashMap<SID, SymbolicFunDef>,
     pub exprs: VecDeque<Expr<Symbol, SymbolicType>>,
