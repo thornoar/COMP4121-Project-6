@@ -1,13 +1,12 @@
 use rac_ast::{
-    Expr, Name, NominalModule, NominalType, SID, Symbol, SymbolGenerator, SymbolicAbstDef,
-    SymbolicClassDef, SymbolicFunDef, SymbolicProgram, SymbolicType,
+    Expr, Name, NominalModule, NominalType, Pattern, SID, Symbol, SymbolGenerator, SymbolicAbstDef, SymbolicClassDef, SymbolicFunDef, SymbolicProgram, SymbolicType
 };
 use rac_diagnostics::{Report, Span, Stage};
-use std::collections::{HashMap, VecDeque};
+use std::{collections::{HashMap, VecDeque}};
 
-use crate::environ::{FullEnv, FunEnv, TypeEnv};
+use crate::table::{SymbolTable, CallTable, TypeTable};
 
-pub mod environ;
+pub mod table;
 
 macro_rules! error {
     ($span:expr, $msg:expr) => {
@@ -122,7 +121,7 @@ pub fn resolve(
             for (name, typ) in def.args.iter() {
                 let sym_typ = resolve_type(
                     typ,
-                    &TypeEnv::new(
+                    &TypeTable::new(
                         &md.name,
                         &type_defs[&md.name][&parent_id].type_vars,
                         &type_defs,
@@ -186,14 +185,14 @@ pub fn resolve(
             let mut sym_args = VecDeque::new();
             for (name, typ) in def.args.iter() {
                 let sym_typ =
-                    resolve_type(typ, &TypeEnv::new(&md.name, &sym_type_vars, &type_defs))?;
+                    resolve_type(typ, &TypeTable::new(&md.name, &sym_type_vars, &type_defs))?;
                 let sym_name = sg.fresh(&name);
                 sym_args.push_back((sym_name, sym_typ));
             }
 
             // Resolve the return type
             let sym_rt =
-                resolve_type(&def.rt, &TypeEnv::new(&md.name, &sym_type_vars, &type_defs))?;
+                resolve_type(&def.rt, &TypeTable::new(&md.name, &sym_type_vars, &type_defs))?;
 
             // Resolve the body
             let sym_body = todo!();
@@ -282,7 +281,29 @@ fn find_fun_symbol(
     );
 }
 
-fn resolve_type(arg: &NominalType, env: &TypeEnv) -> Result<SymbolicType, Report> {
+fn find_call_symbol(
+    name: &String,
+    range: Span,
+    class_defs: &HashMap<SID, SymbolicClassDef>,
+    fun_defs: &HashMap<SID, SymbolicFunDef>,
+) -> Result<SID, Report> {
+    for def in fun_defs.values() {
+        if def.name.name == *name {
+            return Ok(def.name.id);
+        }
+    }
+    for def in class_defs.values() {
+        if def.name.name == *name {
+            return Ok(def.name.id);
+        }
+    }
+    return error!(
+        range,
+        format!("Could not find a function named `{}`.", name)
+    );
+}
+
+fn resolve_type(arg: &NominalType, env: &TypeTable) -> Result<SymbolicType, Report> {
     use SymbolicType as ST;
     use rac_ast::NominalType::*;
     match arg {
@@ -311,46 +332,55 @@ fn resolve_type(arg: &NominalType, env: &TypeEnv) -> Result<SymbolicType, Report
     }
 }
 
-fn resolve_fun(arg: &Name, range: Span, env: &FunEnv) -> Result<Symbol, Report> {
+fn resolve_call(arg: &Name, range: Span, env: &CallTable) -> Result<Symbol, Report> {
     match &arg.owner {
         None => {
-            let sid = find_fun_symbol(&arg.name, range, &env.fun_defs[env.cur_mod])?;
+            let sid = find_call_symbol(&arg.name, range, &env.class_defs[env.cur_mod], &env.fun_defs[env.cur_mod])?;
             Ok(Symbol::new(&arg.name, sid))
         }
-        Some(owner) => match env.fun_defs.get(owner) {
-            Some(mp) => {
-                let sid = find_fun_symbol(&arg.name, range, mp)?;
+        Some(owner) => match (env.fun_defs.get(owner), env.class_defs.get(owner)) {
+            (Some(mp1), Some(mp2)) => {
+                let sid = find_call_symbol(&arg.name, range, mp2, mp1)?;
                 Ok(Symbol::new(&arg.name, sid))
             }
-            None => error!(range, format!("No module named `{}`.", owner)),
+            _ => error!(range, format!("No module named `{}`.", owner)),
         },
     }
 }
 
+fn resolve_pattern(
+    pat: &Pattern<Name>,
+    env: &SymbolTable,
+    binds: &mut HashMap<String, SID>
+) -> Result<Pattern<Symbol>, Report> {
+    todo!()
+}
+
 fn resolve_expr(
     e: Expr<Name, NominalType>,
-    env: &mut FullEnv,
+    env: &mut SymbolTable,
+    mut binds: HashMap<String, SID>,
     sg: &mut SymbolGenerator,
 ) -> Result<Expr<Symbol, SymbolicType>, Report> {
     use Expr::*;
 
     macro_rules! binop {
         ($lhs:expr, $rhs:expr, $constr:ident) => {{
-            let sym_lhs = resolve_expr($lhs, env, sg)?;
-            let sym_rhs = resolve_expr($rhs, env, sg)?;
+            let sym_lhs = resolve_expr($lhs, env, binds.clone(), sg)?;
+            let sym_rhs = resolve_expr($rhs, env, binds, sg)?;
             Ok($constr(Box::new(sym_lhs), Box::new(sym_rhs)))
         }};
     }
 
     macro_rules! unop {
         ($arg:expr, $range:expr, $constr:ident) => {{
-            let sym_arg = resolve_expr($arg, env, sg)?;
+            let sym_arg = resolve_expr($arg, env, binds, sg)?;
             Ok($constr(Box::new(sym_arg), $range))
         }};
     }
 
     match e {
-        Variable(qn, s) => match env.binds.get(&qn.name) {
+        Variable(qn, s) => match binds.get(&qn.name) {
             Some(sid) => Ok(Variable(Symbol::new(&qn.name, *sid), s)),
             None => error!(
                 s,
@@ -376,21 +406,21 @@ fn resolve_expr(
         Not(arg, s) => unop!(*arg, s, Not),
         Neg(arg, s) => unop!(*arg, s, Neg),
         Call(qn, args, s) => {
-            let sym_name = resolve_fun(&qn, s, &FunEnv::from(&*env))?;
+            let sym_name = resolve_call(&qn, s, &CallTable::from(&*env))?;
             let mut sym_args = VecDeque::new();
             // let iter = args.iter().map(|arg| resolve_expr(arg, env, sg))
             for arg in args.into_iter() {
-                let sym_arg = resolve_expr(arg, env, sg)?;
+                let sym_arg = resolve_expr(arg, env, binds.clone(), sg)?;
                 sym_args.push_back(sym_arg);
             }
             Ok(Call(sym_name, sym_args, s))
         }
         Let(qn, typ, val, body, s) => {
             let sym_name = sg.fresh(&qn.name);
-            let sym_typ = resolve_type(&typ, &TypeEnv::from(&*env))?;
-            let sym_val = resolve_expr(*val, env, sg)?;
-            env.binds.insert(qn.name, sym_name.id);
-            let sym_body = resolve_expr(*body, env, sg)?;
+            let sym_typ = resolve_type(&typ, &TypeTable::from(&*env))?;
+            let sym_val = resolve_expr(*val, env, binds.clone(), sg)?;
+            binds.insert(qn.name, sym_name.id);
+            let sym_body = resolve_expr(*body, env, binds, sg)?;
             Ok(Let(
                 sym_name,
                 sym_typ,
@@ -400,15 +430,19 @@ fn resolve_expr(
             ))
         }
         Ite(cond, thenb, elseb, s) => {
-            let sym_cond = resolve_expr(*cond, env, sg)?;
-            let sym_then = resolve_expr(*thenb, env, sg)?;
-            let sym_else = resolve_expr(*elseb, env, sg)?;
+            let sym_cond = resolve_expr(*cond, env, binds.clone(), sg)?;
+            let sym_then = resolve_expr(*thenb, env, binds.clone(), sg)?;
+            let sym_else = resolve_expr(*elseb, env, binds, sg)?;
             Ok(Ite(
                 Box::new(sym_cond),
                 Box::new(sym_then),
                 Box::new(sym_else),
                 s,
             ))
+        }
+        Match(scrut, pats, s) => {
+            let sym_scrut = resolve_expr(*scrut, env, binds.clone(), sg)?;
+            todo!()
         }
         _ => todo!(),
     }

@@ -1,15 +1,15 @@
 use std::collections::{HashMap, VecDeque};
 
-use rac_ast::{SID, Symbol, SymbolicAbstDef, SymbolicFunDef};
+use rac_ast::{SID, Symbol, SymbolicAbstDef, SymbolicClassDef, SymbolicFunDef};
 
-pub struct TypeEnv<'a> {
+pub struct TypeTable<'a> {
     pub cur_mod: &'a String,
     pub type_vars: &'a VecDeque<Symbol>,
     // pub types_by_mod: &'a HashMap<&'a String, VecDeque<SID>>,
     pub type_defs: &'a HashMap<String, HashMap<SID, SymbolicAbstDef>>,
 }
 
-impl<'a> TypeEnv<'a> {
+impl<'a> TypeTable<'a> {
     pub fn new(
         cur_mod: &'a String,
         type_vars: &'a VecDeque<Symbol>,
@@ -24,59 +24,82 @@ impl<'a> TypeEnv<'a> {
     }
 }
 
-pub struct FunEnv<'a> {
+pub struct CallTable<'a> {
     pub cur_mod: &'a String,
     // pub fun_by_mod: &'a HashMap<&'a String, VecDeque<SID>>,
+    pub class_defs: &'a HashMap<String, HashMap<SID, SymbolicClassDef>>,
     pub fun_defs: &'a HashMap<String, HashMap<SID, SymbolicFunDef>>,
 }
 
-impl<'a> FunEnv<'a> {
+impl<'a> CallTable<'a> {
     pub fn new(
         cur_mod: &'a String,
         // fun_by_mod: &'a HashMap<&'a String, VecDeque<SID>>,
+        class_defs: &'a HashMap<String, HashMap<SID, SymbolicClassDef>>,
         fun_defs: &'a HashMap<String, HashMap<SID, SymbolicFunDef>>,
     ) -> Self {
-        Self { cur_mod, fun_defs }
+        Self { cur_mod, class_defs, fun_defs }
     }
 }
 
-pub struct FullEnv<'a> {
+// pub struct ClassEnv<'a> {
+//     pub cur_mod: &'a String,
+//     // pub fun_by_mod: &'a HashMap<&'a String, VecDeque<SID>>,
+//     pub class_defs: &'a HashMap<String, HashMap<SID, SymbolicClassDef>>,
+// }
+//
+// impl<'a> ClassEnv<'a> {
+//     pub fn new(
+//         cur_mod: &'a String,
+//         // fun_by_mod: &'a HashMap<&'a String, VecDeque<SID>>,
+//         class_defs: &'a HashMap<String, HashMap<SID, SymbolicClassDef>>,
+//     ) -> Self {
+//         Self { cur_mod, class_defs }
+//     }
+// }
+
+pub struct SymbolTable<'a> {
     pub cur_mod: &'a String,
     pub type_vars: &'a VecDeque<Symbol>,
-    pub binds: &'a mut HashMap<String, SID>,
     // pub types_by_mod: &'a HashMap<&'a String, VecDeque<SID>>,
     pub type_defs: &'a HashMap<String, HashMap<SID, SymbolicAbstDef>>,
     // pub fun_by_mod: &'a HashMap<&'a String, VecDeque<SID>>,
+    pub class_defs: &'a HashMap<String, HashMap<SID, SymbolicClassDef>>,
     pub fun_defs: &'a HashMap<String, HashMap<SID, SymbolicFunDef>>,
 }
 
-impl<'a> FullEnv<'a> {
+impl<'a> SymbolTable<'a> {
     pub fn new(
         cur_mod: &'a String,
         type_vars: &'a VecDeque<Symbol>,
-        binds: &'a mut HashMap<String, SID>,
         // types_by_mod: &'a HashMap<&'a String, VecDeque<SID>>,
         type_defs: &'a HashMap<String, HashMap<SID, SymbolicAbstDef>>,
+        class_defs: &'a HashMap<String, HashMap<SID, SymbolicClassDef>>,
         // fun_by_mod: &'a HashMap<&'a String, VecDeque<SID>>,
         fun_defs: &'a HashMap<String, HashMap<SID, SymbolicFunDef>>,
     ) -> Self {
         Self {
             cur_mod,
             type_vars,
-            binds,
             type_defs,
+            class_defs,
             fun_defs,
         }
     }
 }
 
-impl<'a> From<&FullEnv<'a>> for TypeEnv<'a> {
-    fn from(value: &FullEnv<'a>) -> Self {
+impl<'a> From<&SymbolTable<'a>> for TypeTable<'a> {
+    fn from(value: &SymbolTable<'a>) -> Self {
         Self::new(value.cur_mod, value.type_vars, value.type_defs)
     }
 }
-impl<'a> From<&FullEnv<'a>> for FunEnv<'a> {
-    fn from(value: &FullEnv<'a>) -> Self {
-        Self::new(value.cur_mod, value.fun_defs)
+impl<'a> From<&SymbolTable<'a>> for CallTable<'a> {
+    fn from(value: &SymbolTable<'a>) -> Self {
+        Self::new(value.cur_mod, value.class_defs, value.fun_defs)
     }
 }
+// impl<'a> From<&SymbolTable<'a>> for ClassEnv<'a> {
+//     fn from(value: &SymbolTable<'a>) -> Self {
+//         Self::new(value.cur_mod, value.class_defs)
+//     }
+// }
