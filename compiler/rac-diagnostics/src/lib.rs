@@ -66,8 +66,8 @@ pub fn deliver(r: &Report, fname: &str, src: &[u8]) {
 
     let mut newlines: Vec<usize> = Vec::new();
 
-    let mut beg_nl_idx = 0;
-    let mut end_nl_idx = 0;
+    let beg_nl_idx;
+    let end_nl_idx;
 
     let mut line = 1;
     let mut col = 1;

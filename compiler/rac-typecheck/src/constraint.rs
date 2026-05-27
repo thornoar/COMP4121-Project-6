@@ -1,6 +1,6 @@
 use std::fmt::Display;
 
-use rac_ast::{Symbol, SymbolicType};
+use rac_ast::SymbolicType;
 use rac_diagnostics::Span;
 
 

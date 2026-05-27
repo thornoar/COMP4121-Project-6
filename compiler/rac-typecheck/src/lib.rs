@@ -74,9 +74,9 @@ fn collect_constraints(e: &Expr<Symbol,SymbolicType>, expected: SymbolicType, en
         Not(arg, s) => unary!(arg, *s, BoolType, BoolType),
         Neg(arg, s) => unary!(arg, *s, IntType, IntType),
         Call(_, _, _) => todo!(),
-        Sequence(lhs, rhs) => todo!(),
+        Sequence(_lhs, _rhs) => todo!(),
         Let(_, _, _, _, _) => todo!(),
-        Ite(cond, thenb, elseb, s) => {
+        Ite(cond, thenb, elseb, _s) => {
             let mut res = collect_constraints(cond, BoolType, env, sg)?;
             let mut then_constr = collect_constraints(thenb, expected.clone(), env, sg)?;
             let mut else_constr = collect_constraints(elseb, expected, env, sg)?;

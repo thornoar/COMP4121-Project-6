@@ -96,7 +96,7 @@ pub fn parse<'a>(src: &'a [u8], ts: &mut TokenIter) -> Result<NominalModule, Rep
 
     Ok(NominalModule {
         name: name,
-        id: id1.range.tag,
+        range: id1.range,
         abstract_defs: ad,
         class_defs: cd,
         fun_defs: fd,

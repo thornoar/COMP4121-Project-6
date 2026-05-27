@@ -3,7 +3,7 @@ use std::{
     fmt::Display,
 };
 
-use rac_diagnostics::{MID, Span, join};
+use rac_diagnostics::{Span, join};
 
 // pub type ArgList<A, T> = VecDeque<(A, T, Span)>;
 
@@ -82,7 +82,7 @@ pub struct NominalFunDef {
 #[derive(Debug)]
 pub struct NominalModule {
     pub name: String,
-    pub id: MID,
+    pub range: Span,
     pub abstract_defs: VecDeque<NominalAbstDef>,
     pub class_defs: VecDeque<NominalClassDef>,
     pub fun_defs: VecDeque<NominalFunDef>,
@@ -93,7 +93,14 @@ impl NominalModule {
     pub fn print(&self) {
         println!("\nobject {}", self.name);
         for def in self.abstract_defs.iter() {
-            println!("   abstract class {}\n", def.name);
+            print!("   abstract class {}", def.name);
+            if def.type_vars.len() > 0 {
+                print!(
+                    " [{}]",
+                    def.type_vars.iter().map(|v| format!("'{}", v)).collect::<Vec<String>>().join(", ")
+                );
+            }
+            println!("\n");
         }
         for def in self.class_defs.iter() {
             print!("   case class {} ", def.name);
@@ -107,6 +114,12 @@ impl NominalModule {
         }
         for def in self.fun_defs.iter() {
             print!("   def {} ", def.name);
+            if def.type_vars.len() > 0 {
+                print!(
+                    "[{}] ",
+                    def.type_vars.iter().map(|v| format!("'{}", v)).collect::<Vec<String>>().join(", ")
+                );
+            }
             let args_str = def
                 .args
                 .iter()
@@ -271,6 +284,12 @@ impl SymbolicProgram {
         }
         for def in self.fun_defs.values() {
             print!("def {} ", def.name);
+            if def.type_vars.len() > 0 {
+                print!(
+                    "[{}] ",
+                    def.type_vars.iter().map(|v| format!("'{}", v)).collect::<Vec<String>>().join(", ")
+                );
+            }
             let args_str = def
                 .args
                 .iter()

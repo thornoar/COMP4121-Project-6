@@ -1,6 +1,6 @@
 use std::collections::{HashMap, VecDeque};
 
-use rac_ast::{SID, Symbol, SymbolicAbstDef, SymbolicClassDef, SymbolicFunDef};
+use rac_ast::{SID, Symbol};
 
 pub struct TypeTable<'a> {
     pub cur_mod: &'a String,
@@ -66,7 +66,7 @@ impl<'a> SymbolTable<'a> {
             type_defs,
             class_defs,
             fun_defs,
-            fname
+            fname,
         }
     }
 }

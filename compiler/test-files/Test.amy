@@ -4,5 +4,5 @@ object Hanoi
 
   case class C(x: A) extends T
 
-  def f (x: Unit): Unit := x end f
+  def f[X, Y] (x: Unit, y: Y): Unit := x + y end f
 end Hanoi
