@@ -1,4 +1,4 @@
-use std::{cmp::max, fmt::Display};
+use std::{fmt::Display};
 
 pub type Source<'a> = &'a [u8];
 
@@ -106,13 +106,6 @@ pub fn deliver(r: &Report, fname: &str, src: &[u8]) {
 
     eprintln!("-> \x1b[34m{}\x1b[0m:{}:{}\n", fname, line, col);
 
-    // macro_rules! newstart {
-    //     ($idx:expr) => {{
-    //         let pos = newlines[$idx];
-    //         if (pos == 0)
-    //     }};
-    // }
-
     if beg_nl_idx > 0 {
         eprint!(
             "{}{}",
@@ -127,7 +120,7 @@ pub fn deliver(r: &Report, fname: &str, src: &[u8]) {
         str::from_utf8(&src[newlines[beg_nl_idx]..r.range.start]).unwrap_or("")
     );
 
-    eprint!("\x1b[31m");
+    eprint!("\x1b[31m!! ");
     if beg_nl_idx < end_nl_idx {
         eprint!(
             "{}",
@@ -155,7 +148,7 @@ pub fn deliver(r: &Report, fname: &str, src: &[u8]) {
             str::from_utf8(&src[r.range.start..r.range.end]).unwrap_or("")
         );
     }
-    eprint!("\x1b[0m");
+    eprint!(" !!\x1b[0m");
 
     if end_nl_idx < len - 1 {
         eprint!(
@@ -163,16 +156,23 @@ pub fn deliver(r: &Report, fname: &str, src: &[u8]) {
             str::from_utf8(&src[r.range.end..newlines[end_nl_idx + 1]]).unwrap_or("")
         );
         line += 1;
+        if end_nl_idx < len - 2 {
+            eprint!(
+                "{}{}",
+                prefix!(line),
+                str::from_utf8(&src[newlines[beg_nl_idx + 1]..newlines[beg_nl_idx + 2]])
+                    .unwrap_or("")
+            );
+        } else {
+            eprint!(
+                "{}{}",
+                prefix!(line),
+                str::from_utf8(&src[newlines[beg_nl_idx + 1]..limit])
+                    .unwrap_or("")
+            );
+        }
     } else {
         eprint!("\n");
-    }
-    if end_nl_idx < len - 2 {
-        eprint!(
-            "{}{}",
-            prefix!(line),
-            str::from_utf8(&src[newlines[beg_nl_idx + 1]..newlines[beg_nl_idx + 2]])
-                .unwrap_or("")
-        );
     }
 
     eprintln!("\n{}", r.msg);
