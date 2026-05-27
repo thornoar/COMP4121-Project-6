@@ -28,10 +28,9 @@ macro_rules! check_unique {
 }
 
 pub fn resolve(modules: &VecDeque<NominalModule>, sg: &mut SymbolGenerator) -> Result<SymbolicProgram, Report> {
-    let mut types_by_mod: HashMap<&String, HashMap<SID, &SymbolicAbstDef>> = HashMap::new();
-    let mut classes_by_mod: HashMap<&String, HashMap<SID, &SymbolicClassDef>> = HashMap::new();
-    let mut fun_by_mod: HashMap<&String, HashMap<SID, &SymbolicFunDef>> = HashMap::new();
-    // let mut mod_ids: HashMap<&String, MID> = HashMap::new();
+    let mut types_by_mod: HashMap<&String, VecDeque<SID>> = HashMap::new();
+    let mut classes_by_mod: HashMap<&String, VecDeque<SID>> = HashMap::new();
+    let mut fun_by_mod: HashMap<&String, VecDeque<SID>> = HashMap::new();
 
     let mut user_types: HashMap<SID, SymbolicAbstDef> = HashMap::new();
     let mut class_defs: HashMap<SID, SymbolicClassDef> = HashMap::new();
@@ -41,7 +40,7 @@ pub fn resolve(modules: &VecDeque<NominalModule>, sg: &mut SymbolGenerator) -> R
     for md in modules.iter() {
         // mod_ids.insert(&md.name, md.id);
         let mut cur_types: HashMap<SID, SymbolicAbstDef> = HashMap::new();
-        let mut cur_types_by_mod: HashMap<SID, &SymbolicAbstDef> = HashMap::new();
+        let mut cur_types_by_mod: VecDeque<SID> = VecDeque::new();
         for def in md.abstract_defs.iter() {
             // Check if type is already defined
             check_unique!(def.name, cur_types, format!("An abstract class named `{}` is already defined.", def.name));
@@ -64,14 +63,16 @@ pub fn resolve(modules: &VecDeque<NominalModule>, sg: &mut SymbolGenerator) -> R
                 sym_type_vars.push_back(sg.fresh(type_var.clone()));
             }
 
-            let def = SymbolicAbstDef {
-                name: sym_name,
-                type_vars: sym_type_vars,
-                range: def.range,
-            };
+            cur_types_by_mod.push_back(sym_name.id);
 
-            cur_types_by_mod.insert(sym_name.id, &def);
-            cur_types.insert(sym_name.id, def);
+            cur_types.insert(
+                sym_name.id, 
+                SymbolicAbstDef {
+                    name: sym_name,
+                    type_vars: sym_type_vars,
+                    range: def.range,
+                }
+            );
         }
         types_by_mod.insert(&md.name, cur_types_by_mod);
         user_types.extend(cur_types);
@@ -80,7 +81,7 @@ pub fn resolve(modules: &VecDeque<NominalModule>, sg: &mut SymbolGenerator) -> R
     // Discovering class definitions
     for md in modules.iter() {
         let mut cur_cls_defs: HashMap<SID, SymbolicClassDef> = HashMap::new();
-        let mut cur_cls_defs_by_mod: HashMap<SID, &SymbolicClassDef> = HashMap::new();
+        let mut cur_cls_defs_by_mod: VecDeque<SID> = VecDeque::new();
         for def in md.class_defs.iter() {
             // Check if the class is already defined
             check_unique!(def.name, cur_cls_defs, format!("A case class named `{}` is already defined.", def.name));
@@ -89,16 +90,18 @@ pub fn resolve(modules: &VecDeque<NominalModule>, sg: &mut SymbolGenerator) -> R
             let sym_name = sg.fresh(def.name.clone());
 
             // Resolve the parent
-            let parent_id = find_type_symbol(&def.parent,  def.range, &types_by_mod[&md.name])?;
+            let parent_id = find_type_symbol(&def.parent, def.range, &types_by_mod[&md.name], &user_types)?;
             let sym_parent = Symbol { name: def.parent.clone(), id: parent_id };
 
             // Resolve the arguments
             let mut sym_args = VecDeque::new();
             for (name, typ, s) in def.args.iter() {
-                let sym_typ = resolve_type(typ, &md.name, *s, &types_by_mod)?;
+                let sym_typ = resolve_type(typ, &md.name, *s, &types_by_mod, &user_types)?;
                 let sym_name = sg.fresh(name.clone());
                 sym_args.push_back((sym_name, sym_typ, *s));
             }
+
+            cur_cls_defs_by_mod.push_back(sym_name.id);
 
             let sym_def = SymbolicClassDef {
                 name: sym_name,
@@ -107,8 +110,7 @@ pub fn resolve(modules: &VecDeque<NominalModule>, sg: &mut SymbolGenerator) -> R
                 range: def.range
             };
 
-            cur_cls_defs_by_mod.insert(sym_name.id, &sym_def);
-            cur_cls_defs.insert(sym_name.id, sym_def);
+            cur_cls_defs.insert(sym_def.name.id, sym_def);
         }
         // classes_by_mod.insert(md.id, cur_cls_defs);
         classes_by_mod.insert(&md.name, cur_cls_defs_by_mod);
@@ -118,15 +120,10 @@ pub fn resolve(modules: &VecDeque<NominalModule>, sg: &mut SymbolGenerator) -> R
     // Discovering function definitions
     for md in modules.iter() {
         let mut cur_fun_defs: HashMap<SID, SymbolicFunDef> = HashMap::new();
-        for def in md.fun_by_mod.iter() {
+        let mut cur_fun_defs_by_mod: VecDeque<SID> = VecDeque::new();
+        for def in md.fun_defs.iter() {
             // Check if the function is already defined
             check_unique!(def.name, cur_fun_defs, format!("A function `{}` is already defined.", def.name));
-            // if cur_fun_defs.contains_key(&def.name) {
-            //     return error!(
-            //         def.range,
-            //         format!("A function named `{}` is already defined.", def.name)
-            //     );
-            // }
 
             // Generate the name
             let sym_name = sg.fresh(def.name.clone());
@@ -149,28 +146,33 @@ pub fn resolve(modules: &VecDeque<NominalModule>, sg: &mut SymbolGenerator) -> R
             // Resolve the arguments
             let mut sym_args = VecDeque::new();
             for (name, typ, s) in def.args.iter() {
-                let sym_typ = resolve_type(typ, *s, &mod_ids, &types_by_mod)?;
+                let sym_typ = resolve_type(typ, &md.name, *s, &types_by_mod, &user_types)?;
                 let sym_name = sg.fresh(name.clone());
                 sym_args.push_back((sym_name, sym_typ, *s));
             }
         
             // Resolve the return type
-            let sym_rt = resolve_type(&def.rt.0, def.rt.1, &mod_ids, &types_by_mod)?;
+            let sym_rt = resolve_type(&def.rt.0, &md.name, def.rt.1, &types_by_mod, &user_types)?;
 
             // Resolve the body
             let sym_body = todo!();
 
-            cur_fun_defs.insert(sym_name.id, SymbolicFunDef {
-                name: sym_name,
-                type_vars: sym_type_vars,
-                args: sym_args,
-                rt: sym_rt,
-                body: sym_body,
-                range: def.range
-            });
-        }
+            cur_fun_defs_by_mod.push_back(sym_name.id);
 
-        fun_by_mod.insert(md.id, cur_fun_defs);
+            cur_fun_defs.insert(
+                sym_name.id,
+                SymbolicFunDef {
+                    name: sym_name,
+                    type_vars: sym_type_vars,
+                    args: sym_args,
+                    rt: sym_rt,
+                    body: sym_body,
+                    range: def.range
+                }
+            );
+        }
+        fun_by_mod.insert(&md.name, cur_fun_defs_by_mod);
+        fun_defs.extend(cur_fun_defs);
     }
 
     let mut exprs: VecDeque<Expr<Symbol,SymbolicType>> = VecDeque::new();
@@ -182,41 +184,20 @@ pub fn resolve(modules: &VecDeque<NominalModule>, sg: &mut SymbolGenerator) -> R
             }
         }
     }
-    
-    // let mut final_types = HashMap::new();
-    // for mp in types_by_mod.values() {
-    //     for def in mp.values() {
-    //         final_types.insert(def.name.id, *def);
-    //     }
-    // }
-    //
-    // let mut final_classes = HashMap::new();
-    // for mp in classes_by_mod.values() {
-    //     for def in mp.values() {
-    //         final_classes.insert(def.name.id, *def);
-    //     }
-    // }
-    //
-    // let mut final_functions = HashMap::new();
-    // for mp in fun_by_mod.values() {
-    //     for def in mp.values() {
-    //         final_functions.insert(def.name.id, *def);
-    //     }
-    // }
 
-    // Ok(SymbolicProgram {
-    //     types_by_mod: types_by_mod,
-    //     classes_by_mod: classes_by_mod,
-    //     fun_by_mod: fun_by_mod,
-    //     exprs: exprs
-    // })
-    todo!()
+    Ok(SymbolicProgram {
+        user_types,
+        class_defs,
+        fun_defs,
+        exprs
+    })
 }
 
-fn find_type_symbol(name: &String, range: Span, defs: &HashMap<SID, &SymbolicAbstDef>) -> Result<SID, Report> {
-    for def in defs.values() {
-        if def.name.name == *name {
-            return Ok(def.name.id);
+fn find_type_symbol(name: &String, range: Span, ids: &VecDeque<SID>, defs: &HashMap<SID, SymbolicAbstDef>) -> Result<SID, Report> {
+    for sid in ids.iter() {
+        let sym = &defs[sid].name;
+        if sym.name == *name {
+            return Ok(sym.id);
         }
     }
     return error!(
@@ -225,7 +206,13 @@ fn find_type_symbol(name: &String, range: Span, defs: &HashMap<SID, &SymbolicAbs
     );
 }
 
-fn resolve_type (arg: &NominalType, cur_mod: &String, range: Span, class_defs: &HashMap<&String, HashMap<SID, &SymbolicAbstDef>>) -> Result<SymbolicType, Report> {
+fn resolve_type (
+    arg: &NominalType,
+    cur_mod: &String,
+    range: Span,
+    ids_by_mod: &HashMap<&String, VecDeque<SID>>,
+    class_defs: &HashMap<SID, SymbolicAbstDef>
+) -> Result<SymbolicType, Report> {
     use rac_ast::NominalType::*;
     use SymbolicType as ST;
     match arg {
@@ -235,12 +222,12 @@ fn resolve_type (arg: &NominalType, cur_mod: &String, range: Span, class_defs: &
         UnitType => Ok(ST::UnitType),
         IdType(qn) => match qn.owner.clone() {
             None => {
-                let sid = find_type_symbol(&qn.name, range, &class_defs[cur_mod])?;
+                let sid = find_type_symbol(&qn.name, range, &ids_by_mod[cur_mod], class_defs)?;
                 Ok(ST::ClassType(Symbol::new(&qn.name, sid)))
             }
-            Some(parent) => match class_defs.get(&parent) {
-                Some(mp) => {
-                    let sid = find_type_symbol(&qn.name, range, &mp)?;
+            Some(parent) => match ids_by_mod.get(&parent) {
+                Some(ids) => {
+                    let sid = find_type_symbol(&qn.name, range, ids, class_defs)?;
                     Ok(ST::ClassType(Symbol::new(&qn.name, sid)))
                 }
                 None => error!(range, format!("Type `{}` could not be found in the module `{}`.", qn.name, parent))
