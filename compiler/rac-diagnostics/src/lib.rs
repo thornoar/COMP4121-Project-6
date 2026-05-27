@@ -71,11 +71,11 @@ pub fn deliver(r: &Report, fname: &str, src: &[u8]) {
 
     let mut line = 1;
     let mut col = 1;
-    let mut curpos = 1;
+    let mut curpos = 0;
 
     while curpos < r.range.start {
-        if src[curpos-1] == b'\n' {
-            newlines.push(curpos);
+        if src[curpos] == b'\n' {
+            newlines.push(curpos + 1);
             line += 1;
             col = 1;
         } else {
@@ -85,18 +85,18 @@ pub fn deliver(r: &Report, fname: &str, src: &[u8]) {
     }
 
     beg_nl_idx = newlines.len() - 1;
-    while curpos < r.range.end {
-        if src[curpos-1] == b'\n' {
-            newlines.push(curpos);
+    while curpos + 1 < r.range.end {
+        if src[curpos] == b'\n' {
+            newlines.push(curpos + 1);
         }
         curpos += 1;
     }
     end_nl_idx = newlines.len() - 1;
 
     let mut cnt = 0;
-    while curpos < limit && cnt < 2 {
-        if src[curpos-1] == b'\n' {
-            newlines.push(curpos);
+    while curpos + 1 < limit && cnt < 2 {
+        if src[curpos] == b'\n' {
+            newlines.push(curpos + 1);
             cnt += 1;
         }
         curpos += 1;
