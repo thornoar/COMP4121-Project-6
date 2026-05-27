@@ -17,7 +17,9 @@ use std::{
     env, fs,
 };
 
+use rac_ast::SymbolGenerator;
 use rac_diagnostics::{MID, deliver};
+use rac_name_analyzer::resolve;
 use rac_parser::{parse, tokeniter::TokenIter};
 
 #[derive(Debug, Eq, PartialEq)]
@@ -32,7 +34,7 @@ enum Operation {
 
 macro_rules! init_error {
     ($msg:expr) => {{
-        eprintln!("\x1b[31mError:\x1b[0m {}", $msg);
+        eprintln!("Error: {}.", $msg);
         return;
     }};
 }
@@ -64,7 +66,7 @@ pub fn main() {
     }
 
     let oper = match moper {
-        None => init_error!("no operation given."),
+        None => init_error!("no operation given"),
         Some(o) => o,
     };
 
@@ -76,7 +78,7 @@ pub fn main() {
             "one of these options must be given:",
             "  --tokens      print the tokens generated from all input files",
             "  --parse       print the nominal ASTs after parsing, for each file",
-            "  --resolve     print the combined symbolic AST after resolution",
+            "  --resolve     print the combined symbolic AST after resolving",
             "  --typecheck   typeckeck the combined symbolic AST and print type errors",
             "  --interpret   interpret the symbolic AST and print the execution result",
             "  --help        print this help message"
@@ -91,13 +93,13 @@ pub fn main() {
             Ok(contents) => {
                 sources.push_back((fname.as_str(), contents));
             }
-            Err(_) => init_error!(format!("could not read file `\x1b[31m{}\x1b[0m`", fname)),
+            Err(_) => init_error!(format!("could not read file `\x1b[34m{}\x1b[0m`", fname)),
         }
     }
 
     // Stage 3: Parsing
 
-    let mut nominal_trees = VecDeque::new();
+    let mut nominal_modules = VecDeque::new();
     let mut curtag = 0;
     let mut srcmap: HashMap<MID, (&str, &[u8])> = HashMap::new();
 
@@ -109,7 +111,7 @@ pub fn main() {
         } else {
             match parse(src, &mut ts) {
                 Ok(m) => {
-                    nominal_trees.push_back(m);
+                    nominal_modules.push_back(m);
                 }
                 Err(r) => {
                     deliver(&r, fname, src);
@@ -121,13 +123,28 @@ pub fn main() {
         }
     }
 
-    // Stage 4:
-
     if oper == PrintNominal {
-        for module in nominal_trees.iter() {
+        for module in nominal_modules.iter() {
             module.print();
             print!("\n");
         }
+        return;
+    }
+
+    // Stage 4: Resolving
+
+    let mut sg = SymbolGenerator::new();
+    let symbolic_program = match resolve(nominal_modules, &mut sg) {
+        Ok(sp) => sp,
+        Err(r) => {
+            let (fname, src) = srcmap[&r.range.tag];
+            deliver(&r, fname, src);
+            return;
+        }
+    };
+
+    if oper == PrintResolved {
+        symbolic_program.print();
         return;
     }
 }

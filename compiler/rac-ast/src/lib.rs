@@ -240,6 +240,39 @@ pub struct SymbolicProgram {
     pub exprs: VecDeque<Expr<Symbol, SymbolicType>>,
 }
 
+impl SymbolicProgram {
+    pub fn print(&self) {
+        for def in self.type_defs.values() {
+            println!("abstract class {}\n", def.name);
+        }
+        for def in self.class_defs.values() {
+            print!("   case class {} ", def.name);
+            let args_str = def
+                .args
+                .iter()
+                .map(|(n, t)| format!("{}: {}", n, t))
+                .collect::<Vec<String>>()
+                .join(", ");
+            println!("({}) extends {}\n", args_str, def.parent);
+        }
+        for def in self.fun_defs.values() {
+            print!("   def {} ", def.name);
+            let args_str = def
+                .args
+                .iter()
+                .map(|(n, t)| format!("{}: {}", n, t))
+                .collect::<Vec<String>>()
+                .join(", ");
+            println!("({}): {} :=", args_str, def.rt);
+            println!("      {}", def.body.show(2));
+            println!("   end {}\n", def.name);
+        }
+        for expr in self.exprs.iter() {
+            println!("{}\n", expr.show(0));
+        }
+    }
+}
+
 // Expression structures, shared between nominal and symbolic trees.
 // The `N` type parameter denotes the "name" type, either `Name` or `Symbol`.
 // Some of the constructors include a `Span`, others do not, as the span of an expression

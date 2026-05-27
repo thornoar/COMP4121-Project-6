@@ -39,7 +39,7 @@ impl Display for Stage {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::Parsing => write!(f, "parsing"),
-            Self::Resolving => write!(f, "resolution"),
+            Self::Resolving => write!(f, "resolving"),
             Self::Typechecking => write!(f, "type checking"),
             Self::Interpreting => write!(f, "interpreting"),
         }

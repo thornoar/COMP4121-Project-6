@@ -118,7 +118,7 @@ pub fn interpret(expr: &Expr<Symbol, SymbolicType>, env: &mut Environment, prog:
                     .args
                     .iter()
                     .zip(values)
-                    .map(|((sym, _, _), val)| (sym.clone(), val));
+                    .map(|((sym, _), val)| (sym.clone(), val));
                 env.push_scope();
                 env.define_many(map);
                 let ret = interpret(&def.body, env, prog);
