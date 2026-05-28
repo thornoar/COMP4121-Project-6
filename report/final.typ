@@ -6,6 +6,7 @@
   sub2: [`rmaksimovich@connect.ust.hk`],
   ext1: [WU, Yiu Tsz],
   ext2: [`ytwuac@connect.ust.hk`],
+  pagenum: "1",
   inset: (left: 9pt, bottom: 9pt)
 )
 
@@ -24,9 +25,17 @@
 
 = Introduction
 
-In its existing implementation, the Amy language lacks two prominent features of functional languages: lambda abstractions and parametric polymorphism. We have chosen to implement the latter, i.e. to support
+In its existing implementation, the Amy language lacks two prominent features of functional languages: lambda abstractions and parametric polymorphism. We have implemented the latter, i.e. supporting
 - polymorphic types of the form `T[A_1, ... A_n]`, where the type variables `A_k` may be instantiated to concrete types and constructors extending `T` may depend on `A_k` in the types of their arguments;
 - polymorphic functions of the form `f[A_1, ... A_n] (...)`, whose argument types and return type may depend on `A_1, ... A_n`.
+
+The syntax is the same as outlined in the proposal, namely
+```scala
+abstract class T[A_1, A_2, ..., A_k]   // type T parameterized by variables `A_j`
+case class C(a_1: R_1, ..., a_m: R_m) extends T
+def fun[B_1, ..., B_n, C] (a_1: T_1, ..., a_l: T_l): S := ... end fun
+```
+Here the types `R_i` may contain any of the type variables `A_1, ..., A_k`, and the types `T_1, ..., T_l, S` may contain any of the variables `B_1, ..., B_n`.
 
 In addition, we have undertaken and completed the extra challenge of rewriting the entire compiler frontend from scratch in Rust, including
 + A naïve implementation of the lexer, without reliance on regular expressions;
@@ -35,7 +44,7 @@ In addition, we have undertaken and completed the extra challenge of rewriting t
 + A custom implementation of the type-checker, with support for polymorphism;
 + A custom implementation of the interpreter.
 
-Due to time constraints, we have chosen to skip the code generation stage and only implement the interpreter.
+Due to time constraints, we have chosen to _skip the code generation stage_ and only implement the interpreter.
 
 Our projects provides, apart from the extra language features, a state-of-the-art error report system, emitting messages that look like this:
 #[
@@ -150,3 +159,43 @@ pub fn resolve(
 which receives a list of `NominalModule`'s and a `SymbolGenerator` (which can provide fresh symbols), producing a `SymbolicProgram`. A noticeable difference from the reference compiler is that a list of nominal modules is always merged into a _single_ symbolic program. This is done for simplicity and convenience, since after resolving module names no longer matter.
 
 == Type-checking
+
+Our type-checker is very similar to the implemented in the labs, but the introduction of polymorphism requires some changes. Namely, we split type variables into two kinds: _rigid_ and _fluid_. Rigid type variables are visible to the user, they occur as type parameters in type and function definitions:
+```scala
+abstract class T[A, B, C]  // A, B, C are rigid type variables
+def id[A] (x: A): A := x end id  // A is rigid
+```
+In constraints, rigid variables act as _concrete types,_ i.e. a constraint `A = A` will be solved, but `A = Int(32)` will not.\
+On the other hand, _fluid_ type variables have the same role as before: a constraint of the form\ `a = T`, where `a` is a fluid variable and `T` is any type, will result in `a` being substituted with `T` in all subsequent constraints.\
+With regard to constraint accumulation, our implementation mostly follows the standard unification algorithm, with the exception of constructor/function calls.\
+Suppose we are typing a function call `f(e_1, e_2, e_3)` with expected type `T`. From the symbol table we obtain the definition of `f`:
+```scala
+def f[A,B] (x_1: P, x_2: Q, x_3: R): S := <body> end f
+```
+where the types `P`, `Q`, `R`, `S` may contain the type variables `A` and `B`. Now, we cannot simply generate the constraint `T = S`, since the variables `A` and `B` are rigid, and this constraint will likely not be solved. Instead, we generate fresh _fluid_ variables `a`, `b` and perform an $alpha$-conversion `A -> a`, `B -> b` on the types `P`, `Q`, `R`, and `S`. We then proceed to type the call `f(e_1, e_2, e_3)` as usual.\
+Since for different calls of `f`, different fluid variables will be generated, we see, for example, that both `id(false)` and `id(5)` are well-typed. Constructor calls are handled similarly.
+
+The public interface of the type-checker is the function
+```rust
+pub fn typecheck(
+  program: &SymbolicProgram,
+  sg: &mut SymbolGenerator
+) -> Result<(), Report>
+```
+
+== Interpreter
+
+
+
+== Error handling
+
+As you might have noticed, the `parse`, `resolve`, `typecheck`, and `interpret` functions return a result type. Our implementation is completely exception-free, and all errors are encoded in a special `Report` struct which, upon generation, is propagated to the top of the execution chain, at which point it is pretty-printed.
+
+= Building and testing
+
+Assuming `rustc >= 1.94` is installed, our project may be built with `cargo build` in the root directory, and ran with `cargo run -- --interpret <fname1>.amy ... <fnamek>.amy`. See `cargo run -- --help` for more information.\
+The `extension-examples` directory contains test files. Files prefixed by `Error` contain type errors. Feel free to tinker with any of the files and monitor the interpreter output.
+
+= Possible extensions
+
+First of all, our extension would couple very well with the introduction of function types and lambda abstractions. Apart from that, one may consider fully supporting _type constructors_ of kind `* -> *` instead of only concrete types of kind `*`. Our extension is a step in this direction, since in the type `T[A]`, `T` intuitively has kind `* -> *`. Unfortunately, in our implementation currently all type constructors must be fully applied.

@@ -324,12 +324,6 @@ fn constr_subst_mut(constraints: &mut VecDeque<Constraint>, from: SID, to: &Symb
 }
 
 fn solve_constraints(constraints: &mut VecDeque<Constraint>) -> Result<(), Report> {
-    
-    // println!("-------------------");
-    // for constr in constraints.iter() {
-    //     println!("{}", constr)
-    // }
-
     use SymbolicType::*;
     match constraints.pop_front() {
         None => Ok(()),
@@ -342,8 +336,6 @@ fn solve_constraints(constraints: &mut VecDeque<Constraint>) -> Result<(), Repor
                 constr_subst_mut(constraints, name.id, &other);
                 solve_constraints(constraints)
             }
-            // (Var(_, Applicable), _) => solve_constraints(constraints),
-            // (_, Var(_, Applicable)) => solve_constraints(constraints),
             (Var(name1, Rigid), Var(name2, Rigid)) if name1.id == name2.id => solve_constraints(constraints),
             (IntType, IntType) => solve_constraints(constraints),
             (StringType, StringType) => solve_constraints(constraints),

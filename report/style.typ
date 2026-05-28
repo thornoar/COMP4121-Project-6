@@ -56,7 +56,8 @@
   ext1: [],
 	ext2: [],
 	inset: (left: 8pt, bottom: 8pt),
-	fontsize: 14pt
+	fontsize: 14pt,
+  pagenum: none,
 ) = doc => {
   set page(
     "a4",
@@ -68,7 +69,7 @@
         header
       )
     },
-    numbering: none
+    numbering: pagenum
   )
   set text(size: 12pt, font: "TeX Gyre Schola")
   set heading(numbering: "1.")
