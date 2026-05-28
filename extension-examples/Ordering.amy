@@ -1,0 +1,16 @@
+// Comparing values
+
+object ORD
+
+  abstract class Ordering
+  case class LT() extends Ordering
+  case class EQ() extends Ordering
+  case class GT() extends Ordering
+
+  def compareInt (lhs: Int(32), rhs: Int(32)): Ordering :=
+    if (lhs == rhs) then EQ()
+    else if (lhs < rhs) then LT() else GT() end if
+    end if
+  end compareInt
+
+end ORD
