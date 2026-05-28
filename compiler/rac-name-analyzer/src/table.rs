@@ -1,12 +1,12 @@
 use std::collections::{HashMap, VecDeque};
 
-use rac_ast::{SID, Symbol, SymbolicTypeDef};
+use rac_ast::{SID, Symbol, SymbolicClassDef, SymbolicTypeDef};
 
 pub struct TypeTable<'a> {
     pub cur_mod: &'a String,
     pub type_vars: &'a VecDeque<Symbol>,
     pub type_syms: &'a HashMap<String, HashMap<String, SID>>,
-    // pub type_defs: &'a HashMap<SID, SymbolicTypeDef>,
+    pub type_defs: &'a HashMap<SID, SymbolicTypeDef>,
 }
 
 impl<'a> TypeTable<'a> {
@@ -14,13 +14,13 @@ impl<'a> TypeTable<'a> {
         cur_mod: &'a String,
         type_vars: &'a VecDeque<Symbol>,
         type_syms: &'a HashMap<String, HashMap<String, SID>>,
-        // type_defs: &'a HashMap<SID, SymbolicTypeDef>,
+        type_defs: &'a HashMap<SID, SymbolicTypeDef>,
     ) -> Self {
         Self {
             cur_mod,
             type_vars,
             type_syms,
-            // type_defs,
+            type_defs,
         }
     }
 }
@@ -49,8 +49,9 @@ pub struct SymbolTable<'a> {
     pub cur_mod: &'a String,
     pub type_vars: &'a VecDeque<Symbol>,
     pub type_syms: &'a HashMap<String, HashMap<String, SID>>,
-    // pub type_defs: &'a HashMap<SID, SymbolicTypeDef>,
+    pub type_defs: &'a HashMap<SID, SymbolicTypeDef>,
     pub class_syms: &'a HashMap<String, HashMap<String, SID>>,
+    pub class_defs: &'a HashMap<SID, SymbolicClassDef>,
     pub fun_syms: &'a HashMap<String, HashMap<String, SID>>,
     pub fname: Option<(String, SID)>,
 }
@@ -60,8 +61,9 @@ impl<'a> SymbolTable<'a> {
         cur_mod: &'a String,
         type_vars: &'a VecDeque<Symbol>,
         type_syms: &'a HashMap<String, HashMap<String, SID>>,
-        // type_defs: &'a HashMap<SID, SymbolicTypeDef>,
+        type_defs: &'a HashMap<SID, SymbolicTypeDef>,
         class_syms: &'a HashMap<String, HashMap<String, SID>>,
+        class_defs: &'a HashMap<SID, SymbolicClassDef>,
         fun_syms: &'a HashMap<String, HashMap<String, SID>>,
         fname: Option<(String, SID)>,
     ) -> Self {
@@ -69,8 +71,9 @@ impl<'a> SymbolTable<'a> {
             cur_mod,
             type_vars,
             type_syms,
-            // type_defs,
+            type_defs,
             class_syms,
+            class_defs,
             fun_syms,
             fname,
         }
@@ -79,7 +82,12 @@ impl<'a> SymbolTable<'a> {
 
 impl<'a> From<&SymbolTable<'a>> for TypeTable<'a> {
     fn from(value: &SymbolTable<'a>) -> Self {
-        Self::new(value.cur_mod, value.type_vars, value.type_syms)
+        Self::new(
+            value.cur_mod,
+            value.type_vars,
+            value.type_syms,
+            value.type_defs,
+        )
     }
 }
 impl<'a> From<&SymbolTable<'a>> for CallTable<'a> {

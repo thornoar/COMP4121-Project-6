@@ -1,0 +1,12 @@
+object TL
+  abstract class List[A]
+  case class Nil() extends List
+  case class Cons(h: A, t: List[A]) extends List
+
+  def opt[A,B] (xs: List[A]): TL.List[TO.Option[B]] :=
+    xs match {
+      case Nil() => Nil()
+      case Cons(_, t) => Cons(TO.None(), opt(t))
+    }
+  end opt
+end TL

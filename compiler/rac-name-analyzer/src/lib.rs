@@ -1,5 +1,6 @@
 use rac_ast::{
-    DefinitionTable, Expr, Name, NominalModule, NominalType, Pattern, SID, Symbol, SymbolGenerator, SymbolicClassDef, SymbolicFunDef, SymbolicProgram, SymbolicType, SymbolicTypeDef
+    DefinitionTable, Expr, Name, NominalModule, NominalType, Pattern, SID, Symbol, SymbolGenerator,
+    SymbolicClassDef, SymbolicFunDef, SymbolicProgram, SymbolicType, SymbolicTypeDef,
 };
 use rac_diagnostics::{Report, Span, Stage};
 use std::collections::{HashMap, VecDeque};
@@ -27,12 +28,15 @@ macro_rules! check_unique {
 }
 
 macro_rules! find_type_id {
-    ($name:expr, $range:expr, $type_syms:expr) => {
+    ($name:expr, $range:expr, $type_syms:expr, $modname:expr) => {
         match $type_syms.get($name) {
             Some(id) => Ok(*id),
             None => error!(
                 $range,
-                format!("Could not find a type or type variable named `{}`.", $name)
+                format!(
+                    "Could not find a type named `{}` in the `{}` module.",
+                    $name, $modname
+                )
             ),
         }
     };
@@ -95,7 +99,7 @@ pub fn resolve(
                 def.range,
                 cur_type_syms,
                 format!(
-                    "A type named `{}` is already defined in the module `{}`",
+                    "A type named `{}` is already defined in the module `{}`.",
                     def.name, md.name
                 )
             );
@@ -152,7 +156,17 @@ pub fn resolve(
                 def.range,
                 cur_cls_syms,
                 format!(
-                    "A case class named `{}` is already defined in the `{}` module",
+                    "A case class named `{}` is already defined in the `{}` module.",
+                    def.name, md.name
+                )
+            );
+
+            check_unique!(
+                &def.name,
+                def.range,
+                type_syms[&md.name],
+                format!(
+                    "Name collision between a type and class named `{}` in the `{}` module.",
                     def.name, md.name
                 )
             );
@@ -165,7 +179,7 @@ pub fn resolve(
             let sym_name = Symbol::new(&def.name, sid);
 
             // Generate the parent SID and symbol
-            let parent_id = find_type_id!(&def.parent, def.range, type_syms[&md.name])?;
+            let parent_id = find_type_id!(&def.parent, def.range, type_syms[&md.name], &md.name)?;
             let sym_parent = Symbol::new(&def.parent, parent_id);
 
             // Resolve the arguments
@@ -173,7 +187,12 @@ pub fn resolve(
             for (name, typ) in def.args.iter() {
                 let sym_typ = resolve_type(
                     typ,
-                    &TypeTable::new(&md.name, &type_defs[&parent_id].type_vars, &type_syms),
+                    &TypeTable::new(
+                        &md.name,
+                        &type_defs[&parent_id].type_vars,
+                        &type_syms,
+                        &type_defs,
+                    ),
                 )?;
                 let sym_name = sg.fresh(&name);
                 sym_args.push_back((sym_name, sym_typ));
@@ -206,6 +225,26 @@ pub fn resolve(
                 cur_fun_syms,
                 format!(
                     "A function `{}` is already defined in the `{}` module.",
+                    def.name, md.name
+                )
+            );
+
+            check_unique!(
+                &def.name,
+                def.range,
+                type_syms[&md.name],
+                format!(
+                    "Name collision between a type and function named `{}` in the `{}` module.",
+                    def.name, md.name
+                )
+            );
+
+            check_unique!(
+                &def.name,
+                def.range,
+                class_syms[&md.name],
+                format!(
+                    "Name collision between a class and function named `{}` in the `{}` module.",
                     def.name, md.name
                 )
             );
@@ -247,8 +286,10 @@ pub fn resolve(
             // Resolve the arguments
             let mut sym_args = VecDeque::new();
             for (name, typ) in def.args.iter() {
-                let sym_typ =
-                    resolve_type(typ, &TypeTable::new(&md.name, &sym_type_vars, &type_syms))?;
+                let sym_typ = resolve_type(
+                    typ,
+                    &TypeTable::new(&md.name, &sym_type_vars, &type_syms, &type_defs),
+                )?;
                 let sym_name = sg.fresh(&name);
                 sym_args.push_back((sym_name, sym_typ));
             }
@@ -256,7 +297,7 @@ pub fn resolve(
             // Resolve the return type
             let sym_rt = resolve_type(
                 &def.rt,
-                &TypeTable::new(&md.name, &sym_type_vars, &type_syms),
+                &TypeTable::new(&md.name, &sym_type_vars, &type_syms, &type_defs),
             )?;
 
             // Resolve the body
@@ -270,7 +311,9 @@ pub fn resolve(
                     &md.name,
                     &sym_type_vars,
                     &type_syms,
+                    &type_defs,
                     &class_syms,
+                    &class_defs,
                     &fun_syms,
                     Some((def.name, sym_name.id)),
                 ),
@@ -307,7 +350,9 @@ pub fn resolve(
                 &modname,
                 &VecDeque::new(),
                 &type_syms,
+                &type_defs,
                 &class_syms,
+                &class_defs,
                 &fun_syms,
                 None,
             ),
@@ -335,43 +380,52 @@ fn resolve_type(arg: &NominalType, env: &TypeTable) -> Result<SymbolicType, Repo
         BoolType(_) => Ok(ST::BoolType),
         StringType(_) => Ok(ST::StringType),
         UnitType(_) => Ok(ST::UnitType),
-        IdType(qn, params, s) => match qn.owner.clone() {
-            None => {
-                for var in env.type_vars.iter() {
-                    if var.name == qn.name {
-                        if params.len() > 0 {
-                            return error!(
-                                *s,
-                                format!(
-                                    "The type variable `{}` cannot take any type parameters.",
-                                    qn.name
-                                )
-                            );
+        IdType(qn, params, s) => {
+            let (mp, modname) = match qn.owner.clone() {
+                None => {
+                    for var in env.type_vars.iter() {
+                        if var.name == qn.name {
+                            if params.len() > 0 {
+                                return error!(
+                                    *s,
+                                    format!(
+                                        "The type variable `{}` cannot take any type parameters.",
+                                        qn.name
+                                    )
+                                );
+                            }
+                            return Ok(ST::Var(Symbol::new(&qn.name, var.id)));
                         }
-                        return Ok(ST::Var(Symbol::new(&qn.name, var.id)));
                     }
+                    (&env.type_syms[env.cur_mod], env.cur_mod.clone())
                 }
-                let sid = find_type_id!(&qn.name, *s, &env.type_syms[env.cur_mod])?;
-                let mut sym_params = VecDeque::new();
-                for param in params.iter() {
-                    let sym_param = resolve_type(param, env)?;
-                    sym_params.push_back(sym_param);
-                }
-                Ok(ST::ClassType(Symbol::new(&qn.name, sid), sym_params))
+                Some(owner) => match env.type_syms.get(&owner) {
+                    Some(mp) => (mp, owner),
+                    None => {
+                        return error!(*s, format!("No module named `{}`.", owner));
+                    }
+                },
+            };
+            let sid = find_type_id!(&qn.name, *s, mp, modname)?;
+            let def = &env.type_defs[&sid];
+            if params.len() != def.type_vars.len() {
+                return error!(
+                    *s,
+                    format!(
+                        "The type `{}` takes {} parameters, but was given {}.",
+                        qn,
+                        def.type_vars.len(),
+                        params.len()
+                    )
+                );
             }
-            Some(owner) => match env.type_syms.get(&owner) {
-                Some(mp) => {
-                    let sid = find_type_id!(&qn.name, *s, mp)?;
-                    let mut sym_params = VecDeque::new();
-                    for param in params.iter() {
-                        let sym_param = resolve_type(param, env)?;
-                        sym_params.push_back(sym_param);
-                    }
-                    Ok(ST::ClassType(Symbol::new(&qn.name, sid), sym_params))
-                }
-                None => error!(*s, format!("No module named `{}`.", owner)),
-            },
-        },
+            let mut sym_params = VecDeque::new();
+            for param in params.iter() {
+                let sym_param = resolve_type(param, env)?;
+                sym_params.push_back(sym_param);
+            }
+            Ok(ST::ClassType(Symbol::new(&qn.name, sid), sym_params))
+        }
     }
 }
 
@@ -432,6 +486,18 @@ fn resolve_pattern(
         UnitPattern(s) => Ok(UnitPattern(s)),
         ClassPattern(qn, subpats, s) => {
             let sym_name = resolve_class(&qn, s, env)?;
+            let def = &env.class_defs[&sym_name.id];
+            if subpats.len() != def.args.len() {
+                return error!(
+                    s,
+                    format!(
+                        "Constructor `{}` takes {} arguments, but was given {}.",
+                        qn,
+                        def.args.len(),
+                        subpats.len()
+                    )
+                );
+            }
             let mut sym_subpats = VecDeque::new();
             for sp in subpats.into_iter() {
                 let sym_sp = resolve_pattern(sp, env, binds, sg)?;

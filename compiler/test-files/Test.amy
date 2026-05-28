@@ -1,8 +1,8 @@
 object Test
-	abstract class T[A]
-	abstract class V
+  abstract class A
+  case class C() extends A
 
-  case class C(x: A) extends T
-
-  def ff[X, Y] (x: Y, y: Y): Unit := x + ff(x) end ff
+  def f(): TO.Option[Unit] := 4 match {
+    case C(_, _) => 7
+  } end f
 end Test
