@@ -4,7 +4,7 @@ object Test
 
   def getFirst[X, Y, Z] (t: Triple[X, Y, Z]): X :=
     t match {
-      case MkTriple(x, y, z) => y
+      case MkTriple(x, y, z) => x
     }
   end getFirst
 end Test

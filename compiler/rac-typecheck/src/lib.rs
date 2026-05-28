@@ -45,16 +45,12 @@ pub fn typecheck(program: &SymbolicProgram, sg: &mut SymbolGenerator) -> Result<
     for expr in program.exprs.iter() {
         let expr_constr = collect_constraints(
             expr,
-            sg.fresh_type_var(),
+            sg.fresh_type_var(true),
             HashMap::new(),
             &program.table,
             sg,
         )?;
         constraints.extend(expr_constr);
-    }
-
-    for constr in constraints.iter() {
-        println!("{}", constr)
     }
 
     // Solve the constraints
@@ -117,7 +113,7 @@ fn collect_constraints(
         Or(lhs, rhs) => binop!(lhs, rhs, BoolType, BoolType, BoolType),
         Concat(lhs, rhs) => binop!(lhs, rhs, StringType, StringType, StringType),
         Equals(lhs, rhs) => {
-            let tv = sg.fresh_type_var();
+            let tv = sg.fresh_type_var(true);
             binop!(lhs, rhs, BoolType, tv.clone(), tv)
         }
         Not(arg, s) => unary!(arg, *s, BoolType, BoolType),
@@ -156,7 +152,7 @@ fn collect_constraints(
                 let mut subst = HashMap::new();
                 let mut type_args = VecDeque::new();
                 for var in tdef.type_vars.iter() {
-                    let tv = sg.fresh_type_var();
+                    let tv = sg.fresh_type_var(true);
                     type_args.push_back(tv.clone());
                     subst.insert(var.id, tv);
                 }
@@ -187,7 +183,7 @@ fn collect_constraints(
             ),
         },
         Sequence(lhs, rhs) => {
-            let tv = sg.fresh_type_var();
+            let tv = sg.fresh_type_var(true);
             let mut res = collect_constraints(lhs, tv, env.clone(), table, sg)?;
             let more = collect_constraints(rhs, expected, env, table, sg)?;
             res.extend(more.into_iter());
@@ -210,7 +206,7 @@ fn collect_constraints(
             Ok(res)
         }
         Match(scrut, pats, _) => {
-            let tv = sg.fresh_type_var();
+            let tv = sg.fresh_type_var(true);
             let mut res = collect_constraints(scrut, tv.clone(), env.clone(), table, sg)?;
             for (pat, branch) in pats.iter() {
                 let (pat_constr, binds) = pattern_constraints(pat, tv.clone(), table, sg)?;
@@ -259,7 +255,7 @@ fn pattern_constraints(
             let mut subst = HashMap::new();
             let mut type_args = VecDeque::new();
             for var in tdef.type_vars.iter() {
-                let tv = sg.fresh_type_var();
+                let tv = sg.fresh_type_var(true);
                 type_args.push_back(tv.clone());
                 subst.insert(var.id, tv);
             }
@@ -295,10 +291,15 @@ fn type_subst(typ: &SymbolicType, subst: &HashMap<SID, SymbolicType>) -> Symboli
             }
             ClassType(name.clone(), newparams)
         }
-        Var(name) => match subst.get(&name.id) {
-            None => Var(name.clone()),
+        Var(name, free) => match subst.get(&name.id) {
+            None => Var(name.clone(), *free),
             Some(newtyp) => newtyp.clone(),
         },
+        // Var(name, false) => Var(name.clone(), false)
+        //     match subst.get(&name.id) {
+        //     None => Var(name.clone(), false),
+        //     Some(newtyp) => newtyp.clone(),
+        // },
     }
 }
 
@@ -311,7 +312,7 @@ fn type_subst_mut(typ: &mut SymbolicType, from: SID, to: &SymbolicType) {
                 type_subst_mut(param, from, to);
             }
         }
-        Var(name) if from == name.id => *typ = to.clone(),
+        Var(name, true) if from == name.id => *typ = to.clone(),
         _ => {}
     }
 }
@@ -324,15 +325,21 @@ fn constr_subst_mut(constraints: &mut VecDeque<Constraint>, from: SID, to: &Symb
 }
 
 fn solve_constraints(constraints: &mut VecDeque<Constraint>) -> Result<(), Report> {
+    
+    println!("-------------------");
+    for constr in constraints.iter() {
+        println!("{}", constr)
+    }
+
     use SymbolicType::*;
     match constraints.pop_front() {
         None => Ok(()),
         Some(cur) => match (cur.expected, cur.found) {
-            (Var(name), other) => {
+            (Var(name, true), other) => {
                 constr_subst_mut(constraints, name.id, &other);
                 solve_constraints(constraints)
             }
-            (other, Var(name)) => {
+            (other, Var(name, true)) => {
                 constr_subst_mut(constraints, name.id, &other);
                 solve_constraints(constraints)
             }

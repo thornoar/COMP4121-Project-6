@@ -167,7 +167,7 @@ pub enum SymbolicType {
     // User-defined types
     ClassType(Symbol, VecDeque<SymbolicType>),
     // Type variables
-    Var(Symbol),
+    Var(Symbol, bool),
 }
 
 pub type SymArgList = VecDeque<(Symbol, SymbolicType)>;
@@ -191,7 +191,7 @@ impl Display for SymbolicType {
                     .collect::<Vec<String>>()
                     .join(", ")
             ),
-            Var(name) => write!(f, "'{}", name.name),
+            Var(name, free) => write!(f, "'{}({})", name.name, free),
         }
     }
 }
@@ -251,11 +251,11 @@ impl SymbolGenerator {
         sym
     }
 
-    pub fn fresh_type_var(&mut self) -> SymbolicType {
+    pub fn fresh_type_var(&mut self, free: bool) -> SymbolicType {
         let typ = SymbolicType::Var(Symbol {
-            name: String::from("a"),
+            name: format!("a{}", self.next_id),
             id: self.next_id,
-        });
+        }, free);
         self.next_id += 1;
         typ
     }
