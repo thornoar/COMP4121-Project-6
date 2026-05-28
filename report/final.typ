@@ -91,7 +91,7 @@ object TL
   def switchType[A,B] (xs: List[A]): List[B] :=
     xs match {
       case Nil() => Nil()
-      case Cons(_, t) => error("don't know how to produce B from A.")
+      case Cons(_, _) => error("no way to produce B from A.")
     }
   end switchType
 

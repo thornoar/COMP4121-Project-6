@@ -161,7 +161,7 @@ impl NominalModule {
 pub enum VarKind {
     Rigid,
     Fluid,
-    Applicable
+    // Applicable
 }
 
 #[derive(Debug, Clone)]

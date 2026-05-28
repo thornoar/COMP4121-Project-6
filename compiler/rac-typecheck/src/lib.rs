@@ -57,16 +57,18 @@ pub fn typecheck(program: &SymbolicProgram, sg: &mut SymbolGenerator) -> Result<
     solve_constraints(&mut constraints)
 }
 
-fn make_applicable(
-    typ: &SymbolicType
-) -> SymbolicType {
-    use SymbolicType::*;
-    match typ {
-        UnitType | IntType | BoolType | StringType => typ.clone(),
-        ClassType(name, params) => ClassType(name.clone(), params.iter().map(|t| make_applicable(t)).collect::<VecDeque<SymbolicType>>()),
-        Var(name, Rigid) => Var(name.clone(), Applicable),
-        Var(name, kind) => Var(name.clone(), *kind)
+fn alpha_conversion(
+    vars: &VecDeque<Symbol>,
+    sg: &mut SymbolGenerator,
+) -> (HashMap<SID, SymbolicType>, VecDeque<SymbolicType>) {
+    let mut res = HashMap::new();
+    let mut type_args = VecDeque::new();
+    for var in vars.iter() {
+        let tv = sg.fresh_type_var();
+        type_args.push_back(tv.clone());
+        res.insert(var.id, tv);
     }
+    (res, type_args)
 }
 
 fn collect_constraints(
@@ -139,6 +141,7 @@ fn collect_constraints(
                 )
             ),
             (Some(def), None) => {
+                // Check arity
                 if args.len() != def.args.len() {
                     return error!(
                         *s,
@@ -151,23 +154,18 @@ fn collect_constraints(
                     );
                 }
                 let mut res = VecDeque::new();
-                // res.push_back(Constraint::new(expected, def.rt.clone(), *s));
-                res.push_back(Constraint::new(expected, make_applicable(&def.rt), *s));
+                // Perform alpha conversion on the function type parameters
+                let (subst, _) = alpha_conversion(&def.type_vars, sg);
+                res.push_back(Constraint::new(expected, type_subst(&def.rt, &subst), *s));
                 for (arg, (_, typ)) in args.iter().zip(def.args.iter()) {
-                    let mut arg_constr = collect_constraints(arg, make_applicable(typ), env.clone(), table, sg)?;
+                    let mut arg_constr = collect_constraints(arg, type_subst(typ, &subst), env.clone(), table, sg)?;
                     res.append(&mut arg_constr);
                 }
                 Ok(res)
             }
             (None, Some(def)) => {
                 let tdef = &table.type_defs[&def.parent.id];
-                let mut subst = HashMap::new();
-                let mut type_args = VecDeque::new();
-                for var in tdef.type_vars.iter() {
-                    let tv = sg.fresh_type_var();
-                    type_args.push_back(tv.clone());
-                    subst.insert(var.id, tv);
-                }
+                let (subst, type_args) = alpha_conversion(&tdef.type_vars, sg);
                 let mut res: VecDeque<Constraint> = VecDeque::new();
                 res.push_front(Constraint::new(
                     expected,
@@ -264,13 +262,7 @@ fn pattern_constraints(
         ClassPattern(name, argpats, s) => {
             let def = &table.class_defs[&name.id];
             let tdef = &table.type_defs[&def.parent.id];
-            let mut subst = HashMap::new();
-            let mut type_args = VecDeque::new();
-            for var in tdef.type_vars.iter() {
-                let tv = sg.fresh_type_var();
-                type_args.push_back(tv.clone());
-                subst.insert(var.id, tv);
-            }
+            let (subst, type_args) = alpha_conversion(&tdef.type_vars, sg);
             let mut res = VecDeque::new();
             let mut mp = HashMap::new();
             res.push_back(Constraint::new(
@@ -333,10 +325,10 @@ fn constr_subst_mut(constraints: &mut VecDeque<Constraint>, from: SID, to: &Symb
 
 fn solve_constraints(constraints: &mut VecDeque<Constraint>) -> Result<(), Report> {
     
-    println!("-------------------");
-    for constr in constraints.iter() {
-        println!("{}", constr)
-    }
+    // println!("-------------------");
+    // for constr in constraints.iter() {
+    //     println!("{}", constr)
+    // }
 
     use SymbolicType::*;
     match constraints.pop_front() {
@@ -350,8 +342,8 @@ fn solve_constraints(constraints: &mut VecDeque<Constraint>) -> Result<(), Repor
                 constr_subst_mut(constraints, name.id, &other);
                 solve_constraints(constraints)
             }
-            (Var(_, Applicable), _) => solve_constraints(constraints),
-            (_, Var(_, Applicable)) => solve_constraints(constraints),
+            // (Var(_, Applicable), _) => solve_constraints(constraints),
+            // (_, Var(_, Applicable)) => solve_constraints(constraints),
             (Var(name1, Rigid), Var(name2, Rigid)) if name1.id == name2.id => solve_constraints(constraints),
             (IntType, IntType) => solve_constraints(constraints),
             (StringType, StringType) => solve_constraints(constraints),

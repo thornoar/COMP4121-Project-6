@@ -6,7 +6,7 @@ object TL
   def switchType[A,B] (xs: List[A]): List[B] :=
     xs match {
       case Nil() => Nil()
-      case Cons(_, t) => error("don't know how to produce B from A.")
+      case Cons(_, _) => error("no way to produce B from A.")
     }
   end switchType
 
@@ -17,7 +17,21 @@ object TL
     }
   end length
 
+  def concat[A] (lhs: List[A], rhs: List[A]): List[A] :=
+    lhs match {
+      case Nil() => rhs
+      case Cons(h, t) => Cons(h, concat(t, rhs))
+    }
+  end concat
+  
+  // `Cons` is a polymorphic constructor
   val xs: List[Int(32)] = Cons(3, Cons(7, Nil()));
-  val ys: List[Boolean] = switchType(xs);
-  ys
+  val ys: List[String] = Cons("", Cons("", Nil()));
+
+  // `switchType` can convert them to lists of the same type
+  val zs: List[Boolean] = concat(switchType(xs), switchType(ys));
+
+  // `Nil()` is polymorphic
+  Nil() == Cons(5, Nil());
+  Nil() == Cons(false, Cons(true, Nil()))
 end TL

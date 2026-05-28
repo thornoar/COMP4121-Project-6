@@ -1,24 +1,32 @@
 object Test
-
-  // def f[A,B] (x: A): B := 5 end f
-
-  // def f[A] (x: A): A := x end f
-  // f(5);
-  // f(false)
-
   abstract class Triple[A, B, C]
   case class MkTriple(x: A, y: B, z: C) extends Triple
 
-  def three[X] (x: X): Triple[X,X,X] :=
-    MkTriple(x,x,x)
-  end three
+  // def f[A,B] (x: Triple[A, A, A]): Int(32) := 5 end f
 
-  def getFirst[X, Y, Z] (t: Triple[X, Y, Z]): Int(32) :=
-    t match {
-      case MkTriple(x, y, z) => y + 5
-    }
-  end getFirst
+  def f[A] (x: A): A := x end f
+  // f(5);
+  // f(false)
+  
+  def g[A,B] (x: B): B := f(x) end g
 
-  getFirst(three(4));
-  getFirst(three(false))
+  // f(MkTriple((), (), ())) match {
+  //   case _ => 4
+  // };
+  // f(MkTriple(false, false, false)) match {
+  //   case _ => 4
+  // }
+
+  // def three[X] (x: X): Triple[X,X,X] :=
+  //   MkTriple(x,x,x)
+  // end three
+  //
+  // def getFirst[X, Y, Z] (t: Triple[X, Y, Z]): X :=
+  //   t match {
+  //     case MkTriple(x, y, z) => z
+  //   }
+  // end getFirst
+  //
+  // three(4) == MkTriple(4, (), 6);
+  // getFirst(three(false))
 end Test
