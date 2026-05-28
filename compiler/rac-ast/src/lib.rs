@@ -180,17 +180,18 @@ impl Display for SymbolicType {
             BoolType => write!(f, "Boolean"),
             StringType => write!(f, "String"),
             UnitType => write!(f, "Unit"),
+            ClassType(name, params) if params.is_empty() => write!(f, "{}", name.name),
             ClassType(name, params) => write!(
                 f,
                 "{}[{}]",
-                name,
+                name.name,
                 params
                     .iter()
                     .map(|p| format!("{}", p))
                     .collect::<Vec<String>>()
                     .join(", ")
             ),
-            Var(name) => write!(f, "'{}", name),
+            Var(name) => write!(f, "'{}", name.name),
         }
     }
 }
@@ -251,7 +252,9 @@ impl SymbolGenerator {
     }
 
     pub fn fresh_type_var(&mut self) -> SymbolicType {
-        SymbolicType::Var(self.fresh(&format!("'a:{}", self.next_id)))
+        let typ = SymbolicType::Var(Symbol { name: String::from("a"), id: self.next_id });
+        self.next_id += 1;
+        typ
     }
 }
 

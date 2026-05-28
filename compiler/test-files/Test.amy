@@ -1,8 +1,5 @@
 object Test
-  abstract class A
-  case class C() extends A
-
-  def f(): TO.Option[Unit] := 4 match {
-    case C(_, _) => 7
-  } end f
+  abstract class A[V]
+  case class C(x: TO.Option[V]) extends A
+  val x: TO.Option[Boolean] = TO.Some(true); C(x)
 end Test

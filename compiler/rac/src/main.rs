@@ -21,6 +21,7 @@ use rac_ast::SymbolGenerator;
 use rac_diagnostics::{MID, deliver};
 use rac_name_analyzer::resolve;
 use rac_parser::{parse, tokeniter::TokenIter};
+use rac_typecheck::typecheck;
 
 #[derive(Debug, Eq, PartialEq)]
 enum Operation {
@@ -146,5 +147,16 @@ pub fn main() {
     if oper == PrintResolved {
         symbolic_program.print();
         return;
+    }
+
+    // Stage 5: Typechecking
+
+    match typecheck(&symbolic_program, &mut sg) {
+        Ok(()) => if oper == TypeCheck { println!("Program successfully typechecks."); return; } else {},
+        Err(r) => {
+            let (fname, src) = srcmap[&r.range.tag];
+            deliver(&r, fname, src);
+            return;
+        }
     }
 }

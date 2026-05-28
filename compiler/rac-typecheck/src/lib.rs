@@ -1,6 +1,6 @@
 use std::collections::{HashMap, VecDeque};
 
-use rac_ast::{DefinitionTable, Expr, Pattern, SID, Symbol, SymbolGenerator, SymbolicType, range};
+use rac_ast::{DefinitionTable, Expr, Pattern, SID, Symbol, SymbolGenerator, SymbolicProgram, SymbolicType, range};
 use rac_diagnostics::{Report, Stage};
 
 use crate::constraint::Constraint;
@@ -23,6 +23,29 @@ macro_rules! error {
             msg: String::from($msg),
         })
     };
+}
+
+pub fn typecheck(program: &SymbolicProgram, sg: &mut SymbolGenerator) -> Result<(), Report> {
+    let mut constraints = VecDeque::new();
+
+    // Collect constraints from function bodies
+    for fdef in program.table.fun_defs.values() {
+        let mut env = HashMap::new();
+        for (sym, typ) in fdef.args.iter() {
+            env.insert(sym.id, typ.clone());
+        }
+        let fun_constr = collect_constraints(&fdef.body, fdef.rt.clone(), env, &program.table, sg)?;
+        constraints.extend(fun_constr);
+    }
+
+    // Collect constraints from expressions
+    for expr in program.exprs.iter() {
+        let expr_constr = collect_constraints(expr, sg.fresh_type_var(), HashMap::new(), &program.table, sg)?;
+        constraints.extend(expr_constr);
+    }
+
+    // Solve the constraints
+    solve_constraints(&mut constraints)
 }
 
 fn collect_constraints(
@@ -122,7 +145,7 @@ fn collect_constraints(
                 }
                 Ok(res)
             }
-            (Some(_), Some(_)) => error!(*s, format!("Ambiguous call: `{}` might refer to a function or a constructor", sym.name))
+            (Some(_), Some(_)) => error!(*s, format!("Ambiguous call: `{}` might refer to a function or a constructor.", sym.name))
         }
         Sequence(lhs, rhs) => {
             let tv = sg.fresh_type_var();
@@ -287,14 +310,17 @@ fn solve_constraints(
             (UnitType, UnitType) => solve_constraints(constraints),
             (ClassType(name1, params1), ClassType(name2, params2)) => {
                 if name1.id != name2.id {
-                    return error!(cur.range, format!("Expected type `{}`, found type `{}`", name1.name, name2.name))
+                    return error!(cur.range, format!("Expected type `{}`, found type `{}`.", name1.name, name2.name))
                 }
                 for (param1, param2) in params1.into_iter().zip(params2.into_iter()) {
                     constraints.push_front(Constraint::new(param1, param2, cur.range));
                 }
                 solve_constraints(constraints)
             }
-            (expected, found) => error!(cur.range, format!("Could not unify types `{}` and `{}`", expected, found))
+            (expected, found) => {
+                println!("{:?}", found);
+                error!(cur.range, format!("Expected type `{}`, found `{}`.", expected, found))
+            }
         }
     }
 }
