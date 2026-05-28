@@ -1,10 +1,20 @@
 object Test
-  abstract class Triple[A, B, C]
-  case class MkTriple(x: A, y: B, z: C) extends Triple
 
-  def getFirst[X, Y, Z] (t: Triple[X, Y, Z]): X :=
-    t match {
-      case MkTriple(x, y, z) => x
-    }
-  end getFirst
+  def f[A,B] (x: A): B := 5 end f
+
+  // def id[A] (x: A): A := x end id
+  // id(5);
+  // id(true)
+
+  // abstract class Triple[A, B, C]
+  // case class MkTriple(x: A, y: B, z: C) extends Triple
+  //
+  // def getFirst[X, Y, Z] (t: Triple[X, Y, Z]): X :=
+  //   t match {
+  //     case MkTriple(x, y, z) => x
+  //   }
+  // end getFirst
+  //
+  // val x: Int(32) = getFirst(MkTriple(5, (), true));
+  // x
 end Test

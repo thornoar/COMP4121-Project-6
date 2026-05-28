@@ -45,7 +45,7 @@ pub fn typecheck(program: &SymbolicProgram, sg: &mut SymbolGenerator) -> Result<
     for expr in program.exprs.iter() {
         let expr_constr = collect_constraints(
             expr,
-            sg.fresh_type_var(true),
+            sg.fresh_type_var(),
             HashMap::new(),
             &program.table,
             sg,
@@ -113,7 +113,7 @@ fn collect_constraints(
         Or(lhs, rhs) => binop!(lhs, rhs, BoolType, BoolType, BoolType),
         Concat(lhs, rhs) => binop!(lhs, rhs, StringType, StringType, StringType),
         Equals(lhs, rhs) => {
-            let tv = sg.fresh_type_var(true);
+            let tv = sg.fresh_type_var();
             binop!(lhs, rhs, BoolType, tv.clone(), tv)
         }
         Not(arg, s) => unary!(arg, *s, BoolType, BoolType),
@@ -152,7 +152,7 @@ fn collect_constraints(
                 let mut subst = HashMap::new();
                 let mut type_args = VecDeque::new();
                 for var in tdef.type_vars.iter() {
-                    let tv = sg.fresh_type_var(true);
+                    let tv = sg.fresh_type_var();
                     type_args.push_back(tv.clone());
                     subst.insert(var.id, tv);
                 }
@@ -183,7 +183,7 @@ fn collect_constraints(
             ),
         },
         Sequence(lhs, rhs) => {
-            let tv = sg.fresh_type_var(true);
+            let tv = sg.fresh_type_var();
             let mut res = collect_constraints(lhs, tv, env.clone(), table, sg)?;
             let more = collect_constraints(rhs, expected, env, table, sg)?;
             res.extend(more.into_iter());
@@ -206,7 +206,7 @@ fn collect_constraints(
             Ok(res)
         }
         Match(scrut, pats, _) => {
-            let tv = sg.fresh_type_var(true);
+            let tv = sg.fresh_type_var();
             let mut res = collect_constraints(scrut, tv.clone(), env.clone(), table, sg)?;
             for (pat, branch) in pats.iter() {
                 let (pat_constr, binds) = pattern_constraints(pat, tv.clone(), table, sg)?;
@@ -255,7 +255,7 @@ fn pattern_constraints(
             let mut subst = HashMap::new();
             let mut type_args = VecDeque::new();
             for var in tdef.type_vars.iter() {
-                let tv = sg.fresh_type_var(true);
+                let tv = sg.fresh_type_var();
                 type_args.push_back(tv.clone());
                 subst.insert(var.id, tv);
             }
@@ -291,15 +291,10 @@ fn type_subst(typ: &SymbolicType, subst: &HashMap<SID, SymbolicType>) -> Symboli
             }
             ClassType(name.clone(), newparams)
         }
-        Var(name, free) => match subst.get(&name.id) {
-            None => Var(name.clone(), *free),
+        Var(name, fluid) => match subst.get(&name.id) {
+            None => Var(name.clone(), *fluid),
             Some(newtyp) => newtyp.clone(),
         },
-        // Var(name, false) => Var(name.clone(), false)
-        //     match subst.get(&name.id) {
-        //     None => Var(name.clone(), false),
-        //     Some(newtyp) => newtyp.clone(),
-        // },
     }
 }
 
@@ -343,6 +338,7 @@ fn solve_constraints(constraints: &mut VecDeque<Constraint>) -> Result<(), Repor
                 constr_subst_mut(constraints, name.id, &other);
                 solve_constraints(constraints)
             }
+            (Var(name1, false), Var(name2, false)) if name1.id == name2.id => solve_constraints(constraints),
             (IntType, IntType) => solve_constraints(constraints),
             (StringType, StringType) => solve_constraints(constraints),
             (BoolType, BoolType) => solve_constraints(constraints),
@@ -364,7 +360,6 @@ fn solve_constraints(constraints: &mut VecDeque<Constraint>) -> Result<(), Repor
                 solve_constraints(constraints)
             }
             (expected, found) => {
-                println!("{:?}", found);
                 error!(
                     cur.range,
                     format!("Expected type `{}`, found `{}`.", expected, found)

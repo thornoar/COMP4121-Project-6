@@ -108,7 +108,7 @@ impl NominalModule {
                     " [{}]",
                     def.type_vars
                         .iter()
-                        .map(|v| format!("'{}", v))
+                        .map(|v| format!("{}", v))
                         .collect::<Vec<String>>()
                         .join(", ")
                 );
@@ -132,7 +132,7 @@ impl NominalModule {
                     "[{}] ",
                     def.type_vars
                         .iter()
-                        .map(|v| format!("'{}", v))
+                        .map(|v| format!("{}", v))
                         .collect::<Vec<String>>()
                         .join(", ")
                 );
@@ -191,7 +191,7 @@ impl Display for SymbolicType {
                     .collect::<Vec<String>>()
                     .join(", ")
             ),
-            Var(name, free) => write!(f, "'{}({})", name.name, free),
+            Var(name, _) => write!(f, "{}", name.name),
         }
     }
 }
@@ -251,11 +251,11 @@ impl SymbolGenerator {
         sym
     }
 
-    pub fn fresh_type_var(&mut self, free: bool) -> SymbolicType {
+    pub fn fresh_type_var(&mut self) -> SymbolicType {
         let typ = SymbolicType::Var(Symbol {
             name: format!("a{}", self.next_id),
             id: self.next_id,
-        }, free);
+        }, true);
         self.next_id += 1;
         typ
     }
@@ -309,7 +309,7 @@ impl SymbolicProgram {
                     " [{}]",
                     def.type_vars
                         .iter()
-                        .map(|v| format!("'{}", v))
+                        .map(|v| format!("{}", v))
                         .collect::<Vec<String>>()
                         .join(", ")
                 );
@@ -333,7 +333,7 @@ impl SymbolicProgram {
                     "[{}] ",
                     def.type_vars
                         .iter()
-                        .map(|v| format!("'{}", v))
+                        .map(|v| format!("{}", v))
                         .collect::<Vec<String>>()
                         .join(", ")
                 );

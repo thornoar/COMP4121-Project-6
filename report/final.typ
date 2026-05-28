@@ -108,4 +108,16 @@ object TL
 end TL
 ```
 This program type-checks and the type variable `A` in `List[A]` is specified to different types in different scenarios. The following program, on the other hand, will not type-check:
+```scala
+object Test
+  abstract class Triple[A, B, C]
+  case class MkTriple(x: A, y: B, z: C) extends Triple
+
+  def getFirst[X, Y, Z] (t: Triple[X, Y, Z]): X :=
+    t match {
+      case MkTriple(x, y, z) => y
+    }
+  end getFirst
+end Test
+```
 
