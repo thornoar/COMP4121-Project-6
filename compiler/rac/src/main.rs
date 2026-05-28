@@ -19,6 +19,7 @@ use std::{
 
 use rac_ast::SymbolGenerator;
 use rac_diagnostics::{MID, deliver};
+use rac_interpreter::interpret_program;
 use rac_name_analyzer::resolve;
 use rac_parser::{parse, tokeniter::TokenIter};
 use rac_typecheck::typecheck;
@@ -159,6 +160,17 @@ pub fn main() {
             } else {
             }
         }
+        Err(r) => {
+            let (fname, src) = srcmap[&r.range.tag];
+            deliver(&r, fname, src);
+            return;
+        }
+    }
+
+    // Stage 6: Interpreting
+
+    match interpret_program(symbolic_program) {
+        Ok(()) => {},
         Err(r) => {
             let (fname, src) = srcmap[&r.range.tag];
             deliver(&r, fname, src);

@@ -8,6 +8,7 @@ version = "0.1.0"
 dependencies = [
  "rac-ast",
  "rac-diagnostics",
+ "rac-interpreter",
  "rac-name-analyzer",
  "rac-parser",
  "rac-typecheck",

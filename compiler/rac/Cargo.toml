@@ -12,3 +12,4 @@ rac-parser = { path = "../rac-parser" }
 rac-diagnostics = { path = "../rac-diagnostics" }
 rac-typecheck = { path = "../rac-typecheck" }
 rac-name-analyzer = { path = "../rac-name-analyzer" }
+rac-interpreter = { path = "../rac-interpreter" }
