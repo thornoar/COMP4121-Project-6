@@ -310,7 +310,7 @@ fn solve_constraints(
             (UnitType, UnitType) => solve_constraints(constraints),
             (ClassType(name1, params1), ClassType(name2, params2)) => {
                 if name1.id != name2.id {
-                    return error!(cur.range, format!("Expected type `{}`, found type `{}`.", name1.name, name2.name))
+                    return error!(cur.range, format!("Expected type `{}`, found `{}`.", ClassType(name1, params1), ClassType(name2, params2)))
                 }
                 for (param1, param2) in params1.into_iter().zip(params2.into_iter()) {
                     constraints.push_front(Constraint::new(param1, param2, cur.range));

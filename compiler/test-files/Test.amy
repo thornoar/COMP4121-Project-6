@@ -1,5 +1,4 @@
 object Test
-  abstract class A[V]
-  case class C(x: TO.Option[V]) extends A
-  val x: TO.Option[Boolean] = TO.Some(true); C(x)
+  val x: TL.List[TO.Option[ORD.Ordering]] = TO.None();
+  7
 end Test

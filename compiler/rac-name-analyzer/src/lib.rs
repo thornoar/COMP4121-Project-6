@@ -43,26 +43,26 @@ macro_rules! find_type_id {
 }
 
 macro_rules! find_class_id {
-    ($name:expr, $range:expr, $class_syms:expr) => {
+    ($name:expr, $range:expr, $class_syms:expr, $modname:expr) => {
         match $class_syms.get($name) {
             Some(id) => Ok(*id),
             None => error!(
                 $range,
-                format!("Could not find a constructor named `{}`.", $name)
+                format!("No constructor named `{}` in the `{}` module.", $name, $modname)
             ),
         }
     };
 }
 
 macro_rules! find_call_id {
-    ($name:expr, $range:expr, $cls_syms:expr, $fun_syms:expr) => {
+    ($name:expr, $range:expr, $cls_syms:expr, $fun_syms:expr, $modname:expr) => {
         match $fun_syms.get($name) {
             Some(id) => Ok(*id),
             None => match $cls_syms.get($name) {
                 Some(id) => Ok(*id),
                 None => error!(
                     $range,
-                    format!("No function or constructor named `{}`.", $name)
+                    format!("No function or constructor named `{}` in the `{}` module.", $name, $modname)
                 ),
             },
         }
@@ -436,13 +436,14 @@ fn resolve_call(arg: &Name, range: Span, table: &CallTable) -> Result<Symbol, Re
                 &arg.name,
                 range,
                 &table.class_syms[table.cur_mod],
-                &table.fun_syms[table.cur_mod]
+                &table.fun_syms[table.cur_mod],
+                table.cur_mod
             )?;
             Ok(Symbol::new(&arg.name, sid))
         }
         Some(owner) => match (table.fun_syms.get(owner), table.class_syms.get(owner)) {
             (Some(mp1), Some(mp2)) => {
-                let sid = find_call_id!(&arg.name, range, mp2, mp1)?;
+                let sid = find_call_id!(&arg.name, range, mp2, mp1, owner)?;
                 Ok(Symbol::new(&arg.name, sid))
             }
             _ => error!(range, format!("No module named `{}`.", owner)),
@@ -453,12 +454,12 @@ fn resolve_call(arg: &Name, range: Span, table: &CallTable) -> Result<Symbol, Re
 fn resolve_class(arg: &Name, range: Span, table: &SymbolTable) -> Result<Symbol, Report> {
     match &arg.owner {
         None => {
-            let sid = find_class_id!(&arg.name, range, &table.class_syms[table.cur_mod])?;
+            let sid = find_class_id!(&arg.name, range, &table.class_syms[table.cur_mod], table.cur_mod)?;
             Ok(Symbol::new(&arg.name, sid))
         }
         Some(owner) => match table.class_syms.get(owner) {
             Some(mp2) => {
-                let sid = find_class_id!(&arg.name, range, mp2)?;
+                let sid = find_class_id!(&arg.name, range, mp2, owner)?;
                 Ok(Symbol::new(&arg.name, sid))
             }
             None => error!(range, format!("No module named `{}`.", owner)),

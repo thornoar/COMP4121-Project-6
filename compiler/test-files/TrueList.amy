@@ -3,10 +3,29 @@ object TL
   case class Nil() extends List
   case class Cons(h: A, t: List[A]) extends List
 
-  def opt[A,B] (xs: List[A]): TL.List[TO.Option[B]] :=
+  def switchType[A,B] (xs: List[A]): List[B] :=
     xs match {
       case Nil() => Nil()
-      case Cons(_, t) => Cons(TO.None(), opt(t))
+      case Cons(_, t) => error("don't know how to produce B from A.")
     }
-  end opt
+  end switchType
+  
+  def intList2String(l: List[Int(32)]): String := l match {
+    case Nil() => "[]"
+    case more => "[" ++ intList2String1(more) ++ "]"
+  } end intList2String
+
+  def intList2String1(l : List[Int(32)]): String := l match {
+    case Cons(h, Nil()) => Std.intToString(h)
+    case Cons(h, t) => Std.intToString(h) ++ ", " ++ intList2String1(t)
+    case _ => error("Expected a non-empty list.")
+  } end intList2String1
+
+  def printIntList (xs: List[Int(32)]): Unit :=
+    Std.printString(intList2String(xs))
+  end printIntList
+
+  val xs: List[Int(32)] = Cons(3, Cons(7, Nil()));
+  val ys: List[Boolean] = Cons(false, Cons(true, Cons(true, Nil())));
+  printIntList(xs)
 end TL
