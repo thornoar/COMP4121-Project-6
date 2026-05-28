@@ -120,4 +120,33 @@ object Test
   end getFirst
 end Test
 ```
+This is because the variable `y` was given type `Y` which is incompatible with the result type `X`.
 
+= Implementation
+
+== Lexer ans parser
+
+In our implementation, lexing and parsing are combined into a single stage.
+
+An input file is lexed by means of a `TokenIter<'a>` struct, which holds a reference `src: &'a [u8]` to the bytes of the file, and a moving index `position: usize`. The next token is produced by analyzing the array `src` starting from the index `position`, producing a `Token` instance, and then moving `position` forward. This implementation is powerful because it allows for cheap lookahead, which simply consists of indexing into `src`.
+
+Our parser does not directly make use of context-free grammars. Instead, it is implemented using a set of mutually recursive functions, each responsible for parsing a particular language structure.
+
+The public interface consists of the function
+```rust
+pub fn parse<'a>(src: &'a [u8], ts: &mut TokenIter) -> Result<NominalModule, Report>
+```
+which receives a pointer to an input file and a token iterator, producing a `NominalModule`.
+
+== Name analysis
+
+Name analysis consists of assigning unique labels to symbols throughout the program, and also checking for scope correctness, definition uniqueness, etc. In our implementation, it is done by the function
+```rust
+pub fn resolve(
+    modules: VecDeque<NominalModule>,
+    sg: &mut SymbolGenerator,
+) -> Result<SymbolicProgram, Report>
+```
+which receives a list of `NominalModule`'s and a `SymbolGenerator` (which can provide fresh symbols), producing a `SymbolicProgram`. A noticeable difference from the reference compiler is that a list of nominal modules is always merged into a _single_ symbolic program. This is done for simplicity and convenience, since after resolving module names no longer matter.
+
+== Type-checking

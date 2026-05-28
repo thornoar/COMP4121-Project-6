@@ -81,7 +81,7 @@ pub fn main() {
             "  --tokens      print the tokens generated from all input files",
             "  --parse       print the nominal ASTs after parsing, for each file",
             "  --resolve     print the combined symbolic AST after resolving",
-            "  --typecheck   typeckeck the combined symbolic AST and print type errors",
+            "  --type-check   typeckeck the combined symbolic AST and print type errors",
             "  --interpret   interpret the symbolic AST and print the execution result",
             "  --help        print this help message"
         );
@@ -155,7 +155,7 @@ pub fn main() {
     match typecheck(&symbolic_program, &mut sg) {
         Ok(()) => {
             if oper == TypeCheck {
-                println!("Program successfully typechecks.");
+                println!("Program successfully type-checks.");
                 return;
             } else {
             }
