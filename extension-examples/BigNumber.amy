@@ -1,6 +1,5 @@
 /*
 Support for arbitrary precision non-negative integers
-
 Needs: Ordering.amy, Std.amy
 */
 
@@ -216,13 +215,6 @@ object BN
   // Testing
 
   val bn: BigInt = BigCons(453, BigNil());
-
-  // Std.printInt(
-  //   bn match {
-  //     case BigNil() => -1
-  //     case BigCons(d, t) => d
-  //   }
-  // )
 
   // Std.printString(Std.intToString(1))
   // printBig(bn)

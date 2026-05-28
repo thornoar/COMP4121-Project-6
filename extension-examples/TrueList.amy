@@ -1,3 +1,8 @@
+/*
+  Support for "true" polymorphic lists.
+  Depends on `TrueOption.amy`.
+*/
+
 object TL
   abstract class List[A]
   case class Nil() extends List
@@ -23,7 +28,14 @@ object TL
       case Cons(h, t) => Cons(h, concat(t, rhs))
     }
   end concat
-  
+
+  def head[A] (lst: List[A]): TO.Option[A] :=
+    lst match {
+      case Nil() => TO.None()
+      case Cons(h, _) => TO.Some(h)
+    }
+  end head
+
   // `Cons` is a polymorphic constructor
   val xs: List[Int(32)] = Cons(3, Cons(7, Nil()));
   val ys: List[String] = Cons("", Cons("", Nil()));
@@ -35,3 +47,4 @@ object TL
   Nil() == Cons(5, Nil());
   Nil() == Cons(false, Cons(true, Nil()))
 end TL
+

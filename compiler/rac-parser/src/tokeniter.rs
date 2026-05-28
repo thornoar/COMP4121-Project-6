@@ -216,7 +216,7 @@ fn lex_token(src: &[u8], limit: usize, start: usize, tag: u8) -> Token {
                     end += 1;
                 }
                 if end == limit {
-                    token!(UnclosedComment, start..end)
+                    token!(UnclosedComment, span(2))
                 } else {
                     lex_token(src, limit, end + 1, tag)
                 }
