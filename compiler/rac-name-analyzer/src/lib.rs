@@ -372,7 +372,7 @@ pub fn resolve(
     })
 }
 
-fn resolve_type(arg: &NominalType, env: &TypeTable) -> Result<SymbolicType, Report> {
+fn resolve_type(arg: &NominalType, table: &TypeTable) -> Result<SymbolicType, Report> {
     use SymbolicType as ST;
     use rac_ast::NominalType::*;
     match arg {
@@ -383,7 +383,7 @@ fn resolve_type(arg: &NominalType, env: &TypeTable) -> Result<SymbolicType, Repo
         IdType(qn, params, s) => {
             let (mp, modname) = match qn.owner.clone() {
                 None => {
-                    for var in env.type_vars.iter() {
+                    for var in table.type_vars.iter() {
                         if var.name == qn.name {
                             if params.len() > 0 {
                                 return error!(
@@ -397,9 +397,9 @@ fn resolve_type(arg: &NominalType, env: &TypeTable) -> Result<SymbolicType, Repo
                             return Ok(ST::Var(Symbol::new(&qn.name, var.id)));
                         }
                     }
-                    (&env.type_syms[env.cur_mod], env.cur_mod.clone())
+                    (&table.type_syms[table.cur_mod], table.cur_mod.clone())
                 }
-                Some(owner) => match env.type_syms.get(&owner) {
+                Some(owner) => match table.type_syms.get(&owner) {
                     Some(mp) => (mp, owner),
                     None => {
                         return error!(*s, format!("No module named `{}`.", owner));
@@ -407,7 +407,7 @@ fn resolve_type(arg: &NominalType, env: &TypeTable) -> Result<SymbolicType, Repo
                 },
             };
             let sid = find_type_id!(&qn.name, *s, mp, modname)?;
-            let def = &env.type_defs[&sid];
+            let def = &table.type_defs[&sid];
             if params.len() != def.type_vars.len() {
                 return error!(
                     *s,
@@ -421,7 +421,7 @@ fn resolve_type(arg: &NominalType, env: &TypeTable) -> Result<SymbolicType, Repo
             }
             let mut sym_params = VecDeque::new();
             for param in params.iter() {
-                let sym_param = resolve_type(param, env)?;
+                let sym_param = resolve_type(param, table)?;
                 sym_params.push_back(sym_param);
             }
             Ok(ST::ClassType(Symbol::new(&qn.name, sid), sym_params))
@@ -429,18 +429,18 @@ fn resolve_type(arg: &NominalType, env: &TypeTable) -> Result<SymbolicType, Repo
     }
 }
 
-fn resolve_call(arg: &Name, range: Span, env: &CallTable) -> Result<Symbol, Report> {
+fn resolve_call(arg: &Name, range: Span, table: &CallTable) -> Result<Symbol, Report> {
     match &arg.owner {
         None => {
             let sid = find_call_id!(
                 &arg.name,
                 range,
-                &env.class_syms[env.cur_mod],
-                &env.fun_syms[env.cur_mod]
+                &table.class_syms[table.cur_mod],
+                &table.fun_syms[table.cur_mod]
             )?;
             Ok(Symbol::new(&arg.name, sid))
         }
-        Some(owner) => match (env.fun_syms.get(owner), env.class_syms.get(owner)) {
+        Some(owner) => match (table.fun_syms.get(owner), table.class_syms.get(owner)) {
             (Some(mp1), Some(mp2)) => {
                 let sid = find_call_id!(&arg.name, range, mp2, mp1)?;
                 Ok(Symbol::new(&arg.name, sid))
@@ -450,13 +450,13 @@ fn resolve_call(arg: &Name, range: Span, env: &CallTable) -> Result<Symbol, Repo
     }
 }
 
-fn resolve_class(arg: &Name, range: Span, env: &SymbolTable) -> Result<Symbol, Report> {
+fn resolve_class(arg: &Name, range: Span, table: &SymbolTable) -> Result<Symbol, Report> {
     match &arg.owner {
         None => {
-            let sid = find_class_id!(&arg.name, range, &env.class_syms[env.cur_mod])?;
+            let sid = find_class_id!(&arg.name, range, &table.class_syms[table.cur_mod])?;
             Ok(Symbol::new(&arg.name, sid))
         }
-        Some(owner) => match env.class_syms.get(owner) {
+        Some(owner) => match table.class_syms.get(owner) {
             Some(mp2) => {
                 let sid = find_class_id!(&arg.name, range, mp2)?;
                 Ok(Symbol::new(&arg.name, sid))
@@ -468,7 +468,7 @@ fn resolve_class(arg: &Name, range: Span, env: &SymbolTable) -> Result<Symbol, R
 
 fn resolve_pattern(
     pat: Pattern<Name>,
-    env: &SymbolTable,
+    table: &SymbolTable,
     binds: &mut HashMap<String, SID>,
     sg: &mut SymbolGenerator,
 ) -> Result<Pattern<Symbol>, Report> {
@@ -485,8 +485,8 @@ fn resolve_pattern(
         IntPattern(val, s) => Ok(IntPattern(val, s)),
         UnitPattern(s) => Ok(UnitPattern(s)),
         ClassPattern(qn, subpats, s) => {
-            let sym_name = resolve_class(&qn, s, env)?;
-            let def = &env.class_defs[&sym_name.id];
+            let sym_name = resolve_class(&qn, s, table)?;
+            let def = &table.class_defs[&sym_name.id];
             if subpats.len() != def.args.len() {
                 return error!(
                     s,
@@ -500,7 +500,7 @@ fn resolve_pattern(
             }
             let mut sym_subpats = VecDeque::new();
             for sp in subpats.into_iter() {
-                let sym_sp = resolve_pattern(sp, env, binds, sg)?;
+                let sym_sp = resolve_pattern(sp, table, binds, sg)?;
                 sym_subpats.push_back(sym_sp);
             }
             Ok(ClassPattern(sym_name, sym_subpats, s))
@@ -510,7 +510,7 @@ fn resolve_pattern(
 
 fn resolve_expr(
     e: Expr<Name, NominalType>,
-    env: &SymbolTable,
+    table: &SymbolTable,
     mut binds: HashMap<String, SID>,
     sg: &mut SymbolGenerator,
 ) -> Result<Expr<Symbol, SymbolicType>, Report> {
@@ -518,15 +518,15 @@ fn resolve_expr(
 
     macro_rules! binop {
         ($lhs:expr, $rhs:expr, $constr:ident) => {{
-            let sym_lhs = resolve_expr($lhs, env, binds.clone(), sg)?;
-            let sym_rhs = resolve_expr($rhs, env, binds, sg)?;
+            let sym_lhs = resolve_expr($lhs, table, binds.clone(), sg)?;
+            let sym_rhs = resolve_expr($rhs, table, binds, sg)?;
             Ok($constr(Box::new(sym_lhs), Box::new(sym_rhs)))
         }};
     }
 
     macro_rules! unop {
         ($arg:expr, $range:expr, $constr:ident) => {{
-            let sym_arg = resolve_expr($arg, env, binds, sg)?;
+            let sym_arg = resolve_expr($arg, table, binds, sg)?;
             Ok($constr(Box::new(sym_arg), $range))
         }};
     }
@@ -558,24 +558,24 @@ fn resolve_expr(
         Not(arg, s) => unop!(*arg, s, Not),
         Neg(arg, s) => unop!(*arg, s, Neg),
         Call(qn, args, s) => {
-            let sym_name = match (&qn.owner, &env.fname) {
+            let sym_name = match (&qn.owner, &table.fname) {
                 (None, Some((name, sid))) if qn.name == *name => Ok(Symbol::new(&name, *sid)),
-                _ => resolve_call(&qn, s, &CallTable::from(&*env)),
+                _ => resolve_call(&qn, s, &CallTable::from(&*table)),
             }?;
             let mut sym_args = VecDeque::new();
-            // let iter = args.iter().map(|arg| resolve_expr(arg, env, sg))
+            // let iter = args.iter().map(|arg| resolve_expr(arg, table, sg))
             for arg in args.into_iter() {
-                let sym_arg = resolve_expr(arg, env, binds.clone(), sg)?;
+                let sym_arg = resolve_expr(arg, table, binds.clone(), sg)?;
                 sym_args.push_back(sym_arg);
             }
             Ok(Call(sym_name, sym_args, s))
         }
         Let(qn, typ, val, body, s) => {
             let sym_name = sg.fresh(&qn.name);
-            let sym_typ = resolve_type(&typ, &TypeTable::from(&*env))?;
-            let sym_val = resolve_expr(*val, env, binds.clone(), sg)?;
+            let sym_typ = resolve_type(&typ, &TypeTable::from(&*table))?;
+            let sym_val = resolve_expr(*val, table, binds.clone(), sg)?;
             binds.insert(qn.name, sym_name.id);
-            let sym_body = resolve_expr(*body, env, binds, sg)?;
+            let sym_body = resolve_expr(*body, table, binds, sg)?;
             Ok(Let(
                 sym_name,
                 sym_typ,
@@ -585,9 +585,9 @@ fn resolve_expr(
             ))
         }
         Ite(cond, thenb, elseb, s) => {
-            let sym_cond = resolve_expr(*cond, env, binds.clone(), sg)?;
-            let sym_then = resolve_expr(*thenb, env, binds.clone(), sg)?;
-            let sym_else = resolve_expr(*elseb, env, binds, sg)?;
+            let sym_cond = resolve_expr(*cond, table, binds.clone(), sg)?;
+            let sym_then = resolve_expr(*thenb, table, binds.clone(), sg)?;
+            let sym_else = resolve_expr(*elseb, table, binds, sg)?;
             Ok(Ite(
                 Box::new(sym_cond),
                 Box::new(sym_then),
@@ -596,18 +596,18 @@ fn resolve_expr(
             ))
         }
         Match(scrut, cases, s) => {
-            let sym_scrut = resolve_expr(*scrut, env, binds.clone(), sg)?;
+            let sym_scrut = resolve_expr(*scrut, table, binds.clone(), sg)?;
             let mut sym_cases = VecDeque::new();
             for (pat, expr) in cases.into_iter() {
                 let mut newbinds = binds.clone();
-                let sym_pat = resolve_pattern(pat, env, &mut newbinds, sg)?;
-                let sym_expr = resolve_expr(expr, env, newbinds, sg)?;
+                let sym_pat = resolve_pattern(pat, table, &mut newbinds, sg)?;
+                let sym_expr = resolve_expr(expr, table, newbinds, sg)?;
                 sym_cases.push_back((sym_pat, sym_expr));
             }
             Ok(Match(Box::new(sym_scrut), sym_cases, s))
         }
         Error(msg, s) => {
-            let sym_msg = resolve_expr(*msg, env, binds, sg)?;
+            let sym_msg = resolve_expr(*msg, table, binds, sg)?;
             Ok(Error(Box::new(sym_msg), s))
         }
     }
