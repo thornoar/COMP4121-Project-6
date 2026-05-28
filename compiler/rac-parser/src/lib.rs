@@ -619,7 +619,7 @@ fn parse_pattern<'a>(src: &'a [u8], ts: &mut TokenIter) -> Result<Pattern<Name>,
                 },
             }
         }
-        _ => error!(tk.range, format!("Undexpected token of kind {:?}", tk.kind)),
+        _ => error!(tk.range, format!("Expected a pattern, found {}.", tk.kind)),
     }
 }
 

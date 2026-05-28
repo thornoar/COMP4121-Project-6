@@ -1,0 +1,26 @@
+object TRP
+  abstract class Triple[A, B, C]
+  case class MkTriple(x: A, y: B, z: C) extends Triple
+
+  def same[T] (x: T): Triple[T,T,T] :=
+    MkTriple(x,x,x)
+  end same
+
+  def getFirst[X, Y, Z] (t: Triple[X, Y, Z]): X :=
+    t match {
+      case MkTriple(x, _, _) => x
+    }
+  end getFirst
+
+  def getSecond[X, Y, Z] (t: Triple[X, Y, Z]): Y :=
+    t match {
+      case MkTriple(_, y, _) => y
+    }
+  end getSecond
+
+  def getThird[X, Y, Z] (t: Triple[X, Y, Z]): Z :=
+    t match {
+      case MkTriple(_, _, z) => z
+    }
+  end getThird
+end TRP
