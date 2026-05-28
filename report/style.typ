@@ -71,6 +71,7 @@
     numbering: none
   )
   set text(size: 12pt, font: "TeX Gyre Schola")
+  set heading(numbering: "1.")
   set par(justify: true)
   assignment-title(
     title: title,

@@ -53,6 +53,10 @@ pub fn typecheck(program: &SymbolicProgram, sg: &mut SymbolGenerator) -> Result<
         constraints.extend(expr_constr);
     }
 
+    for constr in constraints.iter() {
+        println!("{}", constr)
+    }
+
     // Solve the constraints
     solve_constraints(&mut constraints)
 }

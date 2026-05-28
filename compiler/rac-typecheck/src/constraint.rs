@@ -3,6 +3,7 @@ use std::fmt::Display;
 use rac_ast::SymbolicType;
 use rac_diagnostics::Span;
 
+#[derive(Debug)]
 pub struct Constraint {
     pub expected: SymbolicType,
     pub found: SymbolicType,
@@ -11,7 +12,7 @@ pub struct Constraint {
 
 impl Display for Constraint {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{} = {}", self.expected, self.found)
+        write!(f, "{:?} = {:?}", self.expected, self.found)
     }
 }
 

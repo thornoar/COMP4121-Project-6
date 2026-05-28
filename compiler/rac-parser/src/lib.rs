@@ -244,7 +244,7 @@ fn parse_class_def<'a>(src: &'a [u8], ts: &mut TokenIter) -> Result<NominalClass
     expect!(
         ts,
         TK::KwClass,
-        "Expected the keyword `class` after `case` in a definition"
+        "Expected the keyword `class` after `case` in a class definition"
     );
     let id = expect!(
         ts,
@@ -268,7 +268,7 @@ fn parse_class_def<'a>(src: &'a [u8], ts: &mut TokenIter) -> Result<NominalClass
         name,
         args,
         parent: pname,
-        range: id.range,
+        range: join(id.range, parent.range),
     })
 }
 

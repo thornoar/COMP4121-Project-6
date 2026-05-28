@@ -1,4 +1,10 @@
 object Test
-  val x: TL.List[TO.Option[ORD.Ordering]] = TO.None();
-  7
+  abstract class Triple[A, B, C]
+  case class MkTriple(x: A, y: B, z: C) extends Triple
+
+  def getFirst[X, Y, Z] (t: Triple[X, Y, Z]): X :=
+    t match {
+      case MkTriple(x, y, z) => y
+    }
+  end getFirst
 end Test

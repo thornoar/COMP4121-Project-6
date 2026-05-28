@@ -2,11 +2,8 @@
 #show: assignment-title-rule(
   title: [COMP4121 Project 6 Proposal: Polymorphic Types],
   header: [Hong Kong University of Science and Technology #h(1fr) 2026],
-  // due: [Fri, Mar 28],
   sub1: [MAKSIMOVICH, Roman],
   ext1: [WU, Yiu Tsz],
-  // ext1: [Word count: #total-words],
-  // ext2: [Topic: Dark Matter],
   inset: (left: 9pt, bottom: 9pt)
 )
 

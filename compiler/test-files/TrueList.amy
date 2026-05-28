@@ -9,23 +9,15 @@ object TL
       case Cons(_, t) => error("don't know how to produce B from A.")
     }
   end switchType
-  
-  def intList2String(l: List[Int(32)]): String := l match {
-    case Nil() => "[]"
-    case more => "[" ++ intList2String1(more) ++ "]"
-  } end intList2String
 
-  def intList2String1(l : List[Int(32)]): String := l match {
-    case Cons(h, Nil()) => Std.intToString(h)
-    case Cons(h, t) => Std.intToString(h) ++ ", " ++ intList2String1(t)
-    case _ => error("Expected a non-empty list.")
-  } end intList2String1
-
-  def printIntList (xs: List[Int(32)]): Unit :=
-    Std.printString(intList2String(xs))
-  end printIntList
+  def length[C] (lst: List[C]): Int(32) :=
+    lst match {
+      case Nil() => 0
+      case Cons(h, t) => 1 + length(t)
+    }
+  end length
 
   val xs: List[Int(32)] = Cons(3, Cons(7, Nil()));
-  val ys: List[Boolean] = Cons(false, Cons(true, Cons(true, Nil())));
-  printIntList(xs)
+  val ys: List[Boolean] = switchType(xs);
+  ys
 end TL
