@@ -1,0 +1,11 @@
+object EM
+  abstract class S[X]
+  case class C1(x: Boolean) extends S
+  case class C2(x: S[X]) extends S
+  case class C3() extends S
+
+  C3() match {
+    case C2(true) => 5
+    case _ => error("hahahah")
+  }
+end EM

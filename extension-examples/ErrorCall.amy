@@ -1,0 +1,8 @@
+object EC
+  abstract class T[A,B]
+  case class C(x: A, y: B) extends T
+
+  def f[A,B,C] (x: A, y: B, z: A): T[B,B] := C(y,y) end f
+
+  f(false, false, 1)
+end EC
