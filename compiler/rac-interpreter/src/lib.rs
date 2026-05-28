@@ -70,41 +70,36 @@ pub fn interpret(
         )),
         Expr::Concat(lhs, rhs) => {
             let Value::String(s1) = interpret(lhs, env, table)? else {
-                return Err(Report {
-                    stage: Stage::Interpreting,
-                    range: range(lhs),
-                    msg: format!("expected string, found `{}`", lhs.show(0)),
-                });
+                return Err(report!(
+                    range(lhs),
+                    format!("expected string, found `{}`", lhs.show(0))
+                ));
             };
             let Value::String(s2) = interpret(rhs, env, table)? else {
-                return Err(Report {
-                    stage: Stage::Interpreting,
-                    range: range(rhs),
-                    msg: format!("expected string, found `{}`", lhs.show(0)),
-                });
+                return Err(report!(
+                    range(lhs),
+                    format!("expected string, found `{}`", lhs.show(0))
+                ));
             };
-
             Ok(Value::String(s1 + s2.as_str()))
         }
 
         Expr::Not(e, _) => {
             let Value::Bool(b) = interpret(e, env, table)? else {
-                return Err(Report {
-                    stage: Stage::Interpreting,
-                    range: range(e),
-                    msg: format!("expected boolean, found `{}`", e.show(0)),
-                });
+                return Err(report!(
+                    range(e),
+                    format!("expected boolean, found `{}`", e.show(0))
+                ));
             };
 
             Ok(Value::Bool(!b))
         }
         Expr::Neg(e, _) => {
             let Value::Int(i) = interpret(e, env, table)? else {
-                return Err(Report {
-                    stage: Stage::Interpreting,
-                    range: range(e),
-                    msg: format!("expected integer, found `{}`", e.show(0)),
-                });
+                return Err(report!(
+                    range(e),
+                    format!("expected integer, found `{}`", e.show(0))
+                ));
             };
 
             Ok(Value::Int(-i))
@@ -117,15 +112,14 @@ pub fn interpret(
                     .map(|e| interpret(e, env, table))
                     .collect::<Result<Vec<_>, _>>()?;
                 if values.len() != def.args.len() {
-                    return Err(Report {
-                        stage: Stage::Interpreting,
-                        range: *span,
-                        msg: format!(
+                    return Err(report!(
+                        *span,
+                        format!(
                             "expected {} arguments, found {}",
                             def.args.len(),
                             values.len()
-                        ),
-                    });
+                        )
+                    ));
                 }
 
                 let map = def
@@ -145,15 +139,14 @@ pub fn interpret(
                     .map(|e| interpret(e, env, table))
                     .collect::<Result<Vec<_>, _>>()?;
                 if values.len() != def.args.len() {
-                    return Err(Report {
-                        stage: Stage::Interpreting,
-                        range: *span,
-                        msg: format!(
+                    return Err(report!(
+                        *span,
+                        format!(
                             "expected {} arguments, found {}",
                             def.args.len(),
                             values.len()
-                        ),
-                    });
+                        )
+                    ));
                 }
 
                 Ok(Value::CaseClassValue(
@@ -177,11 +170,10 @@ pub fn interpret(
         }
         Expr::Ite(cond, then, elze, _) => {
             let Value::Bool(condval) = interpret(cond, env, table)? else {
-                return Err(Report {
-                    stage: Stage::Interpreting,
-                    range: range(cond),
-                    msg: format!("expected boolean, found `{}`", cond.show(0)),
-                });
+                return Err(report!(
+                    range(cond),
+                    format!("expected boolean, found `{}`", cond.show(0))
+                ));
             };
 
             if condval {
@@ -205,30 +197,24 @@ pub fn interpret(
                 }
             }
 
-            Err(Report {
-                stage: Stage::Interpreting,
-                range: range(e),
-                msg: format!(
+            Err(report!(
+                range(e),
+                format!(
                     "match error: no case pattern matches expression {}",
                     e.show(0)
-                ),
-            })
+                )
+            ))
         }
 
         Expr::Error(msg, span) => {
             let Value::String(str) = interpret(msg, env, table)? else {
-                return Err(Report {
-                    stage: Stage::Interpreting,
-                    range: range(msg),
-                    msg: format!("expected boolean, found `{}`", msg.show(0)),
-                });
+                return Err(report!(
+                    range(msg),
+                    format!("expected boolean, found `{}`", msg.show(0))
+                ));
             };
 
-            Err(Report {
-                stage: Stage::Interpreting,
-                range: *span,
-                msg: format!("error: {str}"),
-            })
+            Err(report!(*span, format!("error: {str}")))
         }
     }
 }
