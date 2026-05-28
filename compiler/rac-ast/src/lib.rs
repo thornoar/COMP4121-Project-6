@@ -252,7 +252,10 @@ impl SymbolGenerator {
     }
 
     pub fn fresh_type_var(&mut self) -> SymbolicType {
-        let typ = SymbolicType::Var(Symbol { name: String::from("a"), id: self.next_id });
+        let typ = SymbolicType::Var(Symbol {
+            name: String::from("a"),
+            id: self.next_id,
+        });
         self.next_id += 1;
         typ
     }

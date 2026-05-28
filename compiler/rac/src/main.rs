@@ -152,7 +152,13 @@ pub fn main() {
     // Stage 5: Typechecking
 
     match typecheck(&symbolic_program, &mut sg) {
-        Ok(()) => if oper == TypeCheck { println!("Program successfully typechecks."); return; } else {},
+        Ok(()) => {
+            if oper == TypeCheck {
+                println!("Program successfully typechecks.");
+                return;
+            } else {
+            }
+        }
         Err(r) => {
             let (fname, src) = srcmap[&r.range.tag];
             deliver(&r, fname, src);

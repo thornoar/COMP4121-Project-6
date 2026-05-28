@@ -17,6 +17,10 @@ impl Display for Constraint {
 
 impl Constraint {
     pub fn new(expected: SymbolicType, found: SymbolicType, range: Span) -> Self {
-        Self { expected, found, range }
+        Self {
+            expected,
+            found,
+            range,
+        }
     }
 }

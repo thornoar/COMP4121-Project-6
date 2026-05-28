@@ -48,7 +48,10 @@ macro_rules! find_class_id {
             Some(id) => Ok(*id),
             None => error!(
                 $range,
-                format!("No constructor named `{}` in the `{}` module.", $name, $modname)
+                format!(
+                    "No constructor named `{}` in the `{}` module.",
+                    $name, $modname
+                )
             ),
         }
     };
@@ -62,7 +65,10 @@ macro_rules! find_call_id {
                 Some(id) => Ok(*id),
                 None => error!(
                     $range,
-                    format!("No function or constructor named `{}` in the `{}` module.", $name, $modname)
+                    format!(
+                        "No function or constructor named `{}` in the `{}` module.",
+                        $name, $modname
+                    )
                 ),
             },
         }
@@ -454,7 +460,12 @@ fn resolve_call(arg: &Name, range: Span, table: &CallTable) -> Result<Symbol, Re
 fn resolve_class(arg: &Name, range: Span, table: &SymbolTable) -> Result<Symbol, Report> {
     match &arg.owner {
         None => {
-            let sid = find_class_id!(&arg.name, range, &table.class_syms[table.cur_mod], table.cur_mod)?;
+            let sid = find_class_id!(
+                &arg.name,
+                range,
+                &table.class_syms[table.cur_mod],
+                table.cur_mod
+            )?;
             Ok(Symbol::new(&arg.name, sid))
         }
         Some(owner) => match table.class_syms.get(owner) {

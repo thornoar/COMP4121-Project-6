@@ -1,6 +1,9 @@
 use std::collections::{HashMap, VecDeque};
 
-use rac_ast::{DefinitionTable, Expr, Pattern, SID, Symbol, SymbolGenerator, SymbolicProgram, SymbolicType, range};
+use rac_ast::{
+    DefinitionTable, Expr, Pattern, SID, Symbol, SymbolGenerator, SymbolicProgram, SymbolicType,
+    range,
+};
 use rac_diagnostics::{Report, Stage};
 
 use crate::constraint::Constraint;
@@ -40,7 +43,13 @@ pub fn typecheck(program: &SymbolicProgram, sg: &mut SymbolGenerator) -> Result<
 
     // Collect constraints from expressions
     for expr in program.exprs.iter() {
-        let expr_constr = collect_constraints(expr, sg.fresh_type_var(), HashMap::new(), &program.table, sg)?;
+        let expr_constr = collect_constraints(
+            expr,
+            sg.fresh_type_var(),
+            HashMap::new(),
+            &program.table,
+            sg,
+        )?;
         constraints.extend(expr_constr);
     }
 
@@ -110,10 +119,24 @@ fn collect_constraints(
         Not(arg, s) => unary!(arg, *s, BoolType, BoolType),
         Neg(arg, s) => unary!(arg, *s, IntType, IntType),
         Call(sym, args, s) => match (table.fun_defs.get(&sym.id), table.class_defs.get(&sym.id)) {
-            (None, None) => error!(*s, format!("Could not find function or constructor named `{}`.", sym.name)),
+            (None, None) => error!(
+                *s,
+                format!(
+                    "Could not find function or constructor named `{}`.",
+                    sym.name
+                )
+            ),
             (Some(def), None) => {
                 if args.len() != def.args.len() {
-                    return error!(*s, format!("Function `{}` takes {} arguments, but was given {}.", sym.name, def.args.len(), args.len()))
+                    return error!(
+                        *s,
+                        format!(
+                            "Function `{}` takes {} arguments, but was given {}.",
+                            sym.name,
+                            def.args.len(),
+                            args.len()
+                        )
+                    );
                 }
                 let mut res = VecDeque::new();
                 // let mut rtc = collect_constraints(expr, def.rt.clone(), env.clone(), table, sg)?;
@@ -137,33 +160,46 @@ fn collect_constraints(
                 res.push_front(Constraint::new(
                     expected,
                     ClassType(tdef.name.clone(), type_args),
-                    *s
+                    *s,
                 ));
                 for (arg_expr, (_, arg_typ)) in args.iter().zip(def.args.iter()) {
-                    let cur_constr = collect_constraints(arg_expr, type_subst(arg_typ, &subst), env.clone(), table, sg)?;
+                    let cur_constr = collect_constraints(
+                        arg_expr,
+                        type_subst(arg_typ, &subst),
+                        env.clone(),
+                        table,
+                        sg,
+                    )?;
                     res.extend(cur_constr);
                 }
                 Ok(res)
             }
-            (Some(_), Some(_)) => error!(*s, format!("Ambiguous call: `{}` might refer to a function or a constructor.", sym.name))
-        }
+            (Some(_), Some(_)) => error!(
+                *s,
+                format!(
+                    "Ambiguous call: `{}` might refer to a function or a constructor.",
+                    sym.name
+                )
+            ),
+        },
         Sequence(lhs, rhs) => {
             let tv = sg.fresh_type_var();
             let mut res = collect_constraints(lhs, tv, env.clone(), table, sg)?;
             let more = collect_constraints(rhs, expected, env, table, sg)?;
             res.extend(more.into_iter());
             Ok(res)
-        },
+        }
         Let(name, typ, val, body, _) => {
             let mut res = collect_constraints(val, typ.clone(), env.clone(), table, sg)?;
             env.insert(name.id, typ.clone());
             let body_constr = collect_constraints(body, expected, env, table, sg)?;
             res.extend(body_constr);
             Ok(res)
-        },
+        }
         Ite(cond, thenb, elseb, _) => {
             let mut res = collect_constraints(cond, BoolType, env.clone(), table, sg)?;
-            let mut then_constr = collect_constraints(thenb, expected.clone(), env.clone(), table, sg)?;
+            let mut then_constr =
+                collect_constraints(thenb, expected.clone(), env.clone(), table, sg)?;
             let mut else_constr = collect_constraints(elseb, expected, env, table, sg)?;
             res.append(&mut then_constr);
             res.append(&mut else_constr);
@@ -177,11 +213,12 @@ fn collect_constraints(
                 res.extend(pat_constr);
                 let mut curenv = env.clone();
                 curenv.extend(binds);
-                let branch_constr = collect_constraints(branch, expected.clone(), curenv, table, sg)?;
+                let branch_constr =
+                    collect_constraints(branch, expected.clone(), curenv, table, sg)?;
                 res.extend(branch_constr);
             }
             Ok(res)
-        },
+        }
         Error(msg, _) => collect_constraints(msg, StringType, env, table, sg),
     }
 }
@@ -195,7 +232,10 @@ fn pattern_constraints(
     use Pattern::*;
     macro_rules! literal {
         ($typ:ident, $range:expr) => {
-            Ok((VecDeque::from([Constraint::new(expected, SymbolicType::$typ, $range)]), HashMap::new()))
+            Ok((
+                VecDeque::from([Constraint::new(expected, SymbolicType::$typ, $range)]),
+                HashMap::new(),
+            ))
         };
     }
     match pat {
@@ -204,7 +244,7 @@ fn pattern_constraints(
             let mut mp = HashMap::new();
             mp.insert(name.id, expected.clone());
             Ok((VecDeque::new(), mp))
-        },
+        }
         BoolPattern(_, s) => literal!(BoolType, *s),
         StringPattern(_, s) => literal!(StringType, *s),
         IntPattern(_, s) => literal!(IntType, *s),
@@ -224,10 +264,11 @@ fn pattern_constraints(
             res.push_back(Constraint::new(
                 expected,
                 SymbolicType::ClassType(tdef.name.clone(), type_args),
-                *s
+                *s,
             ));
             for (argpat, (_, arg_typ)) in argpats.iter().zip(def.args.iter()) {
-                let (cur_constr, cur_mp) = pattern_constraints(argpat, type_subst(arg_typ, &subst), table, sg)?;
+                let (cur_constr, cur_mp) =
+                    pattern_constraints(argpat, type_subst(arg_typ, &subst), table, sg)?;
                 mp.extend(cur_mp);
                 res.extend(cur_constr);
             }
@@ -236,10 +277,7 @@ fn pattern_constraints(
     }
 }
 
-fn type_subst(
-    typ: &SymbolicType,
-    subst: &HashMap<SID, SymbolicType>
-) -> SymbolicType {
+fn type_subst(typ: &SymbolicType, subst: &HashMap<SID, SymbolicType>) -> SymbolicType {
     use SymbolicType::*;
     match typ {
         IntType => IntType,
@@ -255,43 +293,33 @@ fn type_subst(
         }
         Var(name) => match subst.get(&name.id) {
             None => Var(name.clone()),
-            Some(newtyp) => newtyp.clone()
-        }
+            Some(newtyp) => newtyp.clone(),
+        },
     }
 }
 
-fn type_subst_mut(
-    typ: &mut SymbolicType,
-    from: SID,
-    to: &SymbolicType,
-) {
+fn type_subst_mut(typ: &mut SymbolicType, from: SID, to: &SymbolicType) {
     use SymbolicType::*;
     match typ {
-        IntType | BoolType | StringType | UnitType => {},
+        IntType | BoolType | StringType | UnitType => {}
         ClassType(_, params) => {
             for param in params.into_iter() {
                 type_subst_mut(param, from, to);
             }
         }
-        Var(name) if from == name.id => { *typ = to.clone() }
+        Var(name) if from == name.id => *typ = to.clone(),
         _ => {}
     }
 }
 
-fn constr_subst_mut(
-    constraints: &mut VecDeque<Constraint>,
-    from: SID,
-    to: &SymbolicType
-) {
+fn constr_subst_mut(constraints: &mut VecDeque<Constraint>, from: SID, to: &SymbolicType) {
     for constr in constraints.iter_mut() {
         type_subst_mut(&mut constr.expected, from, to);
         type_subst_mut(&mut constr.found, from, to);
     }
 }
 
-fn solve_constraints(
-    constraints: &mut VecDeque<Constraint>
-) -> Result<(), Report> {
+fn solve_constraints(constraints: &mut VecDeque<Constraint>) -> Result<(), Report> {
     use SymbolicType::*;
     match constraints.pop_front() {
         None => Ok(()),
@@ -310,7 +338,14 @@ fn solve_constraints(
             (UnitType, UnitType) => solve_constraints(constraints),
             (ClassType(name1, params1), ClassType(name2, params2)) => {
                 if name1.id != name2.id {
-                    return error!(cur.range, format!("Expected type `{}`, found `{}`.", ClassType(name1, params1), ClassType(name2, params2)))
+                    return error!(
+                        cur.range,
+                        format!(
+                            "Expected type `{}`, found `{}`.",
+                            ClassType(name1, params1),
+                            ClassType(name2, params2)
+                        )
+                    );
                 }
                 for (param1, param2) in params1.into_iter().zip(params2.into_iter()) {
                     constraints.push_front(Constraint::new(param1, param2, cur.range));
@@ -319,8 +354,11 @@ fn solve_constraints(
             }
             (expected, found) => {
                 println!("{:?}", found);
-                error!(cur.range, format!("Expected type `{}`, found `{}`.", expected, found))
+                error!(
+                    cur.range,
+                    format!("Expected type `{}`, found `{}`.", expected, found)
+                )
             }
-        }
+        },
     }
 }

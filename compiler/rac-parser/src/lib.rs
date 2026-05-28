@@ -18,12 +18,6 @@ use rac_diagnostics::{Report, Span, Stage, join};
 
 use crate::{token::TokenKind as TK, tokeniter::TokenIter};
 
-// macro_rules! mkname {
-//     ($owner:expr, $name:expr) => {
-//         Name { owner: $owner, name: $name }
-//     };
-// }
-
 macro_rules! select {
     ($src:expr, $span:expr) => {
         $src[$span.start..$span.end]
@@ -37,7 +31,7 @@ macro_rules! expect {
             return Err(Report {
                 stage: Stage::Parsing,
                 range: token.range,
-                msg: String::from(format!("{}, found {}.", $msg, token.kind)),
+                msg: format!("{}, found {}.", $msg, token.kind),
             });
         }
         token
@@ -143,6 +137,8 @@ fn parse_many_definitions<'a>(
     Ok((ad, cd, fd))
 }
 
+// Parses a possible list of type variables.
+// Examples: ``, `[A, B]`
 fn parse_type_vars<'a>(src: &'a [u8], ts: &mut TokenIter) -> Result<VecDeque<String>, Report> {
     match ts.peek().kind {
         TK::OpenBracket => {
@@ -153,6 +149,7 @@ fn parse_type_vars<'a>(src: &'a [u8], ts: &mut TokenIter) -> Result<VecDeque<Str
     }
 }
 
+// Parses a *non-empty* list of type variables.
 fn parse_many_type_vars<'a>(src: &'a [u8], ts: &mut TokenIter) -> Result<VecDeque<String>, Report> {
     let var = expect!(ts, TK::Identifier, "Expected a type variable");
     let var_name = get_string(src, var.range)?;
@@ -274,21 +271,6 @@ fn parse_class_def<'a>(src: &'a [u8], ts: &mut TokenIter) -> Result<NominalClass
         range: id.range,
     })
 }
-
-// // Parses an abstract class, case class, or function definition.
-// // Examples: `abstract class T`, `case class C(x: Unit) extends T`, `def f(x: String): Int(32) := 5 end f`
-// fn parse_definition<'a> (src: &'a [u8], ts: &mut TokenIter) -> Result<NominalDefinition, Report> {
-//     let kw = ts.pop();
-//     match kw.kind {
-//         TK::KwDef => {
-//         },
-//         TK::KwAbstract => {
-//         },
-//         TK::KwCase => {
-//         },
-//         _ => error!(kw.range, "A module definition must start with either `def`, `abstract`, or `case`."),
-//     }
-// }
 
 // Parses an argument list in a constructor or function definition.
 // Examples: `(x: String, y: Int(32), z: Unit)`, `()`
@@ -412,7 +394,6 @@ fn parse_many_types<'a>(
             res.push_front(typ);
             Ok(res)
         }
-        // _ => error!(next.range, format!("Expected a comma or closing bracket, found {}.", next.kind))
     }
 }
 
