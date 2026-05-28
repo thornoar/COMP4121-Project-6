@@ -157,6 +157,13 @@ impl NominalModule {
 
 // Symbolic (resolved) AST structure
 
+#[derive(Debug, Clone, Copy)]
+pub enum VarKind {
+    Rigid,
+    Fluid,
+    Applicable
+}
+
 #[derive(Debug, Clone)]
 pub enum SymbolicType {
     // Primitive types
@@ -167,7 +174,7 @@ pub enum SymbolicType {
     // User-defined types
     ClassType(Symbol, VecDeque<SymbolicType>),
     // Type variables
-    Var(Symbol, bool),
+    Var(Symbol, VarKind),
 }
 
 pub type SymArgList = VecDeque<(Symbol, SymbolicType)>;
@@ -255,7 +262,7 @@ impl SymbolGenerator {
         let typ = SymbolicType::Var(Symbol {
             name: format!("a{}", self.next_id),
             id: self.next_id,
-        }, true);
+        }, VarKind::Fluid);
         self.next_id += 1;
         typ
     }

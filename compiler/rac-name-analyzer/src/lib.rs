@@ -1,6 +1,6 @@
 use rac_ast::{
     DefinitionTable, Expr, Name, NominalModule, NominalType, Pattern, SID, Symbol, SymbolGenerator,
-    SymbolicClassDef, SymbolicFunDef, SymbolicProgram, SymbolicType, SymbolicTypeDef,
+    SymbolicClassDef, SymbolicFunDef, SymbolicProgram, SymbolicType, SymbolicTypeDef, VarKind,
 };
 use rac_diagnostics::{Report, Span, Stage};
 use std::collections::{HashMap, VecDeque};
@@ -400,7 +400,7 @@ fn resolve_type(arg: &NominalType, table: &TypeTable) -> Result<SymbolicType, Re
                                     )
                                 );
                             }
-                            return Ok(ST::Var(Symbol::new(&qn.name, var.id), false));
+                            return Ok(ST::Var(Symbol::new(&qn.name, var.id), VarKind::Rigid))
                         }
                     }
                     (&table.type_syms[table.cur_mod], table.cur_mod.clone())

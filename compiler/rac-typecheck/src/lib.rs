@@ -1,7 +1,7 @@
 use std::collections::{HashMap, VecDeque};
 
 use rac_ast::{
-    DefinitionTable, Expr, Pattern, SID, Symbol, SymbolGenerator, SymbolicProgram, SymbolicType,
+    DefinitionTable, Expr, Pattern, SID, Symbol, SymbolGenerator, SymbolicProgram, SymbolicType, VarKind::*,
     range,
 };
 use rac_diagnostics::{Report, Stage};
@@ -55,6 +55,18 @@ pub fn typecheck(program: &SymbolicProgram, sg: &mut SymbolGenerator) -> Result<
 
     // Solve the constraints
     solve_constraints(&mut constraints)
+}
+
+fn make_applicable(
+    typ: &SymbolicType
+) -> SymbolicType {
+    use SymbolicType::*;
+    match typ {
+        UnitType | IntType | BoolType | StringType => typ.clone(),
+        ClassType(name, params) => ClassType(name.clone(), params.iter().map(|t| make_applicable(t)).collect::<VecDeque<SymbolicType>>()),
+        Var(name, Rigid) => Var(name.clone(), Applicable),
+        Var(name, kind) => Var(name.clone(), *kind)
+    }
 }
 
 fn collect_constraints(
@@ -139,11 +151,11 @@ fn collect_constraints(
                     );
                 }
                 let mut res = VecDeque::new();
-                // let mut rtc = collect_constraints(expr, def.rt.clone(), env.clone(), table, sg)?;
-                res.push_back(Constraint::new(expected, def.rt.clone(), *s));
+                // res.push_back(Constraint::new(expected, def.rt.clone(), *s));
+                res.push_back(Constraint::new(expected, make_applicable(&def.rt), *s));
                 for (arg, (_, typ)) in args.iter().zip(def.args.iter()) {
-                    let mut argc = collect_constraints(arg, typ.clone(), env.clone(), table, sg)?;
-                    res.append(&mut argc);
+                    let mut arg_constr = collect_constraints(arg, make_applicable(typ), env.clone(), table, sg)?;
+                    res.append(&mut arg_constr);
                 }
                 Ok(res)
             }
@@ -307,7 +319,7 @@ fn type_subst_mut(typ: &mut SymbolicType, from: SID, to: &SymbolicType) {
                 type_subst_mut(param, from, to);
             }
         }
-        Var(name, true) if from == name.id => *typ = to.clone(),
+        Var(name, kind) if from == name.id => *typ = to.clone(),
         _ => {}
     }
 }
@@ -330,15 +342,17 @@ fn solve_constraints(constraints: &mut VecDeque<Constraint>) -> Result<(), Repor
     match constraints.pop_front() {
         None => Ok(()),
         Some(cur) => match (cur.expected, cur.found) {
-            (Var(name, true), other) => {
+            (Var(name, Fluid), other) => {
                 constr_subst_mut(constraints, name.id, &other);
                 solve_constraints(constraints)
             }
-            (other, Var(name, true)) => {
+            (other, Var(name, Fluid)) => {
                 constr_subst_mut(constraints, name.id, &other);
                 solve_constraints(constraints)
             }
-            (Var(name1, false), Var(name2, false)) if name1.id == name2.id => solve_constraints(constraints),
+            (Var(_, Applicable), _) => solve_constraints(constraints),
+            (_, Var(_, Applicable)) => solve_constraints(constraints),
+            (Var(name1, Rigid), Var(name2, Rigid)) if name1.id == name2.id => solve_constraints(constraints),
             (IntType, IntType) => solve_constraints(constraints),
             (StringType, StringType) => solve_constraints(constraints),
             (BoolType, BoolType) => solve_constraints(constraints),
