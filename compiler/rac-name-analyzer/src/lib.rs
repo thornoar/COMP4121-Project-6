@@ -14,7 +14,7 @@ macro_rules! error {
         Err(Report {
             stage: Stage::Resolving,
             range: $range,
-            msg: String::from($msg),
+            msg: $msg,
         })
     };
 }
