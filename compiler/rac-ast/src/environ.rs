@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use crate::{SID, Symbol};
+use crate::SID;
 
 #[derive(Debug, Clone)]
 pub struct Environment<T> {

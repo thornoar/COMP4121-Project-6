@@ -9,9 +9,11 @@ use crate::value::Value;
 mod value;
 
 pub fn interpret_program(program: SymbolicProgram) -> Result<(), Report> {
-    let env = Environment::new();
+    let mut env = Environment::new();
     for expr in &program.exprs {
-        interpret(expr, &mut env.clone(), &program.table)?;
+        env.push_scope();
+        interpret(expr, &mut env, &program.table)?;
+        env.pop_scope();
     }
 
     Ok(())
@@ -151,9 +153,11 @@ pub fn interpret(
         }
         Expr::Let(name, _, value, body, _) => {
             let value = interpret(value, env, table)?;
+            env.push_scope();
             env.define(name.id, value);
-
-            interpret(body, env, table)
+            let res = interpret(body, env, table);
+            env.pop_scope();
+            res
         }
         Expr::Ite(cond, then, elze, _) => {
             let condres = interpret(cond, env, table)?;

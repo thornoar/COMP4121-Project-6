@@ -30,10 +30,10 @@ macro_rules! error {
 
 pub fn typecheck(program: &SymbolicProgram, sg: &mut SymbolGenerator) -> Result<(), Report> {
     let mut constraints = VecDeque::new();
+    let mut env = Environment::new();
 
     // Collect constraints from function bodies
     for fdef in program.table.fun_defs.values() {
-        let mut env = Environment::new();
         env.push_scope();
         for (sym, typ) in fdef.args.iter() {
             env.define(sym.id, typ.clone());
@@ -41,10 +41,12 @@ pub fn typecheck(program: &SymbolicProgram, sg: &mut SymbolGenerator) -> Result<
         let fun_constr =
             collect_constraints(&fdef.body, fdef.rt.clone(), &mut env, &program.table, sg)?;
         constraints.extend(fun_constr);
+        env.pop_scope();
     }
 
     // Collect constraints from expressions
     for expr in program.exprs.iter() {
+        env.push_scope();
         let expr_constr = collect_constraints(
             expr,
             sg.fresh_type_var(),
@@ -53,6 +55,7 @@ pub fn typecheck(program: &SymbolicProgram, sg: &mut SymbolGenerator) -> Result<
             sg,
         )?;
         constraints.extend(expr_constr);
+        env.pop_scope();
     }
 
     // Solve the constraints
@@ -221,8 +224,6 @@ fn collect_constraints(
             for (pat, branch) in pats.iter() {
                 let (pat_constr, binds) = pattern_constraints(pat, tv.clone(), table, sg)?;
                 res.extend(pat_constr);
-                // let mut curenv = env;
-                // cur
                 env.push_scope();
                 env.define_many(binds);
                 let branch_constr = collect_constraints(branch, expected.clone(), env, table, sg)?;
