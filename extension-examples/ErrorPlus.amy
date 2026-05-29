@@ -1,0 +1,8 @@
+object EP
+  abstract class Pair[A, B]
+  case class P(x: A, y: B) extends Pair
+
+  val x: Boolean = false;
+  val y: Int(32) = 42;
+  x + P(y, y)
+end EP

@@ -1,0 +1,5 @@
+object EC3
+  def f[A,B] (x: A, y: Unit, z: A): Unit := y end f
+
+  f(5, 5)
+end EC3

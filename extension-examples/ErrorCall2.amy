@@ -1,0 +1,11 @@
+/*
+  Depends on `Std.amy`
+*/
+
+object EC2
+  def f[A] (x: A, y: Int(32), z: Boolean): A :=
+    if (!z && y <= 0) then x else error("I don't know what, but something went wrong.") end if
+  end f
+
+  Std.printString(f(6, 0, false))
+end EC2

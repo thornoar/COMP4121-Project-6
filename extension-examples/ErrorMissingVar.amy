@@ -1,0 +1,4 @@
+object EMV
+  abstract class T
+  case class C(x: Boolean, y: A) extends T
+end EMV

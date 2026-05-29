@@ -104,7 +104,7 @@ impl Display for TokenKind {
             KwEnd => "the `end` keyword",
             UnclosedComment => "an unclosed multiline comment",
             Underscore => "a wildcard",
-            Unknown => "an unknown comment",
+            Unknown => "an unknown token",
             Eof => "the end of file",
         };
         write!(f, "{}", str)
