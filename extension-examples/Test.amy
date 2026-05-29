@@ -8,7 +8,7 @@ object Test
   // f(5);
   // f(false)
   
-  def g[A,B] (x: B): B := f(x) end g
+  // def g[A,B] (x: B): B := f(x) end g
 
   // f(MkTriple((), (), ())) match {
   //   case _ => 4
@@ -30,7 +30,7 @@ object Test
   // three(4) == MkTriple(4, (), 6);
   // getFirst(three(false))
 
-  val y: Int(32) = 5; y match {
-    case x => x
-  }
+  // val y: Int(32) = 5; 4 match {
+  //   case x => y
+  // }
 end Test

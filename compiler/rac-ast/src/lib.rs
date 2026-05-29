@@ -5,6 +5,8 @@ use std::{
 
 use rac_diagnostics::{Span, join};
 
+pub mod environ;
+
 // pub type ArgList<A, T> = VecDeque<(A, T, Span)>;
 
 // Nominal AST structure

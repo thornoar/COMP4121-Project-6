@@ -3,6 +3,7 @@ use std::collections::{HashMap, VecDeque};
 use rac_ast::{
     DefinitionTable, Expr, Pattern, SID, Symbol, SymbolGenerator, SymbolicProgram, SymbolicType,
     VarKind::*, range,
+    environ::Environment
 };
 use rac_diagnostics::{Report, Stage};
 
@@ -33,11 +34,12 @@ pub fn typecheck(program: &SymbolicProgram, sg: &mut SymbolGenerator) -> Result<
 
     // Collect constraints from function bodies
     for fdef in program.table.fun_defs.values() {
-        let mut env = HashMap::new();
+        let mut env = Environment::new();
         for (sym, typ) in fdef.args.iter() {
-            env.insert(sym.id, typ.clone());
+            env.define(sym.id, typ.clone());
         }
-        let fun_constr = collect_constraints(&fdef.body, fdef.rt.clone(), env, &program.table, sg)?;
+        println!("ha {:?}", env);
+        let fun_constr = collect_constraints(&fdef.body, fdef.rt.clone(), &mut env, &program.table, sg)?;
         constraints.extend(fun_constr);
     }
 
@@ -46,7 +48,7 @@ pub fn typecheck(program: &SymbolicProgram, sg: &mut SymbolGenerator) -> Result<
         let expr_constr = collect_constraints(
             expr,
             sg.fresh_type_var(),
-            HashMap::new(),
+            &mut Environment::new(),
             &program.table,
             sg,
         )?;
@@ -74,7 +76,7 @@ fn alpha_conversion(
 fn collect_constraints(
     expr: &Expr<Symbol, SymbolicType>,
     expected: SymbolicType,
-    mut env: HashMap<SID, SymbolicType>,
+    env: &mut Environment<SymbolicType>,
     table: &DefinitionTable,
     sg: &mut SymbolGenerator,
 ) -> Result<VecDeque<Constraint>, Report> {
@@ -91,7 +93,7 @@ fn collect_constraints(
 
     macro_rules! binop {
         ($lhs:expr, $rhs:expr, $rt:expr, $lhstyp:expr, $rhstyp:expr) => {{
-            let mut res = collect_constraints($lhs, $lhstyp, env.clone(), table, sg)?;
+            let mut res = collect_constraints($lhs, $lhstyp, env, table, sg)?;
             let mut rhs_constr = collect_constraints($rhs, $rhstyp, env, table, sg)?;
             res.append(&mut rhs_constr);
             res.push_front(Constraint::new(expected, $rt, range(expr)));
@@ -108,9 +110,12 @@ fn collect_constraints(
     }
 
     match expr {
-        Variable(name, s) => match env.get(&name.id) {
+        Variable(name, s) => match env.lookup(name.id) {
             Some(typ) => Ok(single!(Constraint::new(expected, typ.clone(), *s))),
-            None => error!(*s, "Variable not present in the environment."),
+            None => {
+                println!("{:?}", env);
+                error!(*s, "Variable not present in the environment.")
+            }
         },
         IntLiteral(_, s) => Ok(toplevel_constraint!(IntType, *s)),
         BoolLiteral(_, s) => Ok(toplevel_constraint!(BoolType, *s)),
@@ -159,7 +164,7 @@ fn collect_constraints(
                 res.push_back(Constraint::new(expected, type_subst(&def.rt, &subst), *s));
                 for (arg, (_, typ)) in args.iter().zip(def.args.iter()) {
                     let mut arg_constr =
-                        collect_constraints(arg, type_subst(typ, &subst), env.clone(), table, sg)?;
+                        collect_constraints(arg, type_subst(typ, &subst), env, table, sg)?;
                     res.append(&mut arg_constr);
                 }
                 Ok(res)
@@ -177,7 +182,7 @@ fn collect_constraints(
                     let cur_constr = collect_constraints(
                         arg_expr,
                         type_subst(arg_typ, &subst),
-                        env.clone(),
+                        env,
                         table,
                         sg,
                     )?;
@@ -195,22 +200,25 @@ fn collect_constraints(
         },
         Sequence(lhs, rhs) => {
             let tv = sg.fresh_type_var();
-            let mut res = collect_constraints(lhs, tv, env.clone(), table, sg)?;
+            let mut res = collect_constraints(lhs, tv, env, table, sg)?;
             let more = collect_constraints(rhs, expected, env, table, sg)?;
             res.extend(more.into_iter());
             Ok(res)
         }
         Let(name, typ, val, body, _) => {
-            let mut res = collect_constraints(val, typ.clone(), env.clone(), table, sg)?;
-            env.insert(name.id, typ.clone());
+            let mut res = collect_constraints(val, typ.clone(), env, table, sg)?;
+            env.push_scope();
+            env.define(name.id, typ.clone());
+            println!("ha {:?}", env);
             let body_constr = collect_constraints(body, expected, env, table, sg)?;
+            env.pop_scope();
             res.extend(body_constr);
             Ok(res)
         }
         Ite(cond, thenb, elseb, _) => {
-            let mut res = collect_constraints(cond, BoolType, env.clone(), table, sg)?;
+            let mut res = collect_constraints(cond, BoolType, env, table, sg)?;
             let mut then_constr =
-                collect_constraints(thenb, expected.clone(), env.clone(), table, sg)?;
+                collect_constraints(thenb, expected.clone(), env, table, sg)?;
             let mut else_constr = collect_constraints(elseb, expected, env, table, sg)?;
             res.append(&mut then_constr);
             res.append(&mut else_constr);
@@ -218,14 +226,17 @@ fn collect_constraints(
         }
         Match(scrut, pats, _) => {
             let tv = sg.fresh_type_var();
-            let mut res = collect_constraints(scrut, tv.clone(), env.clone(), table, sg)?;
+            let mut res = collect_constraints(scrut, tv.clone(), env, table, sg)?;
             for (pat, branch) in pats.iter() {
                 let (pat_constr, binds) = pattern_constraints(pat, tv.clone(), table, sg)?;
                 res.extend(pat_constr);
-                let mut curenv = env.clone();
-                curenv.extend(binds);
+                // let mut curenv = env;
+                // cur
+                env.push_scope();
+                env.define_many(binds);
                 let branch_constr =
-                    collect_constraints(branch, expected.clone(), curenv, table, sg)?;
+                    collect_constraints(branch, expected.clone(), env, table, sg)?;
+                env.pop_scope();
                 res.extend(branch_constr);
             }
             Ok(res)

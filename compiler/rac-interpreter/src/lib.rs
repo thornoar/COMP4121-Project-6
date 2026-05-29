@@ -1,9 +1,9 @@
-use rac_ast::{DefinitionTable, Expr, Pattern, Symbol, SymbolicProgram, SymbolicType, range};
+use rac_ast::{DefinitionTable, Expr, Pattern, SID, Symbol, SymbolicProgram, SymbolicType, range};
 use rac_diagnostics::{Report, Stage, join};
+use rac_ast::environ::Environment;
+use crate::value::Value;
 
-use crate::{environ::Environment, value::Value};
-
-mod environ;
+// mod environ;
 mod value;
 
 pub fn interpret_program(program: SymbolicProgram) -> Result<(), Report> {
@@ -27,7 +27,7 @@ macro_rules! report {
 
 pub fn interpret(
     expr: &Expr<Symbol, SymbolicType>,
-    env: &mut Environment,
+    env: &mut Environment<Value>,
     table: &DefinitionTable,
 ) -> Result<Value, Report> {
     match expr {
@@ -36,7 +36,7 @@ pub fn interpret(
         Expr::StringLiteral(s, _) => Ok(Value::String(s.clone())),
         Expr::UnitLiteral(_) => Ok(Value::Unit),
 
-        Expr::Variable(name, span) => env.lookup(name).ok_or(report!(
+        Expr::Variable(name, span) => env.lookup(name.id).ok_or(report!(
             *span,
             format!("Variable `{}` not found in scope.", name.name)
         )),
@@ -135,7 +135,7 @@ pub fn interpret(
                     .args
                     .iter()
                     .zip(values)
-                    .map(|((sym, _), val)| (sym.clone(), val));
+                    .map(|((sym, _), val)| (sym.id, val));
                 env.push_scope();
                 env.define_many(map);
                 let ret = interpret(&def.body, env, table);
@@ -176,7 +176,7 @@ pub fn interpret(
         }
         Expr::Let(name, _, value, body, _) => {
             let value = interpret(value, env, table)?;
-            env.define(name.clone(), value);
+            env.define(name.id, value);
 
             interpret(body, env, table)
         }
@@ -232,10 +232,10 @@ pub fn interpret(
     }
 }
 
-fn match_and_bind(scrutinee: &Value, pattern: &Pattern<Symbol>) -> Option<Vec<(Symbol, Value)>> {
+fn match_and_bind(scrutinee: &Value, pattern: &Pattern<Symbol>) -> Option<Vec<(SID, Value)>> {
     match (scrutinee, pattern) {
         (_, Pattern::Wildcard(_)) => Some(vec![]),
-        (value, Pattern::IdPattern(sym, _)) => Some(vec![(sym.clone(), value.clone())]),
+        (value, Pattern::IdPattern(sym, _)) => Some(vec![(sym.id, value.clone())]),
         (Value::Bool(b), Pattern::BoolPattern(b2, _)) if b == b2 => Some(vec![]),
         (Value::Int(i), Pattern::IntPattern(i2, _)) if i == i2 => Some(vec![]),
         (Value::String(s), Pattern::StringPattern(s2, _)) if s == s2 => Some(vec![]),
