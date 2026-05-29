@@ -30,5 +30,6 @@ object Test
   // three(4) == MkTriple(4, (), 6);
   // getFirst(three(false))
 
-  Std.printInt(2)
+  val x: Boolean = false;
+  x
 end Test

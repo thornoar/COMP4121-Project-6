@@ -36,9 +36,10 @@ pub fn interpret(
         Expr::StringLiteral(s, _) => Ok(Value::String(s.clone())),
         Expr::UnitLiteral(_) => Ok(Value::Unit),
 
-        Expr::Variable(name, span) => env
-            .lookup(name)
-            .ok_or(report!(*span, format!("undefined variable {name}"))),
+        Expr::Variable(name, span) => env.lookup(name).ok_or(report!(
+            *span,
+            format!("Variable `{}` not found in scope.", name.name)
+        )),
 
         Expr::Plus(lhs, rhs) => Ok(interpret(lhs, env, table)? + interpret(rhs, env, table)?),
         Expr::Minus(lhs, rhs) => Ok(interpret(lhs, env, table)? - interpret(rhs, env, table)?),

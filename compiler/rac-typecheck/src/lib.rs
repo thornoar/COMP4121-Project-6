@@ -1,8 +1,8 @@
 use std::collections::{HashMap, VecDeque};
 
 use rac_ast::{
-    DefinitionTable, Expr, Pattern, SID, Symbol, SymbolGenerator, SymbolicProgram, SymbolicType, VarKind::*,
-    range,
+    DefinitionTable, Expr, Pattern, SID, Symbol, SymbolGenerator, SymbolicProgram, SymbolicType,
+    VarKind::*, range,
 };
 use rac_diagnostics::{Report, Stage};
 
@@ -158,7 +158,8 @@ fn collect_constraints(
                 let (subst, _) = alpha_conversion(&def.type_vars, sg);
                 res.push_back(Constraint::new(expected, type_subst(&def.rt, &subst), *s));
                 for (arg, (_, typ)) in args.iter().zip(def.args.iter()) {
-                    let mut arg_constr = collect_constraints(arg, type_subst(typ, &subst), env.clone(), table, sg)?;
+                    let mut arg_constr =
+                        collect_constraints(arg, type_subst(typ, &subst), env.clone(), table, sg)?;
                     res.append(&mut arg_constr);
                 }
                 Ok(res)
@@ -336,7 +337,9 @@ fn solve_constraints(constraints: &mut VecDeque<Constraint>) -> Result<(), Repor
                 constr_subst_mut(constraints, name.id, &other);
                 solve_constraints(constraints)
             }
-            (Var(name1, Rigid), Var(name2, Rigid)) if name1.id == name2.id => solve_constraints(constraints),
+            (Var(name1, Rigid), Var(name2, Rigid)) if name1.id == name2.id => {
+                solve_constraints(constraints)
+            }
             (IntType, IntType) => solve_constraints(constraints),
             (StringType, StringType) => solve_constraints(constraints),
             (BoolType, BoolType) => solve_constraints(constraints),

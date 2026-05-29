@@ -170,7 +170,7 @@ pub fn main() {
     // Stage 6: Interpreting
 
     match interpret_program(symbolic_program) {
-        Ok(()) => {},
+        Ok(()) => {}
         Err(r) => {
             let (fname, src) = srcmap[&r.range.tag];
             deliver(&r, fname, src);

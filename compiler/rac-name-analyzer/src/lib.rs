@@ -400,7 +400,7 @@ fn resolve_type(arg: &NominalType, table: &TypeTable) -> Result<SymbolicType, Re
                                     )
                                 );
                             }
-                            return Ok(ST::Var(Symbol::new(&qn.name, var.id), VarKind::Rigid))
+                            return Ok(ST::Var(Symbol::new(&qn.name, var.id), VarKind::Rigid));
                         }
                     }
                     (&table.type_syms[table.cur_mod], table.cur_mod.clone())

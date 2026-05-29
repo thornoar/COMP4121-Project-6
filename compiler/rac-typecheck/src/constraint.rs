@@ -3,8 +3,6 @@ use std::fmt::Display;
 use rac_ast::SymbolicType;
 use rac_diagnostics::Span;
 
-
-
 #[derive(Debug)]
 pub struct Constraint {
     pub expected: SymbolicType,

@@ -259,10 +259,13 @@ impl SymbolGenerator {
     }
 
     pub fn fresh_type_var(&mut self) -> SymbolicType {
-        let typ = SymbolicType::Var(Symbol {
-            name: format!("a{}", self.next_id),
-            id: self.next_id,
-        }, VarKind::Fluid);
+        let typ = SymbolicType::Var(
+            Symbol {
+                name: format!("a{}", self.next_id),
+                id: self.next_id,
+            },
+            VarKind::Fluid,
+        );
         self.next_id += 1;
         typ
     }
