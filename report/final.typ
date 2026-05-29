@@ -193,6 +193,8 @@ The public interface of the interpreter is the function
 pub fn interpret(program: SymbolicProgram) -> Result<(), Report>
 ```
 
+We have also added another polymorphic builtin function in the `Std` module, namely `debug[A] (x: A): ()`, which can print _any_ value. This is very convenient for testing.
+
 == Error handling
 
 As you might have noticed, the `parse`, `resolve`, `typecheck`, and `interpret` functions return a result type. Our implementation is completely exception-free, and all errors are encoded in a special `Report` struct which, upon generation, is propagated to the top of the execution chain, at which point it is pretty-printed.
