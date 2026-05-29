@@ -17,9 +17,7 @@
     it,
     stroke: (top: .7pt, bottom: .7pt),
     inset: (top: 6pt, bottom: 6pt),
-    // width: 9.2cm
     width: 100%,
-    // breakable: false,
   )
 }
 
@@ -44,7 +42,7 @@ In addition, we have undertaken and completed the extra challenge of rewriting t
 + A custom implementation of the type-checker, with support for polymorphism;
 + A custom implementation of the interpreter.
 
-Due to time constraints, we have chosen to _skip the code generation stage_ and only implement the interpreter.
+Due to time constraints, we have chosen to _skip the code generation stage_ and only implement the interpreter. We have also chosen to implement _equality by value_ for strings and constructors, instead of equality by reference, both because it is simpler and because it is more useful.
 
 Our projects provides, apart from the extra language features, a state-of-the-art error report system, emitting messages that look like this:
 #[

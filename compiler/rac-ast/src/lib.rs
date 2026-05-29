@@ -7,8 +7,6 @@ use rac_diagnostics::{Span, join};
 
 pub mod environ;
 
-// pub type ArgList<A, T> = VecDeque<(A, T, Span)>;
-
 // Nominal AST structure
 
 #[derive(Debug, Clone)]
@@ -204,16 +202,6 @@ impl Display for SymbolicType {
         }
     }
 }
-
-// #[derive(Debug, Clone, Hash, Eq, PartialEq)]
-// pub enum SymbolKind {
-//     Variable,
-//     Function,
-//     Constructor,
-//     Type,
-//     TypeVariable,
-//     Field,
-// }
 
 pub type SID = u64;
 

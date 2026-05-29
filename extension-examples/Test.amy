@@ -30,7 +30,11 @@ object Test
   // val x: Triple[Int(32), Int(32), Boolean] = three(false); x == MkTriple(4, (), 6);
   // getFirst(three(false))
 
-  Std.printBoolean("hahaha" == "hahaha")
+  abstract class T
+  case class C(x: Int(32)) extends T
+
+  // Std.printBoolean(val x: T = C(3); x == x)
+  Std.printBoolean(C(3) == C(3))
 
   // Std.readString() match {
   //   case "hahaha" => Std.printString("It's a haha!")
