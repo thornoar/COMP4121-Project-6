@@ -4,9 +4,10 @@ use rac_ast::{
 };
 use rac_diagnostics::{Report, Stage, join};
 
-use crate::value::Value;
+use crate::{builtin::*, value::Value};
 
 mod value;
+mod builtin;
 
 pub fn interpret_program(program: SymbolicProgram) -> Result<(), Report> {
     let mut env = Environment::new();
@@ -113,6 +114,22 @@ pub fn interpret(
         }
 
         Expr::Call(name, args, span) => {
+            macro_rules! call_builtin {
+                ($fun:ident) => {{
+                    let values = args
+                        .iter()
+                        .map(|e| interpret(e, env, table))
+                        .collect::<Result<Vec<_>, _>>()?;
+                    return $fun(values, *span);
+                }};
+            }
+            match name.name.as_str() {
+                "Std.printInt" => call_builtin!(print_int),
+                "Std.printString" => call_builtin!(print_string),
+                "Std.readString" => call_builtin!(read_string),
+                "Std.readInt" => call_builtin!(read_int),
+                _ => {}
+            }
             if let Some(def) = table.fun_defs.get(&name.id) {
                 let values = args
                     .iter()

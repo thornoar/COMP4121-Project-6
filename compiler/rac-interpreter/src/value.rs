@@ -6,7 +6,7 @@ use std::{
 
 use rac_ast::Symbol;
 
-#[derive(Clone, Eq, PartialEq)]
+#[derive(Clone, Eq, PartialEq, Debug)]
 pub enum Value {
     Bool(bool),
     CaseClassValue(Symbol, Vec<Box<Value>>),

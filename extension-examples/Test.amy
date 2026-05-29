@@ -1,10 +1,10 @@
 object Test
-  abstract class Triple[A, B, C]
-  case class MkTriple(x: A, y: B, z: C) extends Triple
+  // abstract class Triple[A, B, C]
+  // case class MkTriple(x: A, y: B, z: C) extends Triple
 
   // def f[A,B] (x: Triple[A, A, A]): Int(32) := 5 end f
 
-  def f[A] (x: A): A := x end f
+  // def f[A] (x: A): A := x end f
   // f(5);
   // f(false)
   
@@ -17,20 +17,23 @@ object Test
   //   case _ => 4
   // }
 
-  def three[X] (x: X): Triple[X,X,X] :=
-    MkTriple(x,x,x)
-  end three
+  // def three[X] (x: X): Triple[X,X,X] :=
+  //   MkTriple(x,x,x)
+  // end three
 
-  def getFirst[X, Y, Z] (t: Triple[X, Y, Z]): X :=
-    t match {
-      case MkTriple(x, y, z) => x
-    }
-  end getFirst
+  // def getFirst[X, Y, Z] (t: Triple[X, Y, Z]): X :=
+  //   t match {
+  //     case MkTriple(x, y, z) => x
+  //   }
+  // end getFirst
 
   // val x: Triple[Int(32), Int(32), Boolean] = three(false); x == MkTriple(4, (), 6);
   // getFirst(three(false))
 
-  val y: Int(32) = 6; 4 + 6 match {
-    case 3 => y
-  }
+  Std.printBoolean("hahaha" == "hahaha")
+
+  // Std.readString() match {
+  //   case "hahaha" => Std.printString("It's a haha!")
+  //   case _ => Std.printInt(56)
+  // }
 end Test
