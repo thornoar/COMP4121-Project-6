@@ -147,7 +147,7 @@ pub fn parse<'a>(src: &'a [u8], ts: &mut TokenIter) -> Result<NominalModule, Rep
 ```
 which receives a pointer to an input file and a token iterator, producing a `NominalModule`.
 
-== Name analysis
+== Name analyzer
 
 Name analysis consists of assigning unique labels to symbols throughout the program, and also checking for scope correctness, definition uniqueness, etc. In our implementation, it is done by the function
 ```rust
@@ -158,7 +158,7 @@ pub fn resolve(
 ```
 which receives a list of `NominalModule`'s and a `SymbolGenerator` (which can provide fresh symbols), producing a `SymbolicProgram`. A noticeable difference from the reference compiler is that a list of nominal modules is always merged into a _single_ symbolic program. This is done for simplicity and convenience, since after resolving module names no longer matter.
 
-== Type-checking
+== Type-checker
 
 Our type-checker is very similar to the implemented in the labs, but the introduction of polymorphism requires some changes. Namely, we split type variables into two kinds: _rigid_ and _fluid_. Rigid type variables are visible to the user, they occur as type parameters in type and function definitions:
 ```scala
@@ -193,7 +193,7 @@ As you might have noticed, the `parse`, `resolve`, `typecheck`, and `interpret` 
 
 = Building and testing
 
-Assuming `rustc >= 1.94` is installed, our project may be built with `cargo build` in the root directory, and ran with `cargo run -- --interpret <fname1>.amy ... <fnamek>.amy`. See `cargo run -- --help` for more information.\
+Assuming `rustc >= 1.94` is installed, our project may be built with `cargo build` in the root directory, and ran with `cargo run -- --interpret <fname_1>.amy ... <fname_k>.amy`. See `cargo run -- --help` for more information.\
 The `extension-examples` directory contains test files. Files prefixed by `Error` contain type errors. Feel free to tinker with any of the files and monitor the interpreter output.
 
 = Possible extensions
