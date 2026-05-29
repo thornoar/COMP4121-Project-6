@@ -30,6 +30,7 @@ object Test
   // three(4) == MkTriple(4, (), 6);
   // getFirst(three(false))
 
-  val x: Boolean = false;
-  x
+  5 match {
+    case 4 => 5
+  }
 end Test
