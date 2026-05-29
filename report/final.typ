@@ -183,7 +183,15 @@ pub fn typecheck(
 
 == Interpreter
 
+The interpreter is also mostly similar to how it is implemented in the labs. It is implemented by interpreting all expressions in a `SymbolicProgram` which contains expressions and relevant definitions obtained from parsing, name analysis and type checking. Each expression is evaluated recursively until one obtains an atomic `Value`, or if an error has occurred.
 
+A deviation from the expected Amy semantics is taken here as a feature, of which value equality is used for strings and case class values.
+
+The public interface of the interpreter is the function
+
+```rust
+pub fn interpret_program(program: SymbolicProgram) -> Result<(), Report>
+```
 
 == Error handling
 
