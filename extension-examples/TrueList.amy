@@ -41,7 +41,7 @@ object TL
   val ys: List[String] = Cons("", Cons("", Nil()));
 
   // `switchType` can convert them to lists of the same type
-  val zs: List[Boolean] = concat(switchType(xs), switchType(ys));
+  // val zs: List[Boolean] = concat(switchType(xs), switchType(ys));
 
   // `Nil()` is polymorphic
   Nil() == Cons(5, Nil());

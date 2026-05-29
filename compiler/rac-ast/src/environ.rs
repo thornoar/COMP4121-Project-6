@@ -35,8 +35,8 @@ impl<T: Clone> Environment<T> {
     }
 
     pub fn pop_scope(&mut self) {
-        if self.scopes.len() > 1 {
-            self.scopes.pop();
-        }
+        self.scopes.pop();
+        // if self.scopes.len() > 1 {
+        // }
     }
 }
