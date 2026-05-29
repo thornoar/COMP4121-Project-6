@@ -46,7 +46,6 @@ pub fn typecheck(program: &SymbolicProgram, sg: &mut SymbolGenerator) -> Result<
 
     // Collect constraints from expressions
     for expr in program.exprs.iter() {
-        env.push_scope();
         let expr_constr = collect_constraints(
             expr,
             sg.fresh_type_var(),
@@ -55,7 +54,6 @@ pub fn typecheck(program: &SymbolicProgram, sg: &mut SymbolGenerator) -> Result<
             sg,
         )?;
         constraints.extend(expr_constr);
-        env.pop_scope();
     }
 
     // Solve the constraints

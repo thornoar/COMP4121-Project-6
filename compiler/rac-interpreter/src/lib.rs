@@ -11,9 +11,7 @@ mod value;
 pub fn interpret_program(program: SymbolicProgram) -> Result<(), Report> {
     let mut env = Environment::new();
     for expr in &program.exprs {
-        env.push_scope();
         interpret(expr, &mut env, &program.table)?;
-        env.pop_scope();
     }
 
     Ok(())
