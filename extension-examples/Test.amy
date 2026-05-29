@@ -30,7 +30,7 @@ object Test
   // val x: Triple[Int(32), Int(32), Boolean] = three(false); x == MkTriple(4, (), 6);
   // getFirst(three(false))
 
-  // val y: Int(32) = false; 4 match {
-  //   case x => x
-  // }
+  val y: Int(32) = 6; 4 + 6 match {
+    case 3 => y
+  }
 end Test
