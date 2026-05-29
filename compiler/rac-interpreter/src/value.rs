@@ -29,7 +29,7 @@ impl Display for Value {
                     .map(|arg| format!("{}", arg))
                     .collect::<Vec<String>>()
                     .join(", ");
-                write!(f, "{}({})", name, args_str)
+                write!(f, "{}({})", name.name, args_str)
             }
         }
     }

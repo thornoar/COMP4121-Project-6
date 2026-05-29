@@ -55,11 +55,11 @@ pub fn main() {
                 "tokens" => moper = Some(PrintTokens),
                 "parse" => moper = Some(PrintNominal),
                 "resolve" => moper = Some(PrintResolved),
-                "typecheck" => moper = Some(TypeCheck),
+                "type-check" => moper = Some(TypeCheck),
                 "interpret" => moper = Some(Interpret),
                 "help" => moper = Some(Help),
                 _ => {
-                    init_error!(format!("unrecognized command-line flag: {}", &arg[2..len]));
+                    init_error!(format!("unrecognized command-line flag: \x1b[34m{}\x1b[0m", &arg[2..len]));
                 }
             }
         } else {

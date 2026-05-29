@@ -3,6 +3,11 @@
   * (implemented in WASM or JavaScript)
   */
 object Std 
+
+  def debug[A] (x: A): Unit :=
+    error("") // a new polymorphic debug function that can print any value
+  end debug
+
   def printInt(i: Int(32)): Unit :=
     printString(intToString(i))
   end printInt

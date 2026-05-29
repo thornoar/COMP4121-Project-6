@@ -1,13 +1,31 @@
+/*
+  Depends on `Std.amy`
+*/
+
 object TO
   abstract class Option[A]
 
   case class None() extends Option
   case class Some(x: A) extends Option
 
-  def extract[B, C] (x: Option[B], y: C): B :=
-    x match {
+  def extract[B] (mx: Option[B]): B :=
+    mx match {
       case None() => error("found a None!")
       case Some(v) => v
     }
   end extract
+
+  def isSome[A] (mx: Option[A]): Boolean :=
+    mx match {
+      case None() => false
+      case Some(_) => true
+    }
+  end isSome
+
+  def printOption[A] (mx: Option[A]): Unit :=
+    mx match {
+      case None() => Std.printString("None()")
+      case Some(_) => Std.printString("Some(something)")
+    }
+  end printOption
 end TO

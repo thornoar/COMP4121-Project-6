@@ -128,6 +128,7 @@ pub fn interpret_expr(
                 "Std.printString" => call_builtin!(print_string),
                 "Std.readString" => call_builtin!(read_string),
                 "Std.readInt" => call_builtin!(read_int),
+                "Std.debug" => call_builtin!(debug),
                 _ => {}
             }
             if let Some(def) = table.fun_defs.get(&name.id) {

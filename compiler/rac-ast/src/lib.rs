@@ -198,7 +198,8 @@ impl Display for SymbolicType {
                     .collect::<Vec<String>>()
                     .join(", ")
             ),
-            Var(name, _) => write!(f, "{}", name.name),
+            Var(name, VarKind::Rigid) => write!(f, "{}", name.name),
+            Var(_, VarKind::Fluid) => write!(f, "..."),
         }
     }
 }

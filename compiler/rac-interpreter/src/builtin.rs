@@ -14,6 +14,18 @@ macro_rules! error {
     };
 }
 
+pub fn debug(
+    args: Vec<Value>,
+    range: Span
+) -> Result<Value, Report> {
+    if args.len() != 1 {
+        return error!(range, format!("The standard function `debug` takes `1` argument, but was supplied `{}`.", args.len()))
+    }
+
+    println!("{}", args[0]);
+    Ok(Value::Unit)
+}
+
 pub fn print_int(
     args: Vec<Value>,
     range: Span

@@ -184,7 +184,7 @@ fn parse_fun_def<'a>(src: &'a [u8], ts: &mut TokenIter) -> Result<NominalFunDef,
     expect!(
         ts,
         TK::Colon,
-        "Expected a colon after the function argument list"
+        "Expected type annotation after the function argument list"
     );
     let rt = parse_type(src, ts)?;
     expect!(
@@ -321,7 +321,7 @@ fn parse_argument<'a>(src: &'a [u8], ts: &mut TokenIter) -> Result<(String, Nomi
         "An argument must have a valid name identifier"
     );
     let name = get_string(src, id.range)?;
-    expect!(ts, TK::Colon, "Expected a colon after the argument name");
+    expect!(ts, TK::Colon, "Expected a type annotation after the argument name");
     let typ = parse_type(src, ts)?;
     Ok((name, typ))
 }
@@ -427,7 +427,7 @@ fn parse_atomic_expr<'a>(
                 "Expected a variable identifier after `val`"
             );
             let var_name = get_string(src, var_token.range)?;
-            expect!(ts, TK::Colon, "Expected a colon after the variable name");
+            expect!(ts, TK::Colon, "Expected a type annotation after the variable name");
             let var_type = parse_type(src, ts)?;
             expect!(
                 ts,
@@ -798,7 +798,7 @@ fn parse_simple_expr<'a>(
                 }
             }
         }
-        _ => error!(tk.range, "Expected an expression here."),
+        k => error!(tk.range, format!("Expected an expression here, found {}.", k)),
     }
 }
 

@@ -1,0 +1,7 @@
+object EM2
+  def f[A] (x: A): Int(32) :=
+    x match {
+      case 5 => x
+    }
+  end f
+end EM2

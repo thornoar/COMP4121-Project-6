@@ -86,7 +86,7 @@ impl Display for TokenKind {
             CloseParen => "an closing parenthesis",
             CloseBracket => "an closing bracket",
             Colon | Comma | Dot => "a separator",
-            ColonEqual | Equal => "an assignment operator",
+            ColonEqual | Equal => "a value assignment",
             TypInt | TypUnit | TypString | TypBoolean => "a primitive type",
             LitTrue | LitFalse | LitInt | LitString => "a literal value",
             KwAbstract => "the `abstract` keyword",

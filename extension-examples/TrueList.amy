@@ -1,12 +1,15 @@
 /*
   Support for "true" polymorphic lists.
-  Depends on `TrueOption.amy`.
+  Depends on `TrueOption.amy` and `Std.amy`.
 */
 
 object TL
   abstract class List[A]
   case class Nil() extends List
   case class Cons(h: A, t: List[A]) extends List
+
+  abstract class Pair[A,B]
+  case class P(x: A, y: B) extends Pair
 
   def switchType[A,B] (xs: List[A]): List[B] :=
     xs match {
@@ -36,15 +39,101 @@ object TL
     }
   end head
 
+  def last[A] (lst: List[A]): TO.Option[A] :=
+    lst match {
+      case Nil() => TO.None()
+      case Cons(h, Nil()) => TO.Some(h)
+      case Cons(_, rest) => last(rest)
+    }
+  end last
+
+  def listToOption[A] (lst: List[A]): TO.Option[A] :=
+    lst match {
+      case Nil() => TO.None()
+      case Cons(h, t) => TO.Some(h)
+    }
+  end listToOption
+
+  def catOptions[A] (lst: List[TO.Option[A]]): List[A] :=
+    lst match {
+      case Nil() => Nil()
+      case Cons(TO.None(), rest) => catOptions(rest)
+      case Cons(TO.Some(x), rest) => Cons(x, catOptions(rest))
+    }
+  end catOptions
+
+  def printBoolList (lst: List[Boolean]): Unit :=
+    lst match {
+      case Nil() => Std.printString("[]")
+      case Cons(h, Nil()) => Std.printString("[" ++ Std.booleanToString(h) ++ "]")
+      case Cons(h1, Cons(h2, Nil())) =>
+        val h1str: String = Std.booleanToString(h1);
+        val h2str: String = Std.booleanToString(h2);
+        Std.printString("[" ++ h1str ++ ", " ++ h2str ++ "]")
+      case _ => error("this list is too long to print...")
+    }
+  end printBoolList
+
+  def unsnoc[A] (lst: List[A]): TO.Option[Pair[List[A], A]] :=
+    lst match {
+      case Nil() => TO.None()
+      case Cons(h, Nil()) => TO.Some(P(Nil(), h))
+      case Cons(h, rest) =>
+        val res: TO.Option[Pair[List[A], A]] = unsnoc(rest);
+        TO.extract(res) match {
+          case P(lst, elt) => TO.Some(P(Cons(h, lst), elt))
+        }
+    }
+  end unsnoc
+
+  def singleton[A] (x: A): List[A] := Cons(x, Nil()) end singleton
+
+  def isEmpty[B] (lst: List[B]): Boolean :=
+    lst match {
+      case Nil() => true
+      case _ => false
+    }
+  end isEmpty
+
+  def indexOf (l: List[Int(32)], i: Int(32)): Int(32) :=
+    l match {
+      case Nil() => -1
+      case Cons(h, t) =>
+        if (h == i) then 0
+        else
+          val rec: Int(32) = indexOf(t, i);
+          if (0 <= rec) then rec + 1
+          else -1
+          end if
+        end if
+    }
+  end indexOf
+
+  def repeat[A] (x: A, times: Int(32)): List[A] :=
+    if (times == 0) then Nil() else Cons(x, repeat(x, times - 1)) end if
+  end repeat
+
+  def zip[A,B] (l: List[A], r: List[B]): List[Pair[A,B]] :=
+    P(l, r) match {
+      case P(Nil(), Nil()) => Nil()
+      case P(Cons(h1, rest1), Cons(h2, rest2)) => Cons(P(h1, h2), zip(rest1, rest2))
+      case _ => error("lists must be of the same length!")
+    }
+  end zip
+
   // `Cons` is a polymorphic constructor
   val xs: List[Int(32)] = Cons(3, Cons(7, Nil()));
   val ys: List[String] = Cons("", Cons("", Nil()));
 
-  // `switchType` can convert them to lists of the same type
+  // `switchType` can convert them to lists of the same type, but it will throw an error
   // val zs: List[Boolean] = concat(switchType(xs), switchType(ys));
 
   // `Nil()` is polymorphic
-  Nil() == Cons(5, Nil());
-  Nil() == Cons(false, Cons(true, Nil()))
+  Std.debug(Nil() == Cons(5, Nil()));
+  Std.debug(Nil() == Cons(false, Cons(true, Nil())));
+
+  val pair: Pair[List[String], String] = TO.extract(unsnoc(Cons("ha", Nil())));
+
+  Std.debug(pair)
 end TL
 
