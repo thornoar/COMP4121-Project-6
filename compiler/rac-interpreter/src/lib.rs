@@ -1,9 +1,11 @@
-use rac_ast::{DefinitionTable, Expr, Pattern, SID, Symbol, SymbolicProgram, SymbolicType, range};
+use rac_ast::{
+    DefinitionTable, Expr, Pattern, SID, Symbol, SymbolicProgram, SymbolicType,
+    environ::Environment, range,
+};
 use rac_diagnostics::{Report, Stage, join};
-use rac_ast::environ::Environment;
+
 use crate::value::Value;
 
-// mod environ;
 mod value;
 
 pub fn interpret_program(program: SymbolicProgram) -> Result<(), Report> {
@@ -38,7 +40,7 @@ pub fn interpret(
 
         Expr::Variable(name, span) => env.lookup(name.id).ok_or(report!(
             *span,
-            format!("Variable `{}` not found in scope.", name.name)
+            format!("variable `{}` not found in scope", name.name)
         )),
 
         Expr::Plus(lhs, rhs) => Ok(interpret(lhs, env, table)? + interpret(rhs, env, table)?),
@@ -74,14 +76,14 @@ pub fn interpret(
             let Value::String(s1) = lhs_res else {
                 return Err(report!(
                     range(lhs),
-                    format!("expected string, found `{}`", lhs_res)
+                    format!("expected a string, found `{}`", lhs_res)
                 ));
             };
             let rhs_res = interpret(rhs, env, table)?;
             let Value::String(s2) = rhs_res else {
                 return Err(report!(
                     range(lhs),
-                    format!("expected string, found `{}`", rhs_res)
+                    format!("expected a string, found `{}`", rhs_res)
                 ));
             };
             Ok(Value::String(s1 + s2.as_str()))
@@ -92,7 +94,7 @@ pub fn interpret(
             let Value::Bool(b) = res else {
                 return Err(report!(
                     range(e),
-                    format!("Expected a boolean, found `{}`.", res)
+                    format!("expected a boolean, found `{}`.", res)
                 ));
             };
 
@@ -103,7 +105,7 @@ pub fn interpret(
             let Value::Int(i) = res else {
                 return Err(report!(
                     range(e),
-                    format!("Expected an integer, found `{}`.", res)
+                    format!("expected an integer, found `{}`.", res)
                 ));
             };
 
@@ -116,20 +118,6 @@ pub fn interpret(
                     .iter()
                     .map(|e| interpret(e, env, table))
                     .collect::<Result<Vec<_>, _>>()?;
-
-                // Arity checks are already done by the typechecker
-
-                // if values.len() != def.args.len() {
-                //     return Err(report!(
-                //         *span,
-                //         format!(
-                //             "expected {} arguments, found {}",
-                //             def.args.len(),
-                //             values.len()
-                //         )
-                //     ));
-                // }
-                
 
                 let map = def
                     .args
@@ -147,19 +135,6 @@ pub fn interpret(
                     .iter()
                     .map(|e| interpret(e, env, table))
                     .collect::<Result<Vec<_>, _>>()?;
-
-                // Arity checks are done by the typechecker
-
-                // if values.len() != def.args.len() {
-                //     return Err(report!(
-                //         *span,
-                //         format!(
-                //             "expected {} arguments, found {}",
-                //             def.args.len(),
-                //             values.len()
-                //         )
-                //     ));
-                // }
 
                 Ok(Value::CaseClassValue(
                     def.name.clone(),
@@ -213,7 +188,7 @@ pub fn interpret(
             Err(report!(
                 join(range(e), *span),
                 format!(
-                    "Match error: no case pattern matches value `{}`.",
+                    "match error: no case pattern matches value `{}`.",
                     scrutinee
                 )
             ))
@@ -223,7 +198,7 @@ pub fn interpret(
             let Value::String(str) = interpret(msg, env, table)? else {
                 return Err(report!(
                     range(msg),
-                    format!("expected boolean, found `{}`", msg.show(0))
+                    format!("expected a boolean, found `{}`", msg.show(0))
                 ));
             };
 

@@ -1,9 +1,10 @@
+use std::collections::{HashMap, VecDeque};
+
 use rac_ast::{
     DefinitionTable, Expr, Name, NominalModule, NominalType, Pattern, SID, Symbol, SymbolGenerator,
     SymbolicClassDef, SymbolicFunDef, SymbolicProgram, SymbolicType, SymbolicTypeDef, VarKind,
 };
 use rac_diagnostics::{Report, Span, Stage};
-use std::collections::{HashMap, VecDeque};
 
 use crate::table::{CallTable, SymbolTable, TypeTable};
 

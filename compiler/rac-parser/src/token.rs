@@ -1,5 +1,6 @@
-use rac_diagnostics::{MID, Span};
 use std::{fmt::Display, ops::Range};
+
+use rac_diagnostics::{MID, Span};
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum TokenKind {

@@ -2,8 +2,7 @@ use std::collections::{HashMap, VecDeque};
 
 use rac_ast::{
     DefinitionTable, Expr, Pattern, SID, Symbol, SymbolGenerator, SymbolicProgram, SymbolicType,
-    VarKind::*, range,
-    environ::Environment
+    VarKind::*, environ::Environment, range,
 };
 use rac_diagnostics::{Report, Stage};
 
@@ -35,11 +34,12 @@ pub fn typecheck(program: &SymbolicProgram, sg: &mut SymbolGenerator) -> Result<
     // Collect constraints from function bodies
     for fdef in program.table.fun_defs.values() {
         let mut env = Environment::new();
+        env.push_scope();
         for (sym, typ) in fdef.args.iter() {
             env.define(sym.id, typ.clone());
         }
-        println!("ha {:?}", env);
-        let fun_constr = collect_constraints(&fdef.body, fdef.rt.clone(), &mut env, &program.table, sg)?;
+        let fun_constr =
+            collect_constraints(&fdef.body, fdef.rt.clone(), &mut env, &program.table, sg)?;
         constraints.extend(fun_constr);
     }
 
@@ -112,10 +112,7 @@ fn collect_constraints(
     match expr {
         Variable(name, s) => match env.lookup(name.id) {
             Some(typ) => Ok(single!(Constraint::new(expected, typ.clone(), *s))),
-            None => {
-                println!("{:?}", env);
-                error!(*s, "Variable not present in the environment.")
-            }
+            None => error!(*s, "Variable not present in the environment."),
         },
         IntLiteral(_, s) => Ok(toplevel_constraint!(IntType, *s)),
         BoolLiteral(_, s) => Ok(toplevel_constraint!(BoolType, *s)),
@@ -179,13 +176,8 @@ fn collect_constraints(
                     *s,
                 ));
                 for (arg_expr, (_, arg_typ)) in args.iter().zip(def.args.iter()) {
-                    let cur_constr = collect_constraints(
-                        arg_expr,
-                        type_subst(arg_typ, &subst),
-                        env,
-                        table,
-                        sg,
-                    )?;
+                    let cur_constr =
+                        collect_constraints(arg_expr, type_subst(arg_typ, &subst), env, table, sg)?;
                     res.extend(cur_constr);
                 }
                 Ok(res)
@@ -209,7 +201,7 @@ fn collect_constraints(
             let mut res = collect_constraints(val, typ.clone(), env, table, sg)?;
             env.push_scope();
             env.define(name.id, typ.clone());
-            println!("ha {:?}", env);
+            // println!("ha {:?}", env);
             let body_constr = collect_constraints(body, expected, env, table, sg)?;
             env.pop_scope();
             res.extend(body_constr);
@@ -217,8 +209,7 @@ fn collect_constraints(
         }
         Ite(cond, thenb, elseb, _) => {
             let mut res = collect_constraints(cond, BoolType, env, table, sg)?;
-            let mut then_constr =
-                collect_constraints(thenb, expected.clone(), env, table, sg)?;
+            let mut then_constr = collect_constraints(thenb, expected.clone(), env, table, sg)?;
             let mut else_constr = collect_constraints(elseb, expected, env, table, sg)?;
             res.append(&mut then_constr);
             res.append(&mut else_constr);
@@ -234,8 +225,7 @@ fn collect_constraints(
                 // cur
                 env.push_scope();
                 env.define_many(binds);
-                let branch_constr =
-                    collect_constraints(branch, expected.clone(), env, table, sg)?;
+                let branch_constr = collect_constraints(branch, expected.clone(), env, table, sg)?;
                 env.pop_scope();
                 res.extend(branch_constr);
             }
@@ -323,7 +313,7 @@ fn type_subst_mut(typ: &mut SymbolicType, from: SID, to: &SymbolicType) {
                 type_subst_mut(param, from, to);
             }
         }
-        Var(name, kind) if from == name.id => *typ = to.clone(),
+        Var(name, _) if from == name.id => *typ = to.clone(),
         _ => {}
     }
 }

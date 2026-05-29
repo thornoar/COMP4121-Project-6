@@ -1,7 +1,10 @@
-use rac_ast::Symbol;
 use std::{
-    cmp::Ordering, fmt::Display, ops::{Add, Div, Mul, Rem, Sub}
+    cmp::Ordering,
+    fmt::Display,
+    ops::{Add, Div, Mul, Rem, Sub},
 };
+
+use rac_ast::Symbol;
 
 #[derive(Clone, Eq, PartialEq)]
 pub enum Value {
@@ -27,7 +30,7 @@ impl Display for Value {
                     .collect::<Vec<String>>()
                     .join(", ");
                 write!(f, "{}({})", name, args_str)
-            },
+            }
         }
     }
 }
