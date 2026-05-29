@@ -9,10 +9,10 @@ use crate::{builtin::*, value::Value};
 mod value;
 mod builtin;
 
-pub fn interpret_program(program: SymbolicProgram) -> Result<(), Report> {
+pub fn interpret(program: SymbolicProgram) -> Result<(), Report> {
     let mut env = Environment::new();
     for expr in &program.exprs {
-        interpret(expr, &mut env, &program.table)?;
+        interpret_expr(expr, &mut env, &program.table)?;
     }
 
     Ok(())
@@ -28,7 +28,7 @@ macro_rules! report {
     };
 }
 
-pub fn interpret(
+pub fn interpret_expr(
     expr: &Expr<Symbol, SymbolicType>,
     env: &mut Environment<Value>,
     table: &DefinitionTable,
@@ -44,43 +44,43 @@ pub fn interpret(
             format!("Variable `{}` not found in scope.", name.name)
         )),
 
-        Expr::Plus(lhs, rhs) => Ok(interpret(lhs, env, table)? + interpret(rhs, env, table)?),
-        Expr::Minus(lhs, rhs) => Ok(interpret(lhs, env, table)? - interpret(rhs, env, table)?),
-        Expr::Times(lhs, rhs) => Ok(interpret(lhs, env, table)? * interpret(rhs, env, table)?),
-        Expr::Div(lhs, rhs) => Ok(interpret(lhs, env, table)? / interpret(rhs, env, table)?),
-        Expr::Mod(lhs, rhs) => Ok(interpret(lhs, env, table)? % interpret(rhs, env, table)?),
+        Expr::Plus(lhs, rhs) => Ok(interpret_expr(lhs, env, table)? + interpret_expr(rhs, env, table)?),
+        Expr::Minus(lhs, rhs) => Ok(interpret_expr(lhs, env, table)? - interpret_expr(rhs, env, table)?),
+        Expr::Times(lhs, rhs) => Ok(interpret_expr(lhs, env, table)? * interpret_expr(rhs, env, table)?),
+        Expr::Div(lhs, rhs) => Ok(interpret_expr(lhs, env, table)? / interpret_expr(rhs, env, table)?),
+        Expr::Mod(lhs, rhs) => Ok(interpret_expr(lhs, env, table)? % interpret_expr(rhs, env, table)?),
         Expr::LessEquals(lhs, rhs) => Ok(Value::Bool(
-            interpret(lhs, env, table)? <= interpret(rhs, env, table)?,
+            interpret_expr(lhs, env, table)? <= interpret_expr(rhs, env, table)?,
         )),
         Expr::LessThan(lhs, rhs) => Ok(Value::Bool(
-            interpret(lhs, env, table)? < interpret(rhs, env, table)?,
+            interpret_expr(lhs, env, table)? < interpret_expr(rhs, env, table)?,
         )),
         Expr::And(lhs, rhs) => {
-            if let Value::Bool(false) = interpret(lhs, env, table)? {
+            if let Value::Bool(false) = interpret_expr(lhs, env, table)? {
                 Ok(Value::Bool(false))
             } else {
-                interpret(rhs, env, table)
+                interpret_expr(rhs, env, table)
             }
         }
         Expr::Or(lhs, rhs) => {
-            if let Value::Bool(true) = interpret(lhs, env, table)? {
+            if let Value::Bool(true) = interpret_expr(lhs, env, table)? {
                 Ok(Value::Bool(true))
             } else {
-                interpret(rhs, env, table)
+                interpret_expr(rhs, env, table)
             }
         }
         Expr::Equals(lhs, rhs) => Ok(Value::Bool(
-            interpret(lhs, env, table)? == interpret(rhs, env, table)?,
+            interpret_expr(lhs, env, table)? == interpret_expr(rhs, env, table)?,
         )),
         Expr::Concat(lhs, rhs) => {
-            let lhs_res = interpret(lhs, env, table)?;
+            let lhs_res = interpret_expr(lhs, env, table)?;
             let Value::String(s1) = lhs_res else {
                 return Err(report!(
                     range(lhs),
                     format!("Expected a string, found `{}`.", lhs_res)
                 ));
             };
-            let rhs_res = interpret(rhs, env, table)?;
+            let rhs_res = interpret_expr(rhs, env, table)?;
             let Value::String(s2) = rhs_res else {
                 return Err(report!(
                     range(lhs),
@@ -91,7 +91,7 @@ pub fn interpret(
         }
 
         Expr::Not(e, _) => {
-            let res = interpret(e, env, table)?;
+            let res = interpret_expr(e, env, table)?;
             let Value::Bool(b) = res else {
                 return Err(report!(
                     range(e),
@@ -102,7 +102,7 @@ pub fn interpret(
             Ok(Value::Bool(!b))
         }
         Expr::Neg(e, _) => {
-            let res = interpret(e, env, table)?;
+            let res = interpret_expr(e, env, table)?;
             let Value::Int(i) = res else {
                 return Err(report!(
                     range(e),
@@ -118,7 +118,7 @@ pub fn interpret(
                 ($fun:ident) => {{
                     let values = args
                         .iter()
-                        .map(|e| interpret(e, env, table))
+                        .map(|e| interpret_expr(e, env, table))
                         .collect::<Result<Vec<_>, _>>()?;
                     return $fun(values, *span);
                 }};
@@ -133,7 +133,7 @@ pub fn interpret(
             if let Some(def) = table.fun_defs.get(&name.id) {
                 let values = args
                     .iter()
-                    .map(|e| interpret(e, env, table))
+                    .map(|e| interpret_expr(e, env, table))
                     .collect::<Result<Vec<_>, _>>()?;
 
                 let map = def
@@ -143,14 +143,14 @@ pub fn interpret(
                     .map(|((sym, _), val)| (sym.id, val));
                 env.push_scope();
                 env.define_many(map);
-                let ret = interpret(&def.body, env, table);
+                let ret = interpret_expr(&def.body, env, table);
                 env.pop_scope();
 
                 ret
             } else if let Some(def) = table.class_defs.get(&name.id) {
                 let values = args
                     .iter()
-                    .map(|e| interpret(e, env, table))
+                    .map(|e| interpret_expr(e, env, table))
                     .collect::<Result<Vec<_>, _>>()?;
 
                 Ok(Value::CaseClassValue(
@@ -163,19 +163,19 @@ pub fn interpret(
         }
 
         Expr::Sequence(discard, ret) => {
-            interpret(discard, env, table)?;
-            interpret(ret, env, table)
+            interpret_expr(discard, env, table)?;
+            interpret_expr(ret, env, table)
         }
         Expr::Let(name, _, value, body, _) => {
-            let value = interpret(value, env, table)?;
+            let value = interpret_expr(value, env, table)?;
             env.push_scope();
             env.define(name.id, value);
-            let res = interpret(body, env, table);
+            let res = interpret_expr(body, env, table);
             env.pop_scope();
             res
         }
         Expr::Ite(cond, then, elze, _) => {
-            let condres = interpret(cond, env, table)?;
+            let condres = interpret_expr(cond, env, table)?;
             let Value::Bool(condval) = condres else {
                 return Err(report!(
                     range(cond),
@@ -184,20 +184,20 @@ pub fn interpret(
             };
 
             if condval {
-                interpret(then, env, table)
+                interpret_expr(then, env, table)
             } else {
-                interpret(elze, env, table)
+                interpret_expr(elze, env, table)
             }
         }
 
         Expr::Match(e, cases, span) => {
-            let scrutinee = interpret(e, env, table)?;
+            let scrutinee = interpret_expr(e, env, table)?;
 
             for (pattern, body) in cases {
                 if let Some(bindings) = match_and_bind(&scrutinee, pattern) {
                     env.push_scope();
                     env.define_many(bindings);
-                    let ret = interpret(body, env, table);
+                    let ret = interpret_expr(body, env, table);
                     env.pop_scope();
 
                     return ret;
@@ -214,7 +214,7 @@ pub fn interpret(
         }
 
         Expr::Error(msg, span) => {
-            let Value::String(str) = interpret(msg, env, table)? else {
+            let Value::String(str) = interpret_expr(msg, env, table)? else {
                 return Err(report!(
                     range(msg),
                     format!("Expected a boolean, found `{}`.", msg.show(0))

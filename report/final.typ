@@ -190,7 +190,7 @@ A deviation from the expected Amy semantics is taken here as a feature, of which
 The public interface of the interpreter is the function
 
 ```rust
-pub fn interpret_program(program: SymbolicProgram) -> Result<(), Report>
+pub fn interpret(program: SymbolicProgram) -> Result<(), Report>
 ```
 
 == Error handling
