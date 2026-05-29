@@ -313,7 +313,7 @@ pub struct SymbolicProgram {
 
 impl SymbolicProgram {
     pub fn print(&self) {
-        println!("");
+        println!();
         for def in self.table.type_defs.values() {
             print!("abstract class {}", def.name);
             if def.type_vars.len() > 0 {
@@ -460,7 +460,7 @@ impl<N: Display, T: Display> Expr<N, T> {
             IntLiteral(v, _) => format!("{}", v),
             BoolLiteral(v, _) => format!("{}", v),
             StringLiteral(v, _) => format!("\"{}\"", v),
-            UnitLiteral(_) => format!("()"),
+            UnitLiteral(_) => "()".to_string(),
             Plus(lhs, rhs) => binop!(lhs, "+", rhs),
             Minus(lhs, rhs) => binop!(lhs, "-", rhs),
             Times(lhs, rhs) => binop!(lhs, "*", rhs),

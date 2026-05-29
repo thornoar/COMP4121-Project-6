@@ -141,7 +141,7 @@ pub fn interpret(
                     values.into_iter().map(Box::new).collect(),
                 ))
             } else {
-                Err(report!(*span, String::from("Unresolved call.")))
+                Err(report!(*span, String::from("unresolved call.")))
             }
         }
 
@@ -160,7 +160,7 @@ pub fn interpret(
             let Value::Bool(condval) = condres else {
                 return Err(report!(
                     range(cond),
-                    format!("Expected a boolean, found `{}`.", condres)
+                    format!("expected a boolean, found `{}`.", condres)
                 ));
             };
 
