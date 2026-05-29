@@ -170,10 +170,11 @@ pub fn interpret(
             interpret(body, env, table)
         }
         Expr::Ite(cond, then, elze, _) => {
-            let Value::Bool(condval) = interpret(cond, env, table)? else {
+            let condres = interpret(cond, env, table)?;
+            let Value::Bool(condval) = condres else {
                 return Err(report!(
                     range(cond),
-                    format!("expected boolean, found `{}`", cond.show(0))
+                    format!("Expected boolean, found `{}`.", condres)
                 ));
             };
 

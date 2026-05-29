@@ -1,7 +1,6 @@
 use rac_ast::Symbol;
 use std::{
-    cmp::Ordering,
-    ops::{Add, Div, Mul, Rem, Sub},
+    cmp::Ordering, fmt::Display, ops::{Add, Div, Mul, Rem, Sub}
 };
 
 #[derive(Clone, Eq, PartialEq)]
@@ -11,6 +10,26 @@ pub enum Value {
     Int(i32),
     String(String),
     Unit,
+}
+
+impl Display for Value {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        use Value as V;
+        match self {
+            V::Bool(val) => write!(f, "{val}"),
+            V::Int(val) => write!(f, "{val}"),
+            V::String(val) => write!(f, "\"{val}\""),
+            V::Unit => write!(f, "()"),
+            V::CaseClassValue(name, args) => {
+                let args_str = args
+                    .iter()
+                    .map(|arg| format!("{}", arg))
+                    .collect::<Vec<String>>()
+                    .join(", ");
+                write!(f, "{}({})", name, args_str)
+            },
+        }
+    }
 }
 
 impl Add for Value {
