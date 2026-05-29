@@ -55,8 +55,8 @@ pub fn deliver(r: &Report, fname: &str, src: &[u8]) {
     eprintln!("Error during the \x1b[34m{}\x1b[0m stage.", r.stage);
 
     macro_rules! prefix {
-        ($line:expr) => {
-            format!("\x1b[34m{:<4}\x1b[0m  ", $line)
+        ($line:expr, $col:expr) => {
+            format!("\x1b[34m{:<4}\x1b[{}m  ", $line, $col)
         };
     }
 
@@ -107,13 +107,13 @@ pub fn deliver(r: &Report, fname: &str, src: &[u8]) {
     if beg_nl_idx > 0 {
         eprint!(
             "{}{}",
-            prefix!(line - 1),
+            prefix!(line - 1, "0"),
             str::from_utf8(&src[newlines[beg_nl_idx - 1]..newlines[beg_nl_idx]]).unwrap_or("")
         );
     }
     eprint!(
         "{}{}",
-        prefix!(line),
+        prefix!(line, "0"),
         str::from_utf8(&src[newlines[beg_nl_idx]..r.range.start]).unwrap_or("")
     );
 
@@ -128,18 +128,18 @@ pub fn deliver(r: &Report, fname: &str, src: &[u8]) {
         while nl_idx < end_nl_idx {
             eprint!(
                 "{}{}",
-                prefix!(line),
+                prefix!(line, "31"),
                 str::from_utf8(&src[newlines[nl_idx]..newlines[nl_idx + 1]]).unwrap_or("")
             );
             nl_idx += 1;
             line += 1;
         }
         eprint!(
-            "{}",
+            "{}{}",
+            prefix!(line, "31"),
             str::from_utf8(&src[newlines[end_nl_idx]..r.range.end]).unwrap_or("")
         );
     } else {
-        // println!("hi");
         eprint!(
             "{}",
             str::from_utf8(&src[r.range.start..r.range.end]).unwrap_or("")
@@ -156,15 +156,15 @@ pub fn deliver(r: &Report, fname: &str, src: &[u8]) {
         if end_nl_idx < len - 2 {
             eprint!(
                 "{}{}",
-                prefix!(line),
-                str::from_utf8(&src[newlines[beg_nl_idx + 1]..newlines[beg_nl_idx + 2]])
+                prefix!(line, "0"),
+                str::from_utf8(&src[newlines[end_nl_idx + 1]..newlines[end_nl_idx + 2]])
                     .unwrap_or("")
             );
         } else {
             eprint!(
                 "{}{}",
-                prefix!(line),
-                str::from_utf8(&src[newlines[beg_nl_idx + 1]..limit]).unwrap_or("")
+                prefix!(line, "0"),
+                str::from_utf8(&src[newlines[end_nl_idx + 1]..limit]).unwrap_or("")
             );
         }
     } else {
