@@ -1,0 +1,5 @@
+object EV
+  def id[A] (x: A): A := x end id
+
+  val x: Boolean = id(6); id(id(x) && false)
+end EV

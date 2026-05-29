@@ -6,6 +6,6 @@ object EM
 
   C3() match {
     case C2(true) => 5
-    case _ => error("hahahah")
+    case _ => error("muahahahaha")
   }
 end EM
