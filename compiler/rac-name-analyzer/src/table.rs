@@ -53,7 +53,6 @@ pub struct SymbolTable<'a> {
     pub class_syms: &'a HashMap<String, HashMap<String, SID>>,
     pub class_defs: &'a HashMap<SID, SymbolicClassDef>,
     pub fun_syms: &'a HashMap<String, HashMap<String, SID>>,
-    pub fname: Option<(String, SID)>,
 }
 
 impl<'a> SymbolTable<'a> {
@@ -65,7 +64,6 @@ impl<'a> SymbolTable<'a> {
         class_syms: &'a HashMap<String, HashMap<String, SID>>,
         class_defs: &'a HashMap<SID, SymbolicClassDef>,
         fun_syms: &'a HashMap<String, HashMap<String, SID>>,
-        fname: Option<(String, SID)>,
     ) -> Self {
         Self {
             cur_mod,
@@ -75,7 +73,6 @@ impl<'a> SymbolTable<'a> {
             class_syms,
             class_defs,
             fun_syms,
-            fname,
         }
     }
 }

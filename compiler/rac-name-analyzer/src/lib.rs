@@ -321,8 +321,7 @@ pub fn resolve(
                     &type_defs,
                     &class_syms,
                     &class_defs,
-                    &fun_syms,
-                    Some((def.name, sym_name.id)),
+                    &fun_syms
                 ),
                 binds,
                 sg,
@@ -360,8 +359,7 @@ pub fn resolve(
                 &type_defs,
                 &class_syms,
                 &class_defs,
-                &fun_syms,
-                None,
+                &fun_syms
             ),
             HashMap::new(),
             sg,
@@ -446,12 +444,14 @@ fn resolve_call(arg: &Name, range: Span, table: &CallTable) -> Result<Symbol, Re
                 &table.fun_syms[table.cur_mod],
                 table.cur_mod
             )?;
-            Ok(Symbol::new(&arg.name, sid))
+            let newname = if table.cur_mod == "Std" { "Std.".to_owned() + &arg.name } else { arg.name.clone() };
+            Ok(Symbol { name: newname, id: sid })
         }
         Some(owner) => match (table.fun_syms.get(owner), table.class_syms.get(owner)) {
             (Some(mp1), Some(mp2)) => {
                 let sid = find_call_id!(&arg.name, range, mp2, mp1, owner)?;
-                Ok(Symbol::new(&arg.name, sid))
+                let newname = if owner == "Std" { "Std.".to_owned() + &arg.name } else { arg.name.clone() };
+                Ok(Symbol { name: newname, id: sid })
             }
             _ => error!(range, format!("No module named `{}`.", owner)),
         },
@@ -571,12 +571,8 @@ fn resolve_expr(
         Not(arg, s) => unop!(*arg, s, Not),
         Neg(arg, s) => unop!(*arg, s, Neg),
         Call(qn, args, s) => {
-            let sym_name = match (&qn.owner, &table.fname) {
-                (None, Some((name, sid))) if qn.name == *name => Ok(Symbol::new(&name, *sid)),
-                _ => resolve_call(&qn, s, &CallTable::from(&*table)),
-            }?;
+            let sym_name = resolve_call(&qn, s, &CallTable::from(&*table))?;
             let mut sym_args = VecDeque::new();
-            // let iter = args.iter().map(|arg| resolve_expr(arg, table, sg))
             for arg in args.into_iter() {
                 let sym_arg = resolve_expr(arg, table, binds.clone(), sg)?;
                 sym_args.push_back(sym_arg);
