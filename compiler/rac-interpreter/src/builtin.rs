@@ -96,3 +96,23 @@ pub fn read_string(
         Err(_) => error!(range, "Could not read string.".to_owned())
     }
 }
+
+pub fn digit_to_string(
+    args: Vec<Value>,
+    range: Span
+) -> Result<Value, Report> {
+    if args.len() != 1 {
+        return error!(range, format!("The standard function `digitToString` takes `1` argument, but was supplied `{}`.", args.len()))
+    }
+
+    match &args[0] {
+        Value::Int(val) => {
+            if *val >= 0 && *val < 10 {
+                Ok(Value::String(format!("{val}")))
+            } else {
+                error!(range, "The standard function `digitToString` only operates on single digits.".to_owned())
+            }
+        },
+        val => error!(range, format!("The standard function `digitToString` takes an `integer` argument, but was provided `{}`.", val))
+    }
+}
